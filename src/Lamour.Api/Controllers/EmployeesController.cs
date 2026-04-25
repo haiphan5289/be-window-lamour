@@ -1,12 +1,13 @@
 using Lamour.Application.Features.Employees.Dtos;
 using Lamour.Application.Features.Employees.UseCases;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace Lamour.Api.Controllers;
 
 [ApiController]
 [Route("api/v1/employees")]
-// TODO: restore [Authorize] once WPF auth flow is wired up
+[Authorize]
 public class EmployeesController : ControllerBase
 {
     private readonly IGetEmployeesUseCase      _getAll;

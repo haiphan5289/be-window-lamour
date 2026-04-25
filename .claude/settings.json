@@ -19,7 +19,14 @@
       "Bash(xargs sed *)",
       "Bash(dotnet-ef --version)",
       "Edit(/.claude/skills/ct-be-to-desktop/**)",
-      "Bash(export PATH=\"$PATH:$HOME/.dotnet/tools\")"
+      "Bash(export PATH=\"$PATH:$HOME/.dotnet/tools\")",
+      "Bash(openssl dgst *)",
+      "Bash(psql 'Host=localhost dbname=lamour_db user=hai.phan' -c ' *)",
+      "Bash(psql -h localhost -d lamour_db -U hai.phan -c ' *)",
+      "Bash(psql -h localhost -d lamour_db -U hai.phan -c \"SELECT id, name, phone, role, password_hash, is_active FROM employees WHERE phone = '0901234567';\")",
+      "Bash(pkill -f \"Lamour.Api\")",
+      "Bash(dotnet run *)",
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\" http://0.0.0.0:5282/api/v1/auth/login -X POST -H \"Content-Type: application/json\" -d '{\"phone\":\"0901234567\",\"password\":\"Admin@123\"}')"
     ],
     "additionalDirectories": [
       "/Users/hai.phan/Library/Developer/Xcode/DerivedData",

@@ -7,7 +7,7 @@ namespace Lamour.Api.Controllers;
 
 [ApiController]
 [Route("api/v1/suppliers")]
-// TODO: restore [Authorize] once WPF auth flow is wired up
+[Authorize]
 public class SuppliersController : ControllerBase
 {
     private readonly IGetSuppliersUseCase      _getAll;

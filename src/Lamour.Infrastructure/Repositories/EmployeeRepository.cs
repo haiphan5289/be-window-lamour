@@ -17,6 +17,9 @@ public class EmployeeRepository : IEmployeeRepository
     public async Task<Employee?> GetByIdAsync(int id, CancellationToken ct = default)
         => await _db.Employees.AsNoTracking().FirstOrDefaultAsync(e => e.Id == id, ct);
 
+    public async Task<Employee?> GetByPhoneAsync(string phone, CancellationToken ct = default)
+        => await _db.Employees.AsNoTracking().FirstOrDefaultAsync(e => e.Phone == phone, ct);
+
     public async Task<Employee> AddAsync(Employee employee, CancellationToken ct = default)
     {
         _db.Employees.Add(employee);

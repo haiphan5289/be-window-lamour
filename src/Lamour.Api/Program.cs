@@ -89,6 +89,10 @@ builder.Services.AddScoped<Lamour.Application.Features.Employees.UseCases.IDelet
 builder.Services.AddScoped<Lamour.Application.Features.Employees.UseCases.IDuplicateEmployeeUseCase,
                            Lamour.Application.Features.Employees.UseCases.DuplicateEmployeeUseCase>();
 
+// ── Auth DI ───────────────────────────────────────────────────────────────────
+builder.Services.AddScoped<Lamour.Application.Features.Auth.UseCases.ILoginUseCase,
+                           Lamour.Application.Features.Auth.UseCases.LoginUseCase>();
+
 var app = builder.Build();
 
 app.UseExceptionHandler();

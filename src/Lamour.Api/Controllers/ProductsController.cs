@@ -1,12 +1,13 @@
 using Lamour.Application.Features.Products.Dtos;
 using Lamour.Application.Features.Products.UseCases;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace Lamour.Api.Controllers;
 
 [ApiController]
 [Route("api/v1/products")]
-// TODO: restore [Authorize] once WPF auth flow is wired up
+[Authorize]
 public class ProductsController : ControllerBase
 {
     private readonly IGetProductsUseCase      _getAll;
