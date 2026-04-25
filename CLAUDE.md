@@ -1,7 +1,17 @@
 # BE Window Lamour — Claude Code Guide
 
 > Backend REST API for the **Lamour** cosmetics business management system.
-> Client: WPF desktop app (`desktop-lamour`). Stack: .NET 8, ASP.NET Core Web API, EF Core + PostgreSQL.
+> Client: WPF desktop app (`desktop-lamour`). Stack: .NET 10, ASP.NET Core Web API, EF Core + PostgreSQL.
+
+## Environment Notes
+
+- **Runtime**: .NET 10 (machine has no .NET 8 — all `.csproj` use `net10.0`)
+- **PostgreSQL**: installed via Homebrew — username is `hai.phan`, not `postgres`
+- **Connection string**: `Host=localhost;Database=lamour_db;Username=hai.phan;Password=`
+- **API listen URL**: `http://0.0.0.0:5282` (bind all interfaces so UTM can reach it)
+- **dotnet-ef PATH**: run `export PATH="$PATH:$HOME/.dotnet/tools"` before `dotnet ef` commands
+- **WPF client runs on**: UTM (Windows VM), IP `192.168.64.2` — MacBook IP from UTM is `192.168.64.1`
+- **UTM sync**: on UTM Terminal 2, run `.\sync.ps1` to robocopy files from `Z:\` → `C:\projects\desktop-lamour\`
 
 ## Agent Routing
 
@@ -12,6 +22,14 @@ When a task matches a domain below, **spawn the appropriate agent** via the Agen
 | Implement feature, fix bug, scaffold layers, wire UseCase | `lamour-be-expert` | implement, add feature, usecase, repository, controller, bug, crash, error, exception |
 | Business rules, domain models, invoice logic, stock, VAT | `lamour-domain-expert` | business rule, domain, inventory, invoice, stock, employee, role, supplier, VAT, validate |
 | Module navigation, architecture, file structure, DI context | `lamour-module-context-expert` | module, architecture, structure, folder, which layer, navigate code |
+
+## Skill Routing
+
+| Task type | Skill | When to invoke |
+|---|---|---|
+| New API feature end-to-end | `/ct-be-to-desktop` | Creating a new module that desktop-lamour WPF must consume |
+| Ask requirements first | `/ct-flipped-interaction` | Vague or underspecified feature request |
+| Full feature pipeline | `/ct-feature-pipeline` | Complete scaffold across all 4 layers |
 
 # BE Desktop Lamour Project - 
 

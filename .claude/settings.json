@@ -17,10 +17,13 @@
       "Bash(export PATH=\"/opt/homebrew/opt/dotnet@8/libexec:$PATH:$HOME/.dotnet/tools\")",
       "Bash(dotnet ef *)",
       "Bash(xargs sed *)",
-      "Bash(dotnet-ef --version)"
+      "Bash(dotnet-ef --version)",
+      "Edit(/.claude/skills/ct-be-to-desktop/**)",
+      "Bash(export PATH=\"$PATH:$HOME/.dotnet/tools\")"
     ],
     "additionalDirectories": [
-      "/Users/hai.phan/Library/Developer/Xcode/DerivedData"
+      "/Users/hai.phan/Library/Developer/Xcode/DerivedData",
+      "/Users/hai.phan/Desktop/haiphan/be-window-lamour/.claude/skills"
     ]
   },
   "hooks": {
