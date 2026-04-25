@@ -59,6 +59,22 @@ builder.Services.AddScoped<Lamour.Application.Features.Products.UseCases.IDelete
 builder.Services.AddScoped<Lamour.Application.Features.Products.UseCases.IDuplicateProductUseCase,
                            Lamour.Application.Features.Products.UseCases.DuplicateProductUseCase>();
 
+// ── Customers DI ──────────────────────────────────────────────────────────────
+builder.Services.AddScoped<Lamour.Application.Features.Customers.Repositories.ICustomerRepository,
+                           Lamour.Infrastructure.Repositories.CustomerRepository>();
+builder.Services.AddScoped<Lamour.Application.Features.Customers.UseCases.IGetCustomersUseCase,
+                           Lamour.Application.Features.Customers.UseCases.GetCustomersUseCase>();
+builder.Services.AddScoped<Lamour.Application.Features.Customers.UseCases.IGetNextCustomerCodeUseCase,
+                           Lamour.Application.Features.Customers.UseCases.GetNextCustomerCodeUseCase>();
+builder.Services.AddScoped<Lamour.Application.Features.Customers.UseCases.ICreateCustomerUseCase,
+                           Lamour.Application.Features.Customers.UseCases.CreateCustomerUseCase>();
+builder.Services.AddScoped<Lamour.Application.Features.Customers.UseCases.IUpdateCustomerUseCase,
+                           Lamour.Application.Features.Customers.UseCases.UpdateCustomerUseCase>();
+builder.Services.AddScoped<Lamour.Application.Features.Customers.UseCases.IDeleteCustomerUseCase,
+                           Lamour.Application.Features.Customers.UseCases.DeleteCustomerUseCase>();
+builder.Services.AddScoped<Lamour.Application.Features.Customers.UseCases.IDuplicateCustomerUseCase,
+                           Lamour.Application.Features.Customers.UseCases.DuplicateCustomerUseCase>();
+
 var app = builder.Build();
 
 app.UseExceptionHandler();
