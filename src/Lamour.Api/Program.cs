@@ -75,6 +75,20 @@ builder.Services.AddScoped<Lamour.Application.Features.Customers.UseCases.IDelet
 builder.Services.AddScoped<Lamour.Application.Features.Customers.UseCases.IDuplicateCustomerUseCase,
                            Lamour.Application.Features.Customers.UseCases.DuplicateCustomerUseCase>();
 
+// ── Employees DI ─────────────────────────────────────────────────────────────
+builder.Services.AddScoped<Lamour.Application.Features.Employees.Repositories.IEmployeeRepository,
+                           Lamour.Infrastructure.Repositories.EmployeeRepository>();
+builder.Services.AddScoped<Lamour.Application.Features.Employees.UseCases.IGetEmployeesUseCase,
+                           Lamour.Application.Features.Employees.UseCases.GetEmployeesUseCase>();
+builder.Services.AddScoped<Lamour.Application.Features.Employees.UseCases.ICreateEmployeeUseCase,
+                           Lamour.Application.Features.Employees.UseCases.CreateEmployeeUseCase>();
+builder.Services.AddScoped<Lamour.Application.Features.Employees.UseCases.IUpdateEmployeeUseCase,
+                           Lamour.Application.Features.Employees.UseCases.UpdateEmployeeUseCase>();
+builder.Services.AddScoped<Lamour.Application.Features.Employees.UseCases.IDeleteEmployeeUseCase,
+                           Lamour.Application.Features.Employees.UseCases.DeleteEmployeeUseCase>();
+builder.Services.AddScoped<Lamour.Application.Features.Employees.UseCases.IDuplicateEmployeeUseCase,
+                           Lamour.Application.Features.Employees.UseCases.DuplicateEmployeeUseCase>();
+
 var app = builder.Build();
 
 app.UseExceptionHandler();

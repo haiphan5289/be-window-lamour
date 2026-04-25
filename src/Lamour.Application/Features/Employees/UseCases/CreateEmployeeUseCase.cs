@@ -1,0 +1,51 @@
+using System.Security.Cryptography;
+using System.Text;
+using Lamour.Application.Features.Employees.Dtos;
+using Lamour.Application.Features.Employees.Repositories;
+using Lamour.Domain.Entities;
+using Lamour.Domain.Exceptions;
+using Microsoft.Extensions.Logging;
+
+namespace Lamour.Application.Features.Employees.UseCases;
+
+public class CreateEmployeeUseCase : ICreateEmployeeUseCase
+{
+    private readonly IEmployeeRepository _repo;
+    private readonly ILogger<CreateEmployeeUseCase> _logger;
+
+    public CreateEmployeeUseCase(IEmployeeRepository repo, ILogger<CreateEmployeeUseCase> logger)
+    {
+        _repo   = repo;
+        _logger = logger;
+    }
+
+    public async Task<EmployeeResponseDto> ExecuteAsync(CreateEmployeeRequestDto request, CancellationToken ct = default)
+    {
+        if (string.IsNullOrWhiteSpace(request.Name))
+            throw new DomainException("Tên nhân viên không được để trống.");
+        if (string.IsNullOrWhiteSpace(request.Phone))
+            throw new DomainException("Số điện thoại không được để trống.");
+
+        if (!Enum.TryParse<EmployeeRole>(request.Role, ignoreCase: true, out var role))
+            throw new DomainException($"Role '{request.Role}' không hợp lệ. Giá trị hợp lệ: Admin, Cashier, Warehouse.");
+
+        var rawPassword = string.IsNullOrWhiteSpace(request.Password) ? request.Phone : request.Password;
+
+        var employee = new Employee
+        {
+            Name         = request.Name.Trim(),
+            Phone        = request.Phone.Trim(),
+            Role         = role,
+            PasswordHash = HashPassword(rawPassword),
+            IsActive     = request.IsActive,
+        };
+
+        var created = await _repo.AddAsync(employee, ct);
+        _logger.LogInformation("Created employee {Id} - {Name}", created.Id, created.Name);
+
+        return GetEmployeesUseCase.MapToDto(created);
+    }
+
+    internal static string HashPassword(string password)
+        => Convert.ToBase64String(SHA256.HashData(Encoding.UTF8.GetBytes(password)));
+}
