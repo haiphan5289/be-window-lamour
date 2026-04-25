@@ -1,0 +1,55 @@
+using Lamour.Api.Middleware;
+using Lamour.Infrastructure.Persistence;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.IdentityModel.Tokens;
+using System.Text;
+
+var builder = WebApplication.CreateBuilder(args);
+
+builder.Services.AddControllers();
+builder.Services.AddExceptionHandler<GlobalExceptionHandler>();
+builder.Services.AddProblemDetails();
+
+// EF Core + PostgreSQL
+builder.Services.AddDbContext<AppDbContext>(options =>
+    options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection")));
+
+// JWT Auth
+var jwtKey = builder.Configuration["Jwt:Key"] ?? "supersecretkey_changeme_32chars!!";
+builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
+    .AddJwtBearer(options =>
+    {
+        options.TokenValidationParameters = new TokenValidationParameters
+        {
+            ValidateIssuerSigningKey = true,
+            IssuerSigningKey         = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtKey)),
+            ValidateIssuer           = false,
+            ValidateAudience         = false,
+        };
+    });
+
+builder.Services.AddAuthorization();
+
+// ── Suppliers DI ──────────────────────────────────────────────────────────────
+builder.Services.AddScoped<Lamour.Application.Features.Suppliers.Repositories.ISupplierRepository,
+                           Lamour.Infrastructure.Repositories.SupplierRepository>();
+builder.Services.AddScoped<Lamour.Application.Features.Suppliers.UseCases.IGetSuppliersUseCase,
+                           Lamour.Application.Features.Suppliers.UseCases.GetSuppliersUseCase>();
+builder.Services.AddScoped<Lamour.Application.Features.Suppliers.UseCases.ICreateSupplierUseCase,
+                           Lamour.Application.Features.Suppliers.UseCases.CreateSupplierUseCase>();
+builder.Services.AddScoped<Lamour.Application.Features.Suppliers.UseCases.IUpdateSupplierUseCase,
+                           Lamour.Application.Features.Suppliers.UseCases.UpdateSupplierUseCase>();
+builder.Services.AddScoped<Lamour.Application.Features.Suppliers.UseCases.IDeleteSupplierUseCase,
+                           Lamour.Application.Features.Suppliers.UseCases.DeleteSupplierUseCase>();
+builder.Services.AddScoped<Lamour.Application.Features.Suppliers.UseCases.IDuplicateSupplierUseCase,
+                           Lamour.Application.Features.Suppliers.UseCases.DuplicateSupplierUseCase>();
+
+var app = builder.Build();
+
+app.UseExceptionHandler();
+app.UseAuthentication();
+app.UseAuthorization();
+app.MapControllers();
+
+app.Run();

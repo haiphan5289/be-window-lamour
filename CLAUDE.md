@@ -13,6 +13,10 @@ When a task matches a domain below, **spawn the appropriate agent** via the Agen
 | Business rules, domain models, invoice logic, stock, VAT | `lamour-domain-expert` | business rule, domain, inventory, invoice, stock, employee, role, supplier, VAT, validate |
 | Module navigation, architecture, file structure, DI context | `lamour-module-context-expert` | module, architecture, structure, folder, which layer, navigate code |
 
+# BE Desktop Lamour Project - 
+
+> **Desktop Lamour Project:** This BE project will serve for desktop-lamour.  Verify every class, interface, route, and EF entity against the codebase before generating code. /Users/hai.phan/Desktop/haiphan/desktop-lamour.
+
 ## Project Stack
 
 - **Platform**: .NET 8, ASP.NET Core Web API

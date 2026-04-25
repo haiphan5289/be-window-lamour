@@ -1,4 +1,28 @@
 {
+  "permissions": {
+    "allow": [
+      "Edit(/.claude/skills/swiftui-design-system/**)",
+      "Bash(sed -i '' 's/                CDSDivider\\(\\)$/                Divider\\(\\).background\\(theme.border.borderDivider\\)/g' \"/Users/hai.phan/Desktop/haiphan/ct-ios-app--v3/.claude/skills/swiftui-design-system/references/review-code-swiftUI.md\")",
+      "Bash(__NEW_LINE_d5aa2bf25acf2988__ sed:*)",
+      "Bash(find /Users/hai.phan/Desktop/haiphan/ct-ios-app--v3 -name *.xcassets -path */CTCorePayment/*)",
+      "Edit(/.claude/skills/review-code/**)",
+      "Bash(swiftlint lint:*)",
+      "Bash(export DOTNET_ROOT=\"/opt/homebrew/opt/dotnet@8/libexec\")",
+      "Bash(/opt/homebrew/opt/dotnet@8/libexec/dotnet --version)",
+      "Bash(export PATH=\"/opt/homebrew/opt/dotnet@8/libexec:$PATH\")",
+      "Bash(dotnet sln *)",
+      "Bash(dotnet add *)",
+      "Bash(dotnet build *)",
+      "Bash(dotnet tool *)",
+      "Bash(export PATH=\"/opt/homebrew/opt/dotnet@8/libexec:$PATH:$HOME/.dotnet/tools\")",
+      "Bash(dotnet ef *)",
+      "Bash(xargs sed *)",
+      "Bash(dotnet-ef --version)"
+    ],
+    "additionalDirectories": [
+      "/Users/hai.phan/Library/Developer/Xcode/DerivedData"
+    ]
+  },
   "hooks": {
     "UserPromptSubmit": [
       {
@@ -37,19 +61,6 @@
           }
         ]
       }
-    ]
-  },
-  "permissions": {
-    "allow": [
-      "Edit(/.claude/skills/swiftui-design-system/**)",
-      "Bash(sed -i '' 's/                CDSDivider\\(\\)$/                Divider\\(\\).background\\(theme.border.borderDivider\\)/g' \"/Users/hai.phan/Desktop/haiphan/ct-ios-app--v3/.claude/skills/swiftui-design-system/references/review-code-swiftUI.md\")",
-      "Bash(__NEW_LINE_d5aa2bf25acf2988__ sed:*)",
-      "Bash(find /Users/hai.phan/Desktop/haiphan/ct-ios-app--v3 -name *.xcassets -path */CTCorePayment/*)",
-      "Edit(/.claude/skills/review-code/**)",
-      "Bash(swiftlint lint:*)"
-    ],
-    "additionalDirectories": [
-      "/Users/hai.phan/Library/Developer/Xcode/DerivedData"
     ]
   }
 }
