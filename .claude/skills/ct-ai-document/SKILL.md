@@ -1,125 +1,68 @@
 ---
 name: ct-ai-document
-description: Generate structured feature documentation for BE ASP.NET Core features — API contract, business rules, data model, layer responsibilities, and test strategy. Use when documenting a completed or in-progress backend feature for the team or WPF client developers.
+description: "Bi-directional feature documentation skill for Cho Tot iOS. Reads from Confluence, Jira, local files, and git diff — then writes a structured .md document co-located with the feature. Use when you want to document a feature with PRD + business context + code."
+argument-hint: "[JIRA: <key>] [CONFLUENCE: <url>] [FILES: <path>] [FEATURE_REQUEST: ...] [CONTEXT: ...] [PRIORITY: ...]"
 ---
 
-# BE Feature Documentation Generator
+# ct-ai-document — Feature Documentation Skill
 
-> Generates structured `.md` documentation for a BE feature covering API contract, domain model, business rules, and test strategy.
+Generate a structured feature document by reading from multiple sources (Jira, Confluence, git diff, local files) and writing a co-located `.md` file inside the repo.
+
+> **Anti-Hallucination:** Apply ALL rules from [@.claude/skills/ct-anti-hallucination/SKILL.md](.claude/skills/ct-anti-hallucination/SKILL.md) before writing any content. Every file path, symbol name, API endpoint, and DS token referenced in the generated document must be verified against the live codebase — never from memory or assumed naming patterns. See also [spec/GUARDRAILS.md](spec/GUARDRAILS.md) for document-specific guardrails.
 
 ---
 
-## Input Format
+## How to Use
 
+**Minimal — auto-detect from current branch:**
 ```
-FEATURE: [Feature name, e.g. "ExportInvoices"]
-STATUS: [Draft | In Progress | Complete]
-SOURCE: [file paths, git diff, or feature description]
+/ct-ai-document
 ```
+The skill reads the branch name (e.g. `revenue/cre-13482-Add-Exit-Survey-Job`), extracts the Jira key (`CRE-13482`), fetches the ticket, and reads the current git diff automatically.
 
----
-
-## Output Structure
-
-```markdown
-# [Feature Name] — BE API Documentation
-
-**Status:** [Draft | In Progress | Complete]
-**Module:** `Lamour.Application/Features/[Feature]`
-**Last Updated:** [date]
-
----
-
-## API Endpoints
-
-| Method | Route | Auth | Description |
-|--------|-------|------|-------------|
-| GET | `/api/v1/[feature]` | Bearer | List all |
-| POST | `/api/v1/[feature]` | Bearer | Create |
-| PUT | `/api/v1/[feature]/{id}` | Bearer | Update |
-| DELETE | `/api/v1/[feature]/{id}` | Bearer | Delete |
-| POST | `/api/v1/[feature]/{id}/confirm` | Bearer | Confirm |
-
----
-
-## Data Model
-
-### [Feature] Entity (`Lamour.Domain/Entities/`)
-| Field | Type | Nullable | Description |
-|-------|------|----------|-------------|
-| Id | int | No | Primary key |
-| Code | string | No | Unique identifier |
-| Name | string | No | Display name |
-| Status | InvoiceStatus | No | Draft/Confirmed/Cancelled |
-
-### Request DTOs
-| DTO | Fields |
-|-----|--------|
-| `Create[Feature]RequestDto` | code, name, ... |
-| `Update[Feature]RequestDto` | code, name, ... |
-
-### Response DTO
-| Field | JSON Key | Type |
-|-------|----------|------|
-| Id | `id` | int |
-| Code | `code` | string |
-| Name | `name` | string |
-
----
-
-## Business Rules
-
-| Rule | Where Enforced | Exception Thrown |
-|------|---------------|-----------------|
-| Code must be unique | `Create[Feature]UseCase` | `DomainException` |
-| Only Draft can be confirmed | `ConfirmUseCase` | `DomainException` |
-| Stock guard | `ConfirmExportUseCase` | `InsufficientStockException` |
-
----
-
-## Layer Responsibilities
-
-| Layer | File | Responsibility |
-|-------|------|---------------|
-| Controller | `[Feature]Controller.cs` | HTTP dispatch, [Authorize] |
-| UseCase | `Create[Feature]UseCase.cs` | Business validation, orchestration |
-| Repository | `[Feature]Repository.cs` | EF Core queries, DTO mapping |
-| Entity | `[Feature].cs` | Domain data, no logic |
-
----
-
-## Test Coverage
-
-| Test | Type | File |
-|------|------|------|
-| Valid create returns DTO | Unit | `Create[Feature]UseCaseTests.cs` |
-| Duplicate code throws | Unit | `Create[Feature]UseCaseTests.cs` |
-| Not found throws 404 | Unit | `Delete[Feature]UseCaseTests.cs` |
-
----
-
-## Integration Notes
-
-**WPF Client:** Calls this endpoint via `[Feature]Service.cs` in `desktop-lamour`.
-Expected JSON format: snake_case (`is_stop_tracking`, not `IsStopTracking`).
-
-**Dependencies:**
-- Requires `AppDbContext.DbSet<[Feature]>`
-- Requires EF migration `Add[Feature]`
+**With explicit overrides:**
+```
+/ct-ai-document
+FEATURE_REQUEST: Add Exit Survey for Job feature
+CONTEXT: Users see an exit survey when closing the job posting flow
+PRIORITY: Medium
+JIRA: CRE-13482
+CONFLUENCE: https://701search.atlassian.net/wiki/spaces/...
+FILES: AppFeatures/CTJOB/CTJOB/Features/ExitSurvey
 ```
 
+All parameters are optional overrides — omit any to fall back to auto-detection.
+
 ---
 
-## Inline Code Documentation Convention
+## File Structure
 
-For complex business logic in UseCases:
+| File | Purpose |
+|------|---------|
+| [spec/INPUT_SCHEMA.md](spec/INPUT_SCHEMA.md) | Invocation syntax and parameter reference |
+| [spec/PROMPT.md](spec/PROMPT.md) | Step-by-step execution workflow (Steps 0–7) |
+| [spec/OUTPUT_SCHEMA.md](spec/OUTPUT_SCHEMA.md) | Document sections and formatting |
+| [spec/GUARDRAILS.md](spec/GUARDRAILS.md) | Anti-hallucination rules and common pitfalls |
+| [CHANGELOG.md](CHANGELOG.md) | Version history |
 
-```csharp
-// Enforce: stock must not go negative before export invoice is confirmed.
-// Each product line is validated independently; first violation throws immediately.
-foreach (var line in invoice.Lines)
-{
-    if (product.StockQuantity < line.Quantity)
-        throw new InsufficientStockException(product.Name, product.StockQuantity, line.Quantity);
-}
+---
+
+## Output Location Rules
+
+| Feature location | Document path |
+|---|---|
+| `AppFeatures/[Module]/...` | `AppFeatures/[Module]/docs/[feature-name].md` |
+| `Libraries/[Lib]/...` | `Libraries/[Lib]/docs/[feature-name].md` |
+| `.claude/skills/[Skill]/...` | `.claude/docs/[feature-name].md` |
+| Cross-cutting / root | `docs/[feature-name].md` |
+
+---
+
+## Execution
+
+Load and execute: **[spec/PROMPT.md](spec/PROMPT.md)**
+
+Fallback — if @-references do not resolve, use the Read tool:
+```
+Read /Users/hai.phan/Desktop/haiphan/ct-ios-app--v3/.claude/skills/ct-ai-document/spec/PROMPT.md
 ```
