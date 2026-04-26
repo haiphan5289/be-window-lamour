@@ -35,7 +35,9 @@
       "Bash(echo \"exit: $?\")",
       "Bash(bash -c 'P=$\\(jq -r \".prompt // \\\\\"\\\\\"\"\\); echo \"P=[$P]\"; echo \"$P\" | grep -qi \"employee\" && echo \"matched\" || echo \"no match\"')",
       "Bash(bash -x /Users/hai.phan/Desktop/haiphan/be-window-lamour/.claude/hooks/read-feature-docs.sh)",
-      "Bash(grep -E \"\\\\.\\(xaml|cs\\)$\")"
+      "Bash(grep -E \"\\\\.\\(xaml|cs\\)$\")",
+      "Bash(chmod +x /Users/hai.phan/Desktop/haiphan/be-window-lamour/.claude/hooks/skill-router.sh)",
+      "Bash(/Users/hai.phan/Desktop/haiphan/be-window-lamour/.claude/hooks/skill-router.sh)"
     ],
     "additionalDirectories": [
       "/Users/hai.phan/Library/Developer/Xcode/DerivedData",
@@ -46,47 +48,10 @@
   "hooks": {
     "UserPromptSubmit": [
       {
-        "matcher": "error|crash|fail|does not conform|build|exception|fatal",
         "hooks": [
           {
             "type": "command",
-            "command": "echo 'Reminder: invoke ct-bugfix-skill before analyzing this problem.'"
-          }
-        ]
-      },
-      {
-        "matcher": "implement|create.*view|swiftui|new screen|add.*component|build.*ui",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "echo 'Reminder: invoke ct-swiftui-expert-skill before writing UI code.'"
-          }
-        ]
-      },
-      {
-        "matcher": "review|check.*code|is this correct|is this right|audit",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "echo 'Reminder: invoke review-code skill before responding.'"
-          }
-        ]
-      },
-      {
-        "matcher": "best way|alternative|options|approach|compare|which.*better",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "echo 'Reminder: invoke ct-alternative-approaches skill before responding.'"
-          }
-        ]
-      },
-      {
-        "matcher": "employee|customer|product|supplier|auth|home|nhân viên|khách hàng|sản phẩm|nhà cung cấp|implement|add|fix|update|create",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "/Users/hai.phan/Desktop/haiphan/be-window-lamour/.claude/hooks/read-feature-docs.sh",
+            "command": "/Users/hai.phan/Desktop/haiphan/be-window-lamour/.claude/hooks/skill-router.sh",
             "timeout": 5
           }
         ]

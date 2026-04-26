@@ -89,6 +89,12 @@ builder.Services.AddScoped<Lamour.Application.Features.Employees.UseCases.IDelet
 builder.Services.AddScoped<Lamour.Application.Features.Employees.UseCases.IDuplicateEmployeeUseCase,
                            Lamour.Application.Features.Employees.UseCases.DuplicateEmployeeUseCase>();
 
+// ── Warehouse DI ─────────────────────────────────────────────────────────────
+builder.Services.AddScoped<Lamour.Application.Features.Warehouse.Repositories.IInventoryRepository,
+                           Lamour.Infrastructure.Repositories.InventoryRepository>();
+builder.Services.AddScoped<Lamour.Application.Features.Warehouse.UseCases.IGetInventorySummaryUseCase,
+                           Lamour.Application.Features.Warehouse.UseCases.GetInventorySummaryUseCase>();
+
 // ── Auth DI ───────────────────────────────────────────────────────────────────
 builder.Services.AddScoped<Lamour.Application.Features.Auth.UseCases.ILoginUseCase,
                            Lamour.Application.Features.Auth.UseCases.LoginUseCase>();
