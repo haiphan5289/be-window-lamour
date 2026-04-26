@@ -3,6 +3,7 @@ using System;
 using Lamour.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
@@ -11,9 +12,11 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace Lamour.Infrastructure.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260426082013_AddPaymentReceipts")]
+    partial class AddPaymentReceipts
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -355,14 +358,6 @@ namespace Lamour.Infrastructure.Migrations
                         .HasColumnType("character varying(100)")
                         .HasColumnName("bank_name");
 
-                    b.Property<string>("Code")
-                        .IsRequired()
-                        .ValueGeneratedOnAdd()
-                        .HasMaxLength(10)
-                        .HasColumnType("character varying(10)")
-                        .HasDefaultValue("")
-                        .HasColumnName("code");
-
                     b.Property<bool>("IsActive")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("boolean")
@@ -371,9 +366,11 @@ namespace Lamour.Infrastructure.Migrations
 
                     b.Property<string>("JobTitle")
                         .IsRequired()
+                        .ValueGeneratedOnAdd()
                         .HasMaxLength(30)
                         .HasColumnType("character varying(30)")
-                        .HasColumnName("job_title");
+                        .HasColumnName("job_title")
+                        .HasDefaultValueSql("'Khac'");
 
                     b.Property<string>("Name")
                         .IsRequired()
@@ -401,14 +398,13 @@ namespace Lamour.Infrastructure.Migrations
 
                     b.Property<string>("Unit")
                         .IsRequired()
+                        .ValueGeneratedOnAdd()
                         .HasMaxLength(10)
                         .HasColumnType("character varying(10)")
-                        .HasColumnName("unit");
+                        .HasColumnName("unit")
+                        .HasDefaultValueSql("'Spa'");
 
                     b.HasKey("Id");
-
-                    b.HasIndex("Code")
-                        .IsUnique();
 
                     b.ToTable("employees", (string)null);
                 });
@@ -439,11 +435,6 @@ namespace Lamour.Infrastructure.Migrations
                     b.Property<int>("CustomerId")
                         .HasColumnType("integer")
                         .HasColumnName("customer_id");
-
-                    b.Property<string>("Description")
-                        .HasMaxLength(300)
-                        .HasColumnType("character varying(300)")
-                        .HasColumnName("description");
 
                     b.Property<int?>("EmployeeId")
                         .HasColumnType("integer")

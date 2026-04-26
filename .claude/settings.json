@@ -39,12 +39,24 @@
       "Bash(chmod +x /Users/hai.phan/Desktop/haiphan/be-window-lamour/.claude/hooks/skill-router.sh)",
       "Bash(/Users/hai.phan/Desktop/haiphan/be-window-lamour/.claude/hooks/skill-router.sh)",
       "Bash(grep -E \"\\\\.\\(cs|csproj\\)$\")",
-      "Bash(grep -E \"\\\\.cs$\")"
+      "Bash(grep -E \"\\\\.cs$\")",
+      "Bash(xargs ls *)",
+      "Bash(psql -h localhost -d lamour_db -U hai.phan -c \"SELECT id, code, name, phone, role, is_active, left\\(password_hash, 20\\) as pw_prefix FROM employees;\")",
+      "Bash(node -e \"const crypto=require\\('crypto'\\); ['Admin@123','admin@123','123456','Admin123'].forEach\\(p => console.log\\(p, '->', Buffer.from\\(crypto.createHash\\('sha256'\\).update\\(p\\).digest\\(\\)\\).toString\\('base64'\\)\\)\\)\")",
+      "Bash(psql -h localhost -d lamour_db -U hai.phan -c \"SELECT id, code, phone, role, is_active, password_hash FROM employees WHERE id=3;\")",
+      "Bash(curl -s -X POST http://localhost:5282/api/v1/auth/login -H 'Content-Type: application/json' -d '{\"phone\":\"0901234567\",\"password\":\"Admin@123\"}')",
+      "Bash(curl -sv -X POST http://localhost:5282/api/v1/auth/login -H 'Content-Type: application/json' -d '{\"phone\":\"0901234567\",\"password\":\"Admin@123\"}')",
+      "Bash(ps -p 78674 -o pid,command)",
+      "Bash(curl -s http://localhost:5282/api/v1/auth/login -X POST -H 'Content-Type: application/json' -d '{\"phone\":\"0901234567\",\"password\":\"Admin@123\"}')",
+      "Bash(python3 -c \"import sys,json; d=json.load\\(sys.stdin\\); print\\(f'✓ Login OK — user_id={d[\\\\\"user_id\\\\\"]}, name={d[\\\\\"name\\\\\"]}, role={d[\\\\\"role\\\\\"]}'\\)\")",
+      "Bash(python3 -c ' *)",
+      "Bash(xargs kill *)"
     ],
     "additionalDirectories": [
       "/Users/hai.phan/Library/Developer/Xcode/DerivedData",
       "/Users/hai.phan/Desktop/haiphan/be-window-lamour/.claude/skills",
-      "/Users/hai.phan/Desktop/haiphan/be-window-lamour/.claude"
+      "/Users/hai.phan/Desktop/haiphan/be-window-lamour/.claude",
+      "/tmp"
     ]
   },
   "hooks": {

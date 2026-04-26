@@ -37,8 +37,11 @@ public class CreateEmployeeUseCase : ICreateEmployeeUseCase
 
         var rawPassword = string.IsNullOrWhiteSpace(request.Password) ? request.Phone : request.Password;
 
+        var code = await _repo.GetNextCodeAsync(ct);
+
         var employee = new Employee
         {
+            Code              = code,
             Name              = request.Name.Trim(),
             Phone             = request.Phone.Trim(),
             Role              = role,

@@ -20,6 +20,17 @@ public class EmployeeRepository : IEmployeeRepository
     public async Task<Employee?> GetByPhoneAsync(string phone, CancellationToken ct = default)
         => await _db.Employees.AsNoTracking().FirstOrDefaultAsync(e => e.Phone == phone, ct);
 
+    public async Task<string> GetNextCodeAsync(CancellationToken ct = default)
+    {
+        var codes = await _db.Employees.AsNoTracking().Select(e => e.Code).ToListAsync(ct);
+        var maxNum = codes
+            .Where(c => c.StartsWith("NV") && c.Length == 7 && int.TryParse(c.Substring(2), out _))
+            .Select(c => int.Parse(c.Substring(2)))
+            .DefaultIfEmpty(0)
+            .Max();
+        return $"NV{(maxNum + 1):D5}";
+    }
+
     public async Task<Employee> AddAsync(Employee employee, CancellationToken ct = default)
     {
         _db.Employees.Add(employee);

@@ -26,6 +26,7 @@ public class GetEmployeesUseCase : IGetEmployeesUseCase
     internal static EmployeeResponseDto MapToDto(Employee e) => new()
     {
         Id                = e.Id,
+        Code              = e.Code,
         Name              = e.Name,
         Phone             = e.Phone,
         Role              = e.Role.ToString(),

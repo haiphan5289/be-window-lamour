@@ -7,6 +7,7 @@ public enum EmployeeJobTitle { Admin, TruongPhong, NhanVienBanHang, NhanVienKho,
 public class Employee
 {
     public int              Id                { get; set; }
+    public string           Code              { get; set; } = string.Empty;  // NV00001
     public string           Name              { get; set; } = string.Empty;
     public string           Phone             { get; set; } = string.Empty;
     public EmployeeRole     Role              { get; set; } = EmployeeRole.Cashier;

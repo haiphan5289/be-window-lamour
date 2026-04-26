@@ -38,4 +38,11 @@ public class CashLedgerRepository : ICashLedgerRepository
 
         return InitialBalance + netBeforeDate;
     }
+
+    public async Task<CashTransaction> AddAsync(CashTransaction tx, CancellationToken ct = default)
+    {
+        _db.CashTransactions.Add(tx);
+        await _db.SaveChangesAsync(ct);
+        return tx;
+    }
 }

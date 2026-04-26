@@ -100,6 +100,12 @@ builder.Services.AddScoped<Lamour.Application.Features.Accounting.Repositories.I
                            Lamour.Infrastructure.Repositories.CashLedgerRepository>();
 builder.Services.AddScoped<Lamour.Application.Features.Accounting.UseCases.IGetCashLedgerUseCase,
                            Lamour.Application.Features.Accounting.UseCases.GetCashLedgerUseCase>();
+builder.Services.AddScoped<Lamour.Application.Features.Accounting.Repositories.IPaymentReceiptRepository,
+                           Lamour.Infrastructure.Repositories.PaymentReceiptRepository>();
+builder.Services.AddScoped<Lamour.Application.Features.Accounting.UseCases.ICreatePaymentReceiptUseCase,
+                           Lamour.Application.Features.Accounting.UseCases.CreatePaymentReceiptUseCase>();
+builder.Services.AddScoped<Lamour.Application.Features.Accounting.UseCases.IGetPaymentReceiptsUseCase,
+                           Lamour.Application.Features.Accounting.UseCases.GetPaymentReceiptsUseCase>();
 
 // ── Auth DI ───────────────────────────────────────────────────────────────────
 builder.Services.AddScoped<Lamour.Application.Features.Auth.UseCases.ILoginUseCase,
