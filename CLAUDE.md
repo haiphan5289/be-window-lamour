@@ -13,6 +13,28 @@
 - **WPF client runs on**: UTM (Windows VM), IP `192.168.64.2` — MacBook IP from UTM is `192.168.64.1`
 - **UTM sync**: on UTM Terminal 2, run `.\sync.ps1` to robocopy files from `Z:\` → `C:\projects\desktop-lamour\`
 
+## Local DB Scripts
+
+Run from project root `/Users/hai.phan/Desktop/haiphan/be-window-lamour`:
+
+```bash
+# 1. Apply all pending migrations to local DB
+export PATH="$PATH:$HOME/.dotnet/tools"
+dotnet ef database update --project src/Lamour.Infrastructure --startup-project src/Lamour.Api
+
+# 2. Create a new migration (replace <Name> with migration name, e.g. AddCashTransactions)
+export PATH="$PATH:$HOME/.dotnet/tools"
+dotnet ef migrations add <Name> --project src/Lamour.Infrastructure --startup-project src/Lamour.Api
+
+# 3. Run the API locally
+dotnet run --project src/Lamour.Api
+
+# 4. Reset DB (drop + recreate + seed)
+export PATH="$PATH:$HOME/.dotnet/tools"
+dotnet ef database drop --project src/Lamour.Infrastructure --startup-project src/Lamour.Api --force
+dotnet ef database update --project src/Lamour.Infrastructure --startup-project src/Lamour.Api
+```
+
 ## Agent Routing
 
 When a task matches a domain below, **spawn the appropriate agent** via the Agent tool before responding directly.

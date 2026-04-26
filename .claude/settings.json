@@ -37,7 +37,9 @@
       "Bash(bash -x /Users/hai.phan/Desktop/haiphan/be-window-lamour/.claude/hooks/read-feature-docs.sh)",
       "Bash(grep -E \"\\\\.\\(xaml|cs\\)$\")",
       "Bash(chmod +x /Users/hai.phan/Desktop/haiphan/be-window-lamour/.claude/hooks/skill-router.sh)",
-      "Bash(/Users/hai.phan/Desktop/haiphan/be-window-lamour/.claude/hooks/skill-router.sh)"
+      "Bash(/Users/hai.phan/Desktop/haiphan/be-window-lamour/.claude/hooks/skill-router.sh)",
+      "Bash(grep -E \"\\\\.\\(cs|csproj\\)$\")",
+      "Bash(grep -E \"\\\\.cs$\")"
     ],
     "additionalDirectories": [
       "/Users/hai.phan/Library/Developer/Xcode/DerivedData",

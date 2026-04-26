@@ -95,6 +95,12 @@ builder.Services.AddScoped<Lamour.Application.Features.Warehouse.Repositories.II
 builder.Services.AddScoped<Lamour.Application.Features.Warehouse.UseCases.IGetInventorySummaryUseCase,
                            Lamour.Application.Features.Warehouse.UseCases.GetInventorySummaryUseCase>();
 
+// ── Accounting DI ─────────────────────────────────────────────────────────────
+builder.Services.AddScoped<Lamour.Application.Features.Accounting.Repositories.ICashLedgerRepository,
+                           Lamour.Infrastructure.Repositories.CashLedgerRepository>();
+builder.Services.AddScoped<Lamour.Application.Features.Accounting.UseCases.IGetCashLedgerUseCase,
+                           Lamour.Application.Features.Accounting.UseCases.GetCashLedgerUseCase>();
+
 // ── Auth DI ───────────────────────────────────────────────────────────────────
 builder.Services.AddScoped<Lamour.Application.Features.Auth.UseCases.ILoginUseCase,
                            Lamour.Application.Features.Auth.UseCases.LoginUseCase>();
