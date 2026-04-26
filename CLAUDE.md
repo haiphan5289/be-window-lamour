@@ -31,6 +31,19 @@ When a task matches a domain below, **spawn the appropriate agent** via the Agen
 | Ask requirements first | `/ct-flipped-interaction` | Vague or underspecified feature request |
 | Full feature pipeline | `/ct-feature-pipeline` | Complete scaffold across all 4 layers |
 
+## Hook Skill Auto-Invoke (REQUIRED)
+
+When `<system-reminder>` contains a `Skills auto-triggered` block from the hook, you **MUST** invoke every listed skill via the `Skill` tool **before** writing any response or code. This is a hard requirement — do not skip, summarize, or assume the skill content.
+
+```
+🔧 Skills auto-triggered:
+   ▶ /skill-name   ← invoke this via Skill tool immediately
+```
+
+- Invoke skills **in the order listed**
+- If multiple skills are listed, invoke all of them sequentially
+- Only after all skills are loaded may you begin your response
+
 # BE Desktop Lamour Project - 
 
 > **Desktop Lamour Project:** This BE project will serve for desktop-lamour.  Verify every class, interface, route, and EF entity against the codebase before generating code. /Users/hai.phan/Desktop/haiphan/desktop-lamour.
