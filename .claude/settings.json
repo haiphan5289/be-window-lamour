@@ -26,11 +26,21 @@
       "Bash(psql -h localhost -d lamour_db -U hai.phan -c \"SELECT id, name, phone, role, password_hash, is_active FROM employees WHERE phone = '0901234567';\")",
       "Bash(pkill -f \"Lamour.Api\")",
       "Bash(dotnet run *)",
-      "Bash(curl -s -o /dev/null -w \"%{http_code}\" http://0.0.0.0:5282/api/v1/auth/login -X POST -H \"Content-Type: application/json\" -d '{\"phone\":\"0901234567\",\"password\":\"Admin@123\"}')"
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\" http://0.0.0.0:5282/api/v1/auth/login -X POST -H \"Content-Type: application/json\" -d '{\"phone\":\"0901234567\",\"password\":\"Admin@123\"}')",
+      "Skill(update-config)",
+      "Skill(update-config:*)",
+      "Bash(bash -c ' *)",
+      "Bash(chmod +x /Users/hai.phan/Desktop/haiphan/be-window-lamour/.claude/hooks/read-feature-docs.sh)",
+      "Bash(/Users/hai.phan/Desktop/haiphan/be-window-lamour/.claude/hooks/read-feature-docs.sh)",
+      "Bash(echo \"exit: $?\")",
+      "Bash(bash -c 'P=$\\(jq -r \".prompt // \\\\\"\\\\\"\"\\); echo \"P=[$P]\"; echo \"$P\" | grep -qi \"employee\" && echo \"matched\" || echo \"no match\"')",
+      "Bash(bash -x /Users/hai.phan/Desktop/haiphan/be-window-lamour/.claude/hooks/read-feature-docs.sh)",
+      "Bash(grep -E \"\\\\.\\(xaml|cs\\)$\")"
     ],
     "additionalDirectories": [
       "/Users/hai.phan/Library/Developer/Xcode/DerivedData",
-      "/Users/hai.phan/Desktop/haiphan/be-window-lamour/.claude/skills"
+      "/Users/hai.phan/Desktop/haiphan/be-window-lamour/.claude/skills",
+      "/Users/hai.phan/Desktop/haiphan/be-window-lamour/.claude"
     ]
   },
   "hooks": {
@@ -68,6 +78,16 @@
           {
             "type": "command",
             "command": "echo 'Reminder: invoke ct-alternative-approaches skill before responding.'"
+          }
+        ]
+      },
+      {
+        "matcher": "employee|customer|product|supplier|auth|home|nhân viên|khách hàng|sản phẩm|nhà cung cấp|implement|add|fix|update|create",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "/Users/hai.phan/Desktop/haiphan/be-window-lamour/.claude/hooks/read-feature-docs.sh",
+            "timeout": 5
           }
         ]
       }

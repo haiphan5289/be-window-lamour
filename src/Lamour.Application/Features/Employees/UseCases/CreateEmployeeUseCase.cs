@@ -29,15 +29,25 @@ public class CreateEmployeeUseCase : ICreateEmployeeUseCase
         if (!Enum.TryParse<EmployeeRole>(request.Role, ignoreCase: true, out var role))
             throw new DomainException($"Role '{request.Role}' không hợp lệ. Giá trị hợp lệ: Admin, Cashier, Warehouse.");
 
+        if (!Enum.TryParse<EmployeeUnit>(request.Unit, ignoreCase: true, out var unit))
+            throw new DomainException($"Đơn vị '{request.Unit}' không hợp lệ. Giá trị hợp lệ: PGD, PKD, Spa, GD, Kho.");
+
+        if (!Enum.TryParse<EmployeeJobTitle>(request.JobTitle, ignoreCase: true, out var jobTitle))
+            throw new DomainException($"Chức danh '{request.JobTitle}' không hợp lệ. Giá trị hợp lệ: Admin, TruongPhong, NhanVienBanHang, NhanVienKho, ThuNgan, Khac.");
+
         var rawPassword = string.IsNullOrWhiteSpace(request.Password) ? request.Phone : request.Password;
 
         var employee = new Employee
         {
-            Name         = request.Name.Trim(),
-            Phone        = request.Phone.Trim(),
-            Role         = role,
-            PasswordHash = HashPassword(rawPassword),
-            IsActive     = request.IsActive,
+            Name              = request.Name.Trim(),
+            Phone             = request.Phone.Trim(),
+            Role              = role,
+            Unit              = unit,
+            JobTitle          = jobTitle,
+            BankAccountNumber = string.IsNullOrWhiteSpace(request.BankAccountNumber) ? null : request.BankAccountNumber.Trim(),
+            BankName          = string.IsNullOrWhiteSpace(request.BankName) ? null : request.BankName.Trim(),
+            PasswordHash      = HashPassword(rawPassword),
+            IsActive          = request.IsActive,
         };
 
         var created = await _repo.AddAsync(employee, ct);

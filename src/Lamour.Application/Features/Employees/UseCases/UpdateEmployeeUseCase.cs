@@ -30,10 +30,20 @@ public class UpdateEmployeeUseCase : IUpdateEmployeeUseCase
         if (!Enum.TryParse<EmployeeRole>(request.Role, ignoreCase: true, out var role))
             throw new DomainException($"Role '{request.Role}' không hợp lệ. Giá trị hợp lệ: Admin, Cashier, Warehouse.");
 
-        employee.Name     = request.Name.Trim();
-        employee.Phone    = request.Phone.Trim();
-        employee.Role     = role;
-        employee.IsActive = request.IsActive;
+        if (!Enum.TryParse<EmployeeUnit>(request.Unit, ignoreCase: true, out var unit))
+            throw new DomainException($"Đơn vị '{request.Unit}' không hợp lệ. Giá trị hợp lệ: PGD, PKD, Spa, GD, Kho.");
+
+        if (!Enum.TryParse<EmployeeJobTitle>(request.JobTitle, ignoreCase: true, out var jobTitle))
+            throw new DomainException($"Chức danh '{request.JobTitle}' không hợp lệ. Giá trị hợp lệ: Admin, TruongPhong, NhanVienBanHang, NhanVienKho, ThuNgan, Khac.");
+
+        employee.Name              = request.Name.Trim();
+        employee.Phone             = request.Phone.Trim();
+        employee.Role              = role;
+        employee.Unit              = unit;
+        employee.JobTitle          = jobTitle;
+        employee.BankAccountNumber = string.IsNullOrWhiteSpace(request.BankAccountNumber) ? null : request.BankAccountNumber.Trim();
+        employee.BankName          = string.IsNullOrWhiteSpace(request.BankName) ? null : request.BankName.Trim();
+        employee.IsActive          = request.IsActive;
 
         if (!string.IsNullOrWhiteSpace(request.Password))
             employee.PasswordHash = CreateEmployeeUseCase.HashPassword(request.Password);
