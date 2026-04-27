@@ -107,6 +107,18 @@ builder.Services.AddScoped<Lamour.Application.Features.Accounting.UseCases.ICrea
 builder.Services.AddScoped<Lamour.Application.Features.Accounting.UseCases.IGetPaymentReceiptsUseCase,
                            Lamour.Application.Features.Accounting.UseCases.GetPaymentReceiptsUseCase>();
 
+// ── WarehouseReceipts DI ──────────────────────────────────────────────────────
+builder.Services.AddScoped<Lamour.Application.Features.WarehouseReceipts.Repositories.IWarehouseReceiptRepository,
+                           Lamour.Infrastructure.Repositories.WarehouseReceiptRepository>();
+builder.Services.AddScoped<Lamour.Application.Features.WarehouseReceipts.UseCases.ICreateWarehouseReceiptUseCase,
+                           Lamour.Application.Features.WarehouseReceipts.UseCases.CreateWarehouseReceiptUseCase>();
+builder.Services.AddScoped<Lamour.Application.Features.WarehouseReceipts.UseCases.IGetWarehouseReceiptsUseCase,
+                           Lamour.Application.Features.WarehouseReceipts.UseCases.GetWarehouseReceiptsUseCase>();
+builder.Services.AddScoped<Lamour.Application.Features.WarehouseReceipts.UseCases.IGetWarehouseReceiptByIdUseCase,
+                           Lamour.Application.Features.WarehouseReceipts.UseCases.GetWarehouseReceiptByIdUseCase>();
+builder.Services.AddScoped<Lamour.Application.Features.WarehouseReceipts.UseCases.IConfirmWarehouseReceiptUseCase,
+                           Lamour.Application.Features.WarehouseReceipts.UseCases.ConfirmWarehouseReceiptUseCase>();
+
 // ── Auth DI ───────────────────────────────────────────────────────────────────
 builder.Services.AddScoped<Lamour.Application.Features.Auth.UseCases.ILoginUseCase,
                            Lamour.Application.Features.Auth.UseCases.LoginUseCase>();
