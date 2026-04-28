@@ -1,6 +1,6 @@
 # Warehouse — Feature Document
 
-> **Jira:** — | **Branch:** `dev` | **Generated:** 2026-04-27
+> **Jira:** — | **Branch:** `dev` | **Generated:** 2026-04-27 | **Updated:** 2026-04-28 (×2)
 
 ---
 
@@ -12,12 +12,14 @@
 - **User story:** Là kế toán hoặc quản lý kho, tôi muốn xem báo cáo tồn kho theo ngày và tạo/xác nhận phiếu nhập kho để kiểm soát lượng hàng và giá trị hàng tồn trong kỳ.
 - **Acceptance criteria:**
   - [x] API trả về danh sách sản phẩm đang hoạt động (`IsActive = true`) sắp xếp theo mã sản phẩm
-  - [x] Mỗi mục trả về: `product_id`, `code`, `name`, `unit`, `opening_qty`, `opening_value`, `import_qty`, `import_value`, `export_qty`, `export_value`, `closing_qty`, `closing_value`
+  - [x] Mỗi mục trả về: `product_id`, `code`, `name`, `unit`, `opening_qty`, `opening_value`, `import_qty`, `import_value`, `export_qty`, `export_value`, `closing_qty`, `closing_value`, `latest_accounting_date`
   - [x] `closing_qty` = `Product.StockQuantity` hiện tại
   - [x] `import_qty` = tổng số lượng từ `warehouse_receipt_lines` có trạng thái Confirmed trong `[from_date, to_date]`
   - [x] `opening_qty` = `closing_qty - import_qty` (xấp xỉ — ExportQty chưa tracked)
   - [x] `closing_value` = `StockQuantity × CostPrice`
   - [x] Endpoint yêu cầu JWT Bearer token hợp lệ (`[Authorize]`)
+  - [x] WPF danh sách hiển thị **1 row per line item** (flatten) — phiếu 3 sản phẩm → 3 rows; phiếu 0 dòng → 1 row trống
+  - [x] Cột `Mã hàng` + `Tên hàng` hiện sau "Số phiếu"; các cột receipt-level lặp lại trên mỗi row
   - [x] `GET /api/v1/warehouse-receipts` — lấy danh sách phiếu nhập kho
   - [x] `POST /api/v1/warehouse-receipts` — tạo phiếu nhập kho (Draft)
   - [x] `POST /api/v1/warehouse-receipts/{id}/confirm` — xác nhận phiếu (cập nhật StockQuantity)
@@ -34,6 +36,8 @@
 | Sắp xếp theo mã sản phẩm | `ORDER BY Code ASC` |
 | Closing qty = StockQuantity | Lấy trực tiếp từ `Products.StockQuantity` |
 | Import qty thực | `SUM(warehouse_receipt_lines.Quantity)` WHERE `Status = Confirmed AND AccountingDate IN [from, to)`, GROUP BY `ProductId` |
+| LatestAccountingDate | `MAX(l.WarehouseReceipt.AccountingDate)` trong cùng GROUP BY — ngày nhập gần nhất của sản phẩm trong kỳ |
+| DateTime Kind=Unspecified | WPF gửi `AccountingDate` với `Kind=Unspecified` (không có offset) để ASP.NET Core không tự chuyển UTC -7h; BE dùng `DateTime.SpecifyKind(..., Utc)` để lưu đúng |
 | Opening qty xấp xỉ | `OpeningQty = ClosingQty - ImportQty` (chưa trừ ExportQty) |
 | Giá trị = Qty × CostPrice | `closing_value = StockQuantity * CostPrice` (giá vốn, không phải giá bán) |
 | Export qty | Hardcode = 0 (TODO: cần ExportInvoice module) |
@@ -57,6 +61,14 @@
 | Application | [IInventoryRepository.cs](../Repositories/IInventoryRepository.cs) | `GetAllActiveAsync` + `GetImportsByProductAsync` |
 | Domain | [Product.cs](src/Lamour.Domain/Entities/Product.cs) | `StockQuantity`, `CostPrice`, `IsActive` |
 | Infrastructure | [InventoryRepository.cs](src/Lamour.Infrastructure/Repositories/InventoryRepository.cs) | EF Core: active products + confirmed receipt lines |
+
+### Key Components — WPF List View (Flat Layout)
+
+| Layer | File | Role |
+|-------|------|------|
+| Presentation | [WarehouseReceiptListView.xaml](src/DesktopLamour/Features/HomePage/Warehouse/Views/WarehouseReceiptListView.xaml) | DataGrid: 1 row per line item; columns: Số phiếu → Mã hàng → Tên hàng → Loại phiếu → ... |
+| Presentation | [WarehouseReceiptListViewModel.cs](src/DesktopLamour/Features/HomePage/Warehouse/ViewModels/WarehouseReceiptListViewModel.cs) | Flattens `WarehouseReceiptResponseDto.Lines` → `ObservableCollection<WarehouseReceiptFlatItem>` via `ToFlatItem()` |
+| Domain | [WarehouseReceiptFlatItem.cs](src/DesktopLamour/Features/HomePage/Warehouse/Domain/Models/WarehouseReceiptFlatItem.cs) | Flat model: receipt-level fields + `ProductCode` + `ProductName` |
 
 ### Key Components — Warehouse Receipts (Phiếu Nhập Kho)
 
@@ -146,11 +158,11 @@ graph TD
 - [GetWarehouseReceiptsUseCase.cs](src/Lamour.Application/Features/WarehouseReceipts/UseCases/GetWarehouseReceiptsUseCase.cs)
 
 ### Application — Repository Contracts
-- [IInventoryRepository.cs](../Repositories/IInventoryRepository.cs) — `GetAllActiveAsync` + `GetImportsByProductAsync(DateOnly, DateOnly)`
+- [IInventoryRepository.cs](../Repositories/IInventoryRepository.cs) — `GetAllActiveAsync` + `GetImportsByProductAsync(DateOnly, DateOnly)` → `Dictionary<int, (int Qty, decimal Value, DateTime? LatestDate)>`
 - [IWarehouseReceiptRepository.cs](src/Lamour.Application/Features/WarehouseReceipts/Repositories/IWarehouseReceiptRepository.cs) — `GetAllAsync`, `GetByIdAsync`, `AddAsync`, `SaveChangesAsync`, `GetNextReceiptNumberAsync`
 
 ### Application — DTOs
-- [InventorySummaryItemDto.cs](../Dtos/InventorySummaryItemDto.cs) — 12 fields snake_case
+- [InventorySummaryItemDto.cs](../Dtos/InventorySummaryItemDto.cs) — 13 fields snake_case (incl. `latest_accounting_date`)
 - [WarehouseReceiptDtos.cs](src/Lamour.Application/Features/WarehouseReceipts/Dtos/WarehouseReceiptDtos.cs) — `CreateWarehouseReceiptRequestDto`, `CreateWarehouseReceiptLineDto`, `WarehouseReceiptResponseDto`, `WarehouseReceiptLineDto`
 
 ### Domain
@@ -189,7 +201,8 @@ public class InventorySummaryItemDto
     [JsonPropertyName("export_qty")]     public int     ExportQty    { get; set; }  // TODO: hardcode 0
     [JsonPropertyName("export_value")]   public decimal ExportValue  { get; set; }  // TODO: hardcode 0
     [JsonPropertyName("closing_qty")]    public int     ClosingQty   { get; set; }  // = Product.StockQuantity
-    [JsonPropertyName("closing_value")]  public decimal ClosingValue { get; set; }  // = StockQuantity × CostPrice
+    [JsonPropertyName("closing_value")]          public decimal   ClosingValue          { get; set; }  // = StockQuantity × CostPrice
+    [JsonPropertyName("latest_accounting_date")] public DateTime? LatestAccountingDate  { get; set; }  // MAX(AccountingDate) of confirmed lines in range; null if no imports
 }
 ```
 
@@ -287,11 +300,14 @@ public class CreateWarehouseReceiptRequestDto
 ## Notes
 
 - **Confirm cập nhật stock trong cùng transaction**: `SaveChangesAsync` lưu cả `WarehouseReceipt.Status` và `Product.StockQuantity` trong cùng 1 lần gọi — EF Core change tracker xử lý cả 2 entity.
-- **Date storage**: `AccountingDate` và `DocumentDate` lưu dưới dạng UTC (`DateTime.SpecifyKind(..., DateTimeKind.Utc)`). WPF client nhận UTC, hiển thị local time.
+- **Date storage**: `AccountingDate` và `DocumentDate` lưu dưới dạng UTC (`DateTime.SpecifyKind(..., DateTimeKind.Utc)`). WPF client nhận UTC, hiển thị local time bằng `.ToLocalTime()`.
+- **Timezone bug fix (2026-04-28)**: `DateTime.Today` trên WPF có `Kind=Local` (UTC+7). Khi System.Text.Json serialize, nó thêm offset `+07:00` → ASP.NET Core tự chuyển sang UTC → ngày bị lùi 1 ngày (2026-04-28 → 2026-04-27T17:00Z). Phiếu nhập kho không xuất hiện trong báo cáo vì `AccountingDate` nằm ngoài range. **Fix:** WPF `WarehouseReceiptFormViewModel.SaveAsync` gửi `DateTime.SpecifyKind(AccountingDate.Date, DateTimeKind.Unspecified)` — JSON serialize không có offset, ASP.NET Core không convert, BE's `SpecifyKind(..., Utc)` lưu đúng ngày UTC.
 - **`GetImportsByProductAsync` query**: dùng navigation property `l.WarehouseReceipt.Status` và `l.WarehouseReceipt.AccountingDate` — EF Core sinh JOIN tự động.
 - **`MapToDto` shared**: `CreateWarehouseReceiptUseCase.MapToDto` là `internal static` — được dùng lại bởi `ConfirmWarehouseReceiptUseCase` và `GetWarehouseReceiptsUseCase`.
+- **WPF — Flat list layout (2026-04-28)**: `WarehouseReceiptListViewModel.Items` đổi từ `ObservableCollection<WarehouseReceiptResponseDto>` → `ObservableCollection<WarehouseReceiptFlatItem>`. `LoadAsync` flatten: mỗi receipt → N rows (1 per line), receipt 0 dòng → 1 row với `ProductCode = ""`. `ToFlatItem()` là private static helper. Dữ liệu `ProductCode`/`ProductName` đến từ `WarehouseReceiptLineDto` đã có sẵn — không cần BE thay đổi. Nút "Ghi sổ" hiện ở tất cả rows của cùng phiếu Draft.
+- **WPF — "Ngày HT" column (2026-04-28)**: `TongHopTonKhoView.xaml` thêm cột 12 "Ngày HT" binding `LatestAccountingDate` với format `yyyyMMddHHmm` (ví dụ: `202604282016`). WPF `WarehouseRepository` map `d.LatestAccountingDate.Value.ToLocalTime()` để hiển thị giờ Việt Nam. Cột này là dạng ID timestamp — không phải label ngày đọc được.
 - **DI registration**: `IInventoryRepository → InventoryRepository` và `IWarehouseReceiptRepository → WarehouseReceiptRepository` đăng ký trong `Program.cs` (Scoped).
 
 ---
 
-*Generated by `/ct-ai-document` on 2026-04-27*
+*Generated by `/ct-ai-document` on 2026-04-27 | Updated 2026-04-28: LatestAccountingDate column + timezone bug fix*

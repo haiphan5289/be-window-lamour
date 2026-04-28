@@ -22,7 +22,7 @@ public class GetInventorySummaryUseCase : IGetInventorySummaryUseCase
     {
         _logger.LogInformation("Fetching inventory summary from {From} to {To}", fromDate, toDate);
 
-        var products = await _repo.GetAllActiveAsync(ct);
+        var products = await _repo.GetAllAsync(ct);
         var imports  = await _repo.GetImportsByProductAsync(fromDate, toDate, ct);
 
         return products.Select(p =>
@@ -37,18 +37,19 @@ public class GetInventorySummaryUseCase : IGetInventorySummaryUseCase
 
             return new InventorySummaryItemDto
             {
-                ProductId    = p.Id,
-                Code         = p.Code,
-                Name         = p.Name,
-                Unit         = p.Unit,
-                OpeningQty   = openingQty,
-                OpeningValue = openingValue,
-                ImportQty    = importQty,
-                ImportValue  = importValue,
-                ExportQty    = 0,
-                ExportValue  = 0,
-                ClosingQty   = closingQty,
-                ClosingValue = closingValue,
+                ProductId            = p.Id,
+                Code                 = p.Code,
+                Name                 = p.Name,
+                Unit                 = p.Unit,
+                OpeningQty           = openingQty,
+                OpeningValue         = openingValue,
+                ImportQty            = importQty,
+                ImportValue          = importValue,
+                ExportQty            = 0,
+                ExportValue          = 0,
+                ClosingQty           = closingQty,
+                ClosingValue         = closingValue,
+                LatestAccountingDate = imp.LatestDate,
             };
         });
     }

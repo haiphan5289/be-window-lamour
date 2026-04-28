@@ -18,7 +18,13 @@ public class InventoryRepository : IInventoryRepository
             .OrderBy(p => p.Code)
             .ToListAsync(ct);
 
-    public async Task<Dictionary<int, (int Qty, decimal Value)>> GetImportsByProductAsync(
+    public async Task<IEnumerable<Product>> GetAllAsync(CancellationToken ct = default)
+        => await _db.Products
+            .AsNoTracking()
+            .OrderBy(p => p.Code)
+            .ToListAsync(ct);
+
+    public async Task<Dictionary<int, (int Qty, decimal Value, DateTime? LatestDate)>> GetImportsByProductAsync(
         DateOnly fromDate, DateOnly toDate, CancellationToken ct = default)
     {
         var fromUtc = DateTime.SpecifyKind(fromDate.ToDateTime(TimeOnly.MinValue), DateTimeKind.Utc);
@@ -32,12 +38,13 @@ public class InventoryRepository : IInventoryRepository
             .GroupBy(l => l.ProductId)
             .Select(g => new
             {
-                ProductId = g.Key,
-                Qty       = g.Sum(l => l.Quantity),
-                Value     = g.Sum(l => l.Amount),
+                ProductId  = g.Key,
+                Qty        = g.Sum(l => l.Quantity),
+                Value      = g.Sum(l => l.Amount),
+                LatestDate = (DateTime?)g.Max(l => l.WarehouseReceipt.AccountingDate),
             })
             .ToListAsync(ct);
 
-        return rows.ToDictionary(r => r.ProductId, r => (r.Qty, r.Value));
+        return rows.ToDictionary(r => r.ProductId, r => (r.Qty, r.Value, r.LatestDate));
     }
 }
