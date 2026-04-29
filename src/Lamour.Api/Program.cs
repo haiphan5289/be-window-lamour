@@ -100,12 +100,18 @@ builder.Services.AddScoped<Lamour.Application.Features.Accounting.Repositories.I
                            Lamour.Infrastructure.Repositories.CashLedgerRepository>();
 builder.Services.AddScoped<Lamour.Application.Features.Accounting.UseCases.IGetCashLedgerUseCase,
                            Lamour.Application.Features.Accounting.UseCases.GetCashLedgerUseCase>();
-builder.Services.AddScoped<Lamour.Application.Features.Accounting.Repositories.IPaymentReceiptRepository,
-                           Lamour.Infrastructure.Repositories.PaymentReceiptRepository>();
-builder.Services.AddScoped<Lamour.Application.Features.Accounting.UseCases.ICreatePaymentReceiptUseCase,
-                           Lamour.Application.Features.Accounting.UseCases.CreatePaymentReceiptUseCase>();
-builder.Services.AddScoped<Lamour.Application.Features.Accounting.UseCases.IGetPaymentReceiptsUseCase,
-                           Lamour.Application.Features.Accounting.UseCases.GetPaymentReceiptsUseCase>();
+builder.Services.AddScoped<Lamour.Application.Features.Accounting.Repositories.IReceiptRepository,
+                           Lamour.Infrastructure.Repositories.ReceiptRepository>();
+builder.Services.AddScoped<Lamour.Application.Features.Accounting.UseCases.IGetReceiptsUseCase,
+                           Lamour.Application.Features.Accounting.UseCases.GetReceiptsUseCase>();
+builder.Services.AddScoped<Lamour.Application.Features.Accounting.UseCases.IGetReceiptByIdUseCase,
+                           Lamour.Application.Features.Accounting.UseCases.GetReceiptByIdUseCase>();
+builder.Services.AddScoped<Lamour.Application.Features.Accounting.UseCases.ICreateReceiptUseCase,
+                           Lamour.Application.Features.Accounting.UseCases.CreateReceiptUseCase>();
+builder.Services.AddScoped<Lamour.Application.Features.Accounting.UseCases.IUpdateReceiptUseCase,
+                           Lamour.Application.Features.Accounting.UseCases.UpdateReceiptUseCase>();
+builder.Services.AddScoped<Lamour.Application.Features.Accounting.UseCases.IDeleteReceiptUseCase,
+                           Lamour.Application.Features.Accounting.UseCases.DeleteReceiptUseCase>();
 
 // ── WarehouseReceipts DI ──────────────────────────────────────────────────────
 builder.Services.AddScoped<Lamour.Application.Features.WarehouseReceipts.Repositories.IWarehouseReceiptRepository,

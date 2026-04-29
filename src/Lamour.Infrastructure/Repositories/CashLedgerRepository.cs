@@ -45,4 +45,11 @@ public class CashLedgerRepository : ICashLedgerRepository
         await _db.SaveChangesAsync(ct);
         return tx;
     }
+
+    public async Task DeleteByReceiptNumberAsync(string receiptNumber, CancellationToken ct = default)
+    {
+        await _db.CashTransactions
+            .Where(c => c.ReceiptNumber == receiptNumber)
+            .ExecuteDeleteAsync(ct);
+    }
 }
