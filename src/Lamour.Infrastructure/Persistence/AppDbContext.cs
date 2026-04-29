@@ -14,6 +14,8 @@ public class AppDbContext : DbContext
     public DbSet<CashTransaction>       CashTransactions       => Set<CashTransaction>();
     public DbSet<Receipt>               Receipts               => Set<Receipt>();
     public DbSet<ReceiptEntry>          ReceiptEntries         => Set<ReceiptEntry>();
+    public DbSet<Payment>               Payments               => Set<Payment>();
+    public DbSet<PaymentEntry>          PaymentEntries         => Set<PaymentEntry>();
     public DbSet<Warehouse>             Warehouses             => Set<Warehouse>();
     public DbSet<WarehouseReceipt>      WarehouseReceipts      => Set<WarehouseReceipt>();
     public DbSet<WarehouseReceiptLine>  WarehouseReceiptLines  => Set<WarehouseReceiptLine>();

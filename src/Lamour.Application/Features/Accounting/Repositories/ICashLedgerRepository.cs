@@ -8,4 +8,5 @@ public interface ICashLedgerRepository
     Task<decimal> GetBalanceBeforeDateAsync(DateTime date, CancellationToken ct = default);
     Task<CashTransaction> AddAsync(CashTransaction tx, CancellationToken ct = default);
     Task DeleteByReceiptNumberAsync(string receiptNumber, CancellationToken ct = default);
+    Task DeleteByPaymentNumberAsync(string paymentNumber, CancellationToken ct = default);
 }

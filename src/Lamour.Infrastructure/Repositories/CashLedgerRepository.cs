@@ -52,4 +52,11 @@ public class CashLedgerRepository : ICashLedgerRepository
             .Where(c => c.ReceiptNumber == receiptNumber)
             .ExecuteDeleteAsync(ct);
     }
+
+    public async Task DeleteByPaymentNumberAsync(string paymentNumber, CancellationToken ct = default)
+    {
+        await _db.CashTransactions
+            .Where(c => c.PaymentNumber == paymentNumber)
+            .ExecuteDeleteAsync(ct);
+    }
 }

@@ -113,6 +113,22 @@ builder.Services.AddScoped<Lamour.Application.Features.Accounting.UseCases.IUpda
 builder.Services.AddScoped<Lamour.Application.Features.Accounting.UseCases.IDeleteReceiptUseCase,
                            Lamour.Application.Features.Accounting.UseCases.DeleteReceiptUseCase>();
 
+// Payment UseCases
+builder.Services.AddScoped<Lamour.Application.Features.Accounting.Repositories.IPaymentRepository,
+                           Lamour.Infrastructure.Repositories.PaymentRepository>();
+builder.Services.AddScoped<Lamour.Application.Features.Accounting.UseCases.IGetPaymentsUseCase,
+                           Lamour.Application.Features.Accounting.UseCases.GetPaymentsUseCase>();
+builder.Services.AddScoped<Lamour.Application.Features.Accounting.UseCases.IGetPaymentByIdUseCase,
+                           Lamour.Application.Features.Accounting.UseCases.GetPaymentByIdUseCase>();
+builder.Services.AddScoped<Lamour.Application.Features.Accounting.UseCases.ICreatePaymentUseCase,
+                           Lamour.Application.Features.Accounting.UseCases.CreatePaymentUseCase>();
+builder.Services.AddScoped<Lamour.Application.Features.Accounting.UseCases.IUpdatePaymentUseCase,
+                           Lamour.Application.Features.Accounting.UseCases.UpdatePaymentUseCase>();
+builder.Services.AddScoped<Lamour.Application.Features.Accounting.UseCases.IDeletePaymentUseCase,
+                           Lamour.Application.Features.Accounting.UseCases.DeletePaymentUseCase>();
+builder.Services.AddScoped<Lamour.Application.Features.Accounting.UseCases.IDuplicatePaymentUseCase,
+                           Lamour.Application.Features.Accounting.UseCases.DuplicatePaymentUseCase>();
+
 // ── WarehouseReceipts DI ──────────────────────────────────────────────────────
 builder.Services.AddScoped<Lamour.Application.Features.WarehouseReceipts.Repositories.IWarehouseReceiptRepository,
                            Lamour.Infrastructure.Repositories.WarehouseReceiptRepository>();
