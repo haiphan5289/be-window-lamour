@@ -106,21 +106,22 @@ Không có auto-generate hay sequence trên BE.
 
 ## Side Effect — CashTransaction (Quỹ Tiền Mặt)
 
-Khi tạo Receipt thành công, tự động tạo 1 row `CashTransaction`:
+Khi **tạo** hoặc **cập nhật** Receipt, tự động sync 1 row `CashTransaction`:
 
-| Field           | Value                                          |
-|-----------------|------------------------------------------------|
-| `AccountingDate`| `receipt.AccountingDate`                       |
-| `DocumentDate`  | `receipt.DocumentDate`                         |
-| `ReceiptNumber` | `receipt.DocumentNumber`                       |
-| `Description`   | description từ entry đầu tiên (hoặc "Thu tiền")|
-| `Account`       | `"111"` (tiền mặt)                             |
-| `CounterAccount`| TK Có của entry đầu tiên (mapped to "111"/"112"/"131"/"334") |
-| `DebitAmount`   | tổng `entries.Sum(e => e.Amount)`              |
-| `CreditAmount`  | `0`                                            |
-| `PersonName`    | `receipt.PayerName`                            |
+| Field           | Value                                                        |
+|-----------------|--------------------------------------------------------------|
+| `AccountingDate`| `receipt.AccountingDate`                                     |
+| `DocumentDate`  | `receipt.DocumentDate`                                       |
+| `ReceiptNumber` | `receipt.DocumentNumber`                                     |
+| `Description`   | `receipt.PayerName` (chỉ tên người nộp, không có prefix)     |
+| `Account`       | `"111"` (tiền mặt)                                           |
+| `CounterAccount`| TK Có của entry đầu tiên → mapped "111"/"112"/"131"/"334"   |
+| `DebitAmount`   | tổng `entries.Sum(e => e.Amount)`                            |
+| `CreditAmount`  | `0`                                                          |
+| `PersonName`    | `receipt.PayerName`                                          |
 
-Khi xóa Receipt, `CashTransaction` tương ứng (theo `ReceiptNumber`) cũng bị xóa.
+**Update flow**: xóa CT cũ theo `DocumentNumber` cũ → tạo CT mới với data mới.
+**Delete flow**: xóa CT theo `DocumentNumber` → xóa Receipt.
 
 ## Domain Entities
 
