@@ -23,17 +23,19 @@
 
 | Rule | Description |
 |------|-------------|
-| Số chứng từ | Prefix `BH`, format `BH{5 digits}` (BH00001...) — sinh tại WPF client |
+| Số chứng từ | Prefix `BC`, format `BC{5 digits}` (BC00001...) — sinh tại WPF client |
 | Ít nhất 1 line | Đơn hàng phải có ít nhất 1 dòng chi tiết — `DomainException` nếu vi phạm |
 | Hàng còn kinh doanh | Chỉ cho phép `IsActive = true` — `DomainException` nếu sản phẩm đã ngưng |
 | Trừ tồn kho | Khi tạo/cập nhật: trừ `StockQuantity` cho mỗi line không phải khuyến mại |
 | Hoàn tồn kho | Khi sửa: hoàn tồn kho cũ trước, rồi trừ tồn kho mới |
 | Hoàn tồn kho khi xóa | Khi xóa: hoàn toàn bộ tồn kho từ các line không phải khuyến mại |
 | Line khuyến mại | `IsPromotion = true` → không trừ/hoàn tồn kho |
+| Tỷ lệ chiết khấu | `DiscountRate` (0–100%) per line — BE clamp `Math.Max(0, Math.Min(100, dto.DiscountRate))` |
+| Tính Thành tiền | `Amount = Quantity × UnitPrice × (1 − DiscountRate / 100)` — BE tính server-side, bỏ qua `amount` từ client |
 | Denormalize | `ProductCode`, `ProductName` được copy vào line tại thời điểm tạo — không phụ thuộc sản phẩm sau này |
 | DateTime UTC | Lưu `DateTime.UtcNow`, WPF convert sang local time khi hiển thị |
 | TK mặc định | `ReceivableAccount = "131"`, `RevenueAccount = "511"` |
-| Tổng tiền | `TotalAmount = SUM(line.Amount)` tính tại BE |
+| Tổng tiền | `TotalAmount = SUM(line.Amount)` (net sau chiết khấu) tính tại BE |
 
 ---
 
@@ -96,7 +98,7 @@ graph TD
 
 ### Domain
 - [`Lamour.Domain/Entities/SalesOrder.cs`](../../../../Lamour.Domain/Entities/SalesOrder.cs) — Entity header: `Id`, `DocumentNumber`, `AccountingDate`, `DocumentDate`, `CustomerId`, `EmployeeId`, `Description`, `Reference`, `PaymentTerms`, `PaymentDueDays`, `PaymentDueDate`, `Notes`, `DeliveryMethod`, `PaymentMethod`, `TotalAmount`, `CreatedAt`
-- [`Lamour.Domain/Entities/SalesOrderLine.cs`](../../../../Lamour.Domain/Entities/SalesOrder.cs) — Line (nested in same file): `ProductId`, `ProductCode`, `ProductName`, `IsPromotion`, `Unit`, `Quantity`, `UnitPrice`, `Amount`, `ReceivableAccount`, `RevenueAccount`
+- [`Lamour.Domain/Entities/SalesOrderLine.cs`](../../../../Lamour.Domain/Entities/SalesOrder.cs) — Line (nested in same file): `ProductId`, `ProductCode`, `ProductName`, `IsPromotion`, `Unit`, `Quantity`, `UnitPrice`, `DiscountRate`, `Amount`, `ReceivableAccount`, `RevenueAccount`
 
 ### Application — Repositories
 - [`Repositories/ISalesOrderRepository.cs`](../Repositories/ISalesOrderRepository.cs) — `GetAllAsync`, `GetByIdAsync`, `GetByIdTrackedAsync`, `AddAsync`, `UpdateAsync`, `DeleteAsync`, `SaveChangesAsync`
@@ -105,13 +107,13 @@ graph TD
 - [`Dtos/SalesOrderResponseDto.cs`](../Dtos/SalesOrderResponseDto.cs) — Response: 18 fields snake_case + `lines[]`
 - [`Dtos/CreateSalesOrderRequestDto.cs`](../Dtos/CreateSalesOrderRequestDto.cs) — Create: 14 header fields + `lines[]`
 - [`Dtos/UpdateSalesOrderRequestDto.cs`](../Dtos/UpdateSalesOrderRequestDto.cs) — Update: same shape as Create
-- [`Dtos/SalesOrderLineDto.cs`](../Dtos/SalesOrderLineDto.cs) — Line: 11 fields (shared cho cả request và response)
+- [`Dtos/SalesOrderLineDto.cs`](../Dtos/SalesOrderLineDto.cs) — Line: 12 fields (shared cho cả request và response); thêm `discount_rate` (decimal, default 0)
 
 ### Application — UseCases
 - [`UseCases/GetSalesOrdersUseCase.cs`](../UseCases/GetSalesOrdersUseCase.cs) — `ExecuteAsync()` → `IEnumerable<SalesOrderResponseDto>`; chứa `internal static MapToDto()` dùng chung
 - [`UseCases/GetSalesOrderByIdUseCase.cs`](../UseCases/GetSalesOrderByIdUseCase.cs) — `ExecuteAsync(id)` → `SalesOrderResponseDto?`
-- [`UseCases/CreateSalesOrderUseCase.cs`](../UseCases/CreateSalesOrderUseCase.cs) — Validate lines → build entity → `AddAsync` → trừ stock
-- [`UseCases/UpdateSalesOrderUseCase.cs`](../UseCases/UpdateSalesOrderUseCase.cs) — `GetByIdTrackedAsync` → hoàn stock cũ → update → trừ stock mới
+- [`UseCases/CreateSalesOrderUseCase.cs`](../UseCases/CreateSalesOrderUseCase.cs) — Validate lines → clamp DiscountRate → tính `Amount = Qty × UnitPrice × (1 − CK/100)` → `AddAsync` → trừ stock
+- [`UseCases/UpdateSalesOrderUseCase.cs`](../UseCases/UpdateSalesOrderUseCase.cs) — `GetByIdTrackedAsync` → hoàn stock cũ → tính Amount mới → update → trừ stock mới
 - [`UseCases/DeleteSalesOrderUseCase.cs`](../UseCases/DeleteSalesOrderUseCase.cs) — `GetByIdTrackedAsync` → hoàn stock → `DeleteAsync`
 
 ### Infrastructure
@@ -133,7 +135,7 @@ graph TD
 ### Request — Create / Update
 ```json
 {
-  "document_number": "BH00001",
+  "document_number": "BC00001",
   "accounting_date": "2026-05-01T00:00:00",
   "document_date": "2026-05-01T00:00:00",
   "customer_id": 1,
@@ -155,7 +157,8 @@ graph TD
       "unit": "Hộp",
       "quantity": 2,
       "unit_price": 150000,
-      "amount": 300000,
+      "discount_rate": 10,
+      "amount": 270000,
       "receivable_account": "131",
       "revenue_account": "511"
     }
@@ -167,7 +170,7 @@ graph TD
 ```json
 {
   "id": 1,
-  "document_number": "BH00001",
+  "document_number": "BC00001",
   "accounting_date": "2026-05-01T00:00:00Z",
   "document_date": "2026-05-01T00:00:00Z",
   "customer_id": 1,
@@ -194,7 +197,8 @@ graph TD
       "unit": "Hộp",
       "quantity": 2,
       "unit_price": 150000,
-      "amount": 300000,
+      "discount_rate": 10,
+      "amount": 270000,
       "receivable_account": "131",
       "revenue_account": "511"
     }
@@ -260,6 +264,17 @@ dotnet ef database update \
 
 Tables created: `sales_orders`, `sales_order_lines`
 
+**Migration 2 — `AddDiscountRateToSalesOrderLines` (2026-05-01):**
+```bash
+dotnet ef migrations add AddDiscountRateToSalesOrderLines \
+  --project src/Lamour.Infrastructure \
+  --startup-project src/Lamour.Api
+dotnet ef database update \
+  --project src/Lamour.Infrastructure \
+  --startup-project src/Lamour.Api
+```
+Column added: `discount_rate numeric(5,2) NOT NULL DEFAULT 0`
+
 ---
 
 ## Test Coverage Notes
@@ -294,4 +309,4 @@ Tables created: `sales_orders`, `sales_order_lines`
 
 ---
 
-*Generated by `/ct-ai-document` on 2026-05-01*
+*Generated by `/ct-ai-document` on 2026-05-01 — Updated 2026-05-01: thêm DiscountRate per line, đổi prefix BH → BC*
