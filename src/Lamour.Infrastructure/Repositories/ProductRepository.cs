@@ -17,6 +17,9 @@ public class ProductRepository : IProductRepository
     public async Task<Product?> GetByIdAsync(int id, CancellationToken ct = default)
         => await _db.Products.AsNoTracking().FirstOrDefaultAsync(p => p.Id == id, ct);
 
+    public async Task<Product?> GetByIdTrackedAsync(int id, CancellationToken ct = default)
+        => await _db.Products.FirstOrDefaultAsync(p => p.Id == id, ct);
+
     public async Task<bool> CodeExistsAsync(string code, int? excludeId = null, CancellationToken ct = default)
         => await _db.Products.AsNoTracking()
             .AnyAsync(p => p.Code.ToLower() == code.ToLower() && (excludeId == null || p.Id != excludeId), ct);

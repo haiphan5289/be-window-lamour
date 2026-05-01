@@ -141,6 +141,20 @@ builder.Services.AddScoped<Lamour.Application.Features.WarehouseReceipts.UseCase
 builder.Services.AddScoped<Lamour.Application.Features.WarehouseReceipts.UseCases.IConfirmWarehouseReceiptUseCase,
                            Lamour.Application.Features.WarehouseReceipts.UseCases.ConfirmWarehouseReceiptUseCase>();
 
+// ── Sales DI ──────────────────────────────────────────────────────────────────
+builder.Services.AddScoped<Lamour.Application.Features.Sales.Repositories.ISalesOrderRepository,
+                           Lamour.Infrastructure.Repositories.SalesOrderRepository>();
+builder.Services.AddScoped<Lamour.Application.Features.Sales.UseCases.IGetSalesOrdersUseCase,
+                           Lamour.Application.Features.Sales.UseCases.GetSalesOrdersUseCase>();
+builder.Services.AddScoped<Lamour.Application.Features.Sales.UseCases.IGetSalesOrderByIdUseCase,
+                           Lamour.Application.Features.Sales.UseCases.GetSalesOrderByIdUseCase>();
+builder.Services.AddScoped<Lamour.Application.Features.Sales.UseCases.ICreateSalesOrderUseCase,
+                           Lamour.Application.Features.Sales.UseCases.CreateSalesOrderUseCase>();
+builder.Services.AddScoped<Lamour.Application.Features.Sales.UseCases.IUpdateSalesOrderUseCase,
+                           Lamour.Application.Features.Sales.UseCases.UpdateSalesOrderUseCase>();
+builder.Services.AddScoped<Lamour.Application.Features.Sales.UseCases.IDeleteSalesOrderUseCase,
+                           Lamour.Application.Features.Sales.UseCases.DeleteSalesOrderUseCase>();
+
 // ── Auth DI ───────────────────────────────────────────────────────────────────
 builder.Services.AddScoped<Lamour.Application.Features.Auth.UseCases.ILoginUseCase,
                            Lamour.Application.Features.Auth.UseCases.LoginUseCase>();
