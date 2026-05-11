@@ -46,7 +46,7 @@ public class PaymentsController : ControllerBase
         [FromBody] CreatePaymentRequestDto request, CancellationToken ct)
     {
         var result = await _createPayment.ExecuteAsync(request, ct);
-        return Created($"api/v1/accounting/payments/{result.Id}", result);
+        return Created($"/api/v1/accounting/payments/{result.Id}", result);
     }
 
     [HttpPut("{id:int}")]
@@ -65,6 +65,6 @@ public class PaymentsController : ControllerBase
     public async Task<IActionResult> DuplicatePayment(int id, CancellationToken ct)
     {
         var result = await _duplicatePayment.ExecuteAsync(id, ct);
-        return Created($"api/v1/accounting/payments/{result.Id}", result);
+        return Created($"/api/v1/accounting/payments/{result.Id}", result);
     }
 }

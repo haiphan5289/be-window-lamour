@@ -46,7 +46,7 @@ public class SalesOrdersController : ControllerBase
         [FromBody] CreateSalesOrderRequestDto request, CancellationToken ct)
     {
         var result = await _create.ExecuteAsync(request, ct);
-        return Created($"api/v1/sales-orders/{result.Id}", result);
+        return Created($"/api/v1/sales-orders/{result.Id}", result);
     }
 
     [HttpPut("{id:int}")]

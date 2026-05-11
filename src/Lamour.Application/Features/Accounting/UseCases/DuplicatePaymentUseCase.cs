@@ -37,8 +37,8 @@ public class DuplicatePaymentUseCase : IDuplicatePaymentUseCase
             PaymentEmployeeId = source.PaymentEmployeeId,
             Attachment        = source.Attachment,
             Reference         = source.Reference,
-            AccountingDate    = DateTime.UtcNow.Date,
-            DocumentDate      = DateTime.UtcNow.Date,
+            AccountingDate    = DateTime.SpecifyKind(DateTime.UtcNow.Date, DateTimeKind.Utc),
+            DocumentDate      = DateTime.SpecifyKind(DateTime.UtcNow.Date, DateTimeKind.Utc),
             DocumentNumber    = $"{source.DocumentNumber}-COPY",
             CreatedAt         = DateTime.UtcNow,
             Entries           = source.Entries.Select(e => new PaymentEntry

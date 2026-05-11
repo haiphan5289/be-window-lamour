@@ -43,7 +43,7 @@ public class ReceiptsController : ControllerBase
         [FromBody] CreateReceiptRequestDto request, CancellationToken ct)
     {
         var result = await _createReceipt.ExecuteAsync(request, ct);
-        return Created($"api/v1/accounting/receipts/{result.Id}", result);
+        return Created($"/api/v1/accounting/receipts/{result.Id}", result);
     }
 
     [HttpPut("{id:int}")]

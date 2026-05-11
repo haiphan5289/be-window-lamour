@@ -35,6 +35,43 @@ dotnet ef database drop --project src/Lamour.Infrastructure --startup-project sr
 dotnet ef database update --project src/Lamour.Infrastructure --startup-project src/Lamour.Api
 ```
 
+## Deployment (Windows Server)
+
+### Khi deploy lên máy chủ/máy client mới — chỗ cần sửa
+
+**1. WPF client — đổi BE URL (10 chỗ)**
+
+File: `/Users/hai.phan/Desktop/haiphan/desktop-lamour/src/DesktopLamour/Features/HomePage/HomeServiceCollectionExtensions.cs`
+
+Tìm tất cả: `http://192.168.64.1:5282` → thay bằng IP server mới (ví dụ: `http://192.168.1.50:5282`)
+
+Có đúng **10 dòng** cần sửa (ProductService, SupplierService, CustomerService, EmployeeService, CashLedgerService, ReceiptService, PaymentService, WarehouseService, WarehouseReceiptService, SalesOrderService).
+
+**2. BE config — đổi PostgreSQL credentials**
+
+File: `src/Lamour.Api/appsettings.Production.json` (tạo mới nếu chưa có)
+```json
+{
+  "ConnectionStrings": {
+    "DefaultConnection": "Host=localhost;Database=lamour_db;Username=lamour;Password=<mật_khẩu>"
+  }
+}
+```
+
+**3. Publish commands**
+
+```bat
+REM BE — chạy trên Windows Server
+publish-be.bat
+
+REM WPF — chạy trên máy developer, copy output sang client
+publish-wpf.bat
+```
+
+Scripts nằm ở: `deploy/publish-be.bat`, `deploy/publish-wpf.bat`, `deploy/installer.iss`, `deploy/postgresql-setup.sql`
+
+---
+
 ## Agent Routing
 
 When a task matches a domain below, **spawn the appropriate agent** via the Agent tool before responding directly.

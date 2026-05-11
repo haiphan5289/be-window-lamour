@@ -46,7 +46,7 @@ public class WarehouseReceiptsController : ControllerBase
         [FromBody] CreateWarehouseReceiptRequestDto request, CancellationToken ct)
     {
         var result = await _create.ExecuteAsync(request, ct);
-        return Created($"api/v1/warehouse-receipts/{result.Id}", result);
+        return Created($"/api/v1/warehouse-receipts/{result.Id}", result);
     }
 
     [HttpPost("{id:int}/confirm")]
