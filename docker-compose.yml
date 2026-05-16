@@ -1,0 +1,32 @@
+services:
+  db:
+    image: postgres:16
+    environment:
+      POSTGRES_USER: lamour
+      POSTGRES_PASSWORD: lamour123
+      POSTGRES_DB: lamour_db
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U lamour -d lamour_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  api:
+    build: .
+    ports:
+      - "5282:5282"
+    environment:
+      ASPNETCORE_ENVIRONMENT: Production
+      ConnectionStrings__DefaultConnection: "Host=db;Database=lamour_db;Username=lamour;Password=lamour123"
+      Jwt__Key: "supersecretkey_changeme_32chars!!"
+      ASPNETCORE_URLS: "http://0.0.0.0:5282"
+    depends_on:
+      db:
+        condition: service_healthy
+
+volumes:
+  postgres_data:

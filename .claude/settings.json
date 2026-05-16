@@ -57,7 +57,22 @@
       "Bash(psql -U hai.phan -d lamour_db -c \"SELECT id, document_number FROM payments ORDER BY id;\")",
       "Bash(psql -U hai.phan -d lamour_db -c 'SELECT \"Id\", \"DocumentNumber\" FROM payments ORDER BY \"Id\";')",
       "Bash(psql -U hai.phan -d lamour_db -c 'SELECT COUNT\\(*\\), MIN\\(\"DocumentNumber\"\\), MAX\\(\"DocumentNumber\"\\) FROM payments;')",
-      "Bash(psql -U hai.phan -d lamour_db -c 'DELETE FROM payments WHERE \"DocumentNumber\" NOT LIKE '\"'\"'PC%'\"'\"'; SELECT COUNT\\(*\\) AS remaining FROM payments;')"
+      "Bash(psql -U hai.phan -d lamour_db -c 'DELETE FROM payments WHERE \"DocumentNumber\" NOT LIKE '\"'\"'PC%'\"'\"'; SELECT COUNT\\(*\\) AS remaining FROM payments;')",
+      "Skill(review-code)",
+      "Skill(review-code:*)",
+      "Skill(ct-chain-of-thought)",
+      "Skill(ct-chain-of-thought:*)",
+      "Skill(ct-alternative-approaches)",
+      "Skill(ct-alternative-approaches:*)",
+      "Skill(ct-be-to-desktop)",
+      "Skill(ct-be-to-desktop:*)",
+      "Skill(ct-bugfix-skill)",
+      "Skill(ct-bugfix-skill:*)",
+      "Bash(zip -r LamourApi.zip api-win/)",
+      "Bash(zip -r LamourApi.zip api-win/ -q)",
+      "Bash(dotnet publish *)",
+      "Bash(rm -f LamourDesktop.zip)",
+      "Bash(zip -r LamourDesktop.zip desktop-win/)"
     ],
     "additionalDirectories": [
       "/Users/hai.phan/Library/Developer/Xcode/DerivedData",
