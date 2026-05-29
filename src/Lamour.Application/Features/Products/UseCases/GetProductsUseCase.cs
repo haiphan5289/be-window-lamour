@@ -22,16 +22,6 @@ public class GetProductsUseCase : IGetProductsUseCase
         return products.Select(MapToDto);
     }
 
-    private static ProductResponseDto MapToDto(Domain.Entities.Product p) => new()
-    {
-        Id            = p.Id,
-        Code          = p.Code,
-        Name          = p.Name,
-        Category      = p.Category,
-        Unit          = p.Unit,
-        CostPrice     = p.CostPrice,
-        SellingPrice  = p.SellingPrice,
-        StockQuantity = p.StockQuantity,
-        IsActive      = p.IsActive,
-    };
+    private static ProductResponseDto MapToDto(Domain.Entities.Product p) =>
+        CreateProductUseCase.MapToDto(p);
 }

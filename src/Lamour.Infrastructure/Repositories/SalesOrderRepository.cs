@@ -16,7 +16,7 @@ public class SalesOrderRepository : ISalesOrderRepository
             .AsNoTracking()
             .Include(o => o.Customer)
             .Include(o => o.Employee)
-            .Include(o => o.Lines).ThenInclude(l => l.Product)
+            .Include(o => o.Lines)
             .OrderByDescending(o => o.CreatedAt)
             .ToListAsync(ct);
 
@@ -25,14 +25,14 @@ public class SalesOrderRepository : ISalesOrderRepository
             .AsNoTracking()
             .Include(o => o.Customer)
             .Include(o => o.Employee)
-            .Include(o => o.Lines).ThenInclude(l => l.Product)
+            .Include(o => o.Lines)
             .FirstOrDefaultAsync(o => o.Id == id, ct);
 
     public async Task<SalesOrder?> GetByIdTrackedAsync(int id, CancellationToken ct = default)
         => await _db.SalesOrders
             .Include(o => o.Customer)
             .Include(o => o.Employee)
-            .Include(o => o.Lines).ThenInclude(l => l.Product)
+            .Include(o => o.Lines)
             .FirstOrDefaultAsync(o => o.Id == id, ct);
 
     public async Task<SalesOrder> AddAsync(SalesOrder order, CancellationToken ct = default)
@@ -61,4 +61,21 @@ public class SalesOrderRepository : ISalesOrderRepository
 
     public async Task SaveChangesAsync(CancellationToken ct = default)
         => await _db.SaveChangesAsync(ct);
+
+    public async Task<int> GetNextCodeNumberAsync(CancellationToken ct = default)
+    {
+        const string prefix = "BC";
+        var numbers = await _db.SalesOrders
+            .AsNoTracking()
+            .Select(o => o.DocumentNumber)
+            .Where(n => n.StartsWith(prefix))
+            .ToListAsync(ct);
+
+        var max = numbers
+            .Select(n => int.TryParse(n[prefix.Length..], out var num) ? num : 0)
+            .DefaultIfEmpty(0)
+            .Max();
+
+        return max + 1;
+    }
 }

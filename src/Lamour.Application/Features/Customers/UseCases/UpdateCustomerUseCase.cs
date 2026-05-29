@@ -30,6 +30,7 @@ public class UpdateCustomerUseCase : IUpdateCustomerUseCase
         customer.CustomerGroup = request.CustomerGroup;
         customer.TaxCode       = request.TaxCode;
         customer.Phone         = request.Phone;
+        customer.SaleCare      = request.SaleCare;
 
         var updated = await _repo.UpdateAsync(customer, ct);
         _logger.LogInformation("Updated customer {Id}", id);
@@ -44,6 +45,7 @@ public class UpdateCustomerUseCase : IUpdateCustomerUseCase
             CustomerGroup = updated.CustomerGroup,
             TaxCode       = updated.TaxCode,
             Phone         = updated.Phone,
+            SaleCare      = updated.SaleCare,
         };
     }
 }

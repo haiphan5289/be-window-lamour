@@ -3,6 +3,7 @@ using System;
 using Lamour.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
@@ -11,9 +12,11 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace Lamour.Infrastructure.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260523100425_AddSaleCareToCustomers")]
+    partial class AddSaleCareToCustomers
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -553,21 +556,6 @@ namespace Lamour.Infrastructure.Migrations
                         .HasColumnType("numeric(18,2)")
                         .HasColumnName("cost_price");
 
-                    b.Property<string>("ExciseTaxGroup")
-                        .HasMaxLength(100)
-                        .HasColumnType("character varying(100)")
-                        .HasColumnName("excise_tax_group");
-
-                    b.Property<decimal?>("ExportTaxRate")
-                        .HasPrecision(18, 2)
-                        .HasColumnType("numeric(18,2)")
-                        .HasColumnName("export_tax_rate");
-
-                    b.Property<decimal?>("ImportTaxRate")
-                        .HasPrecision(18, 2)
-                        .HasColumnType("numeric(18,2)")
-                        .HasColumnName("import_tax_rate");
-
                     b.Property<bool>("IsActive")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("boolean")
@@ -591,21 +579,11 @@ namespace Lamour.Infrastructure.Migrations
                         .HasDefaultValue(0)
                         .HasColumnName("stock_quantity");
 
-                    b.Property<string>("TaxReductionType")
-                        .HasMaxLength(20)
-                        .HasColumnType("character varying(20)")
-                        .HasColumnName("tax_reduction_type");
-
                     b.Property<string>("Unit")
                         .IsRequired()
                         .HasMaxLength(50)
                         .HasColumnType("character varying(50)")
                         .HasColumnName("unit");
-
-                    b.Property<string>("VatRate")
-                        .HasMaxLength(20)
-                        .HasColumnType("character varying(20)")
-                        .HasColumnName("vat_rate");
 
                     b.HasKey("Id");
 
@@ -728,79 +706,63 @@ namespace Lamour.Infrastructure.Migrations
                 {
                     b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("integer")
-                        .HasColumnName("id");
+                        .HasColumnType("integer");
 
                     NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
 
                     b.Property<DateTime>("AccountingDate")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("accounting_date");
+                        .HasColumnType("timestamp with time zone");
 
                     b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("created_at");
+                        .HasColumnType("timestamp with time zone");
 
                     b.Property<int>("CustomerId")
-                        .HasColumnType("integer")
-                        .HasColumnName("customer_id");
+                        .HasColumnType("integer");
 
                     b.Property<string>("DeliveryMethod")
                         .HasMaxLength(200)
-                        .HasColumnType("character varying(200)")
-                        .HasColumnName("delivery_method");
+                        .HasColumnType("character varying(200)");
 
                     b.Property<string>("Description")
                         .HasMaxLength(500)
-                        .HasColumnType("character varying(500)")
-                        .HasColumnName("description");
+                        .HasColumnType("character varying(500)");
 
                     b.Property<DateTime>("DocumentDate")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("document_date");
+                        .HasColumnType("timestamp with time zone");
 
                     b.Property<string>("DocumentNumber")
                         .IsRequired()
                         .HasMaxLength(50)
-                        .HasColumnType("character varying(50)")
-                        .HasColumnName("document_number");
+                        .HasColumnType("character varying(50)");
 
                     b.Property<int?>("EmployeeId")
-                        .HasColumnType("integer")
-                        .HasColumnName("employee_id");
+                        .HasColumnType("integer");
 
                     b.Property<string>("Notes")
                         .HasMaxLength(1000)
-                        .HasColumnType("character varying(1000)")
-                        .HasColumnName("notes");
+                        .HasColumnType("character varying(1000)");
 
                     b.Property<DateTime?>("PaymentDueDate")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("payment_due_date");
+                        .HasColumnType("timestamp with time zone");
 
                     b.Property<int?>("PaymentDueDays")
-                        .HasColumnType("integer")
-                        .HasColumnName("payment_due_days");
+                        .HasColumnType("integer");
 
                     b.Property<string>("PaymentMethod")
                         .HasMaxLength(200)
-                        .HasColumnType("character varying(200)")
-                        .HasColumnName("payment_method");
+                        .HasColumnType("character varying(200)");
 
                     b.Property<string>("PaymentTerms")
                         .HasMaxLength(200)
-                        .HasColumnType("character varying(200)")
-                        .HasColumnName("payment_terms");
+                        .HasColumnType("character varying(200)");
 
                     b.Property<string>("Reference")
                         .HasMaxLength(200)
-                        .HasColumnType("character varying(200)")
-                        .HasColumnName("reference");
+                        .HasColumnType("character varying(200)");
 
                     b.Property<decimal>("TotalAmount")
                         .HasPrecision(18, 2)
-                        .HasColumnType("numeric(18,2)")
-                        .HasColumnName("total_amount");
+                        .HasColumnType("numeric(18,2)");
 
                     b.HasKey("Id");
 
@@ -820,73 +782,60 @@ namespace Lamour.Infrastructure.Migrations
                 {
                     b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("integer")
-                        .HasColumnName("id");
+                        .HasColumnType("integer");
 
                     NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
 
                     b.Property<decimal>("Amount")
                         .HasPrecision(18, 2)
-                        .HasColumnType("numeric(18,2)")
-                        .HasColumnName("amount");
+                        .HasColumnType("numeric(18,2)");
 
                     b.Property<decimal>("DiscountRate")
                         .ValueGeneratedOnAdd()
                         .HasPrecision(5, 2)
                         .HasColumnType("numeric(5,2)")
-                        .HasDefaultValue(0m)
-                        .HasColumnName("discount_rate");
+                        .HasDefaultValue(0m);
 
                     b.Property<bool>("IsPromotion")
-                        .HasColumnType("boolean")
-                        .HasColumnName("is_promotion");
+                        .HasColumnType("boolean");
 
                     b.Property<string>("ProductCode")
                         .IsRequired()
                         .HasMaxLength(50)
-                        .HasColumnType("character varying(50)")
-                        .HasColumnName("product_code");
+                        .HasColumnType("character varying(50)");
 
                     b.Property<int>("ProductId")
-                        .HasColumnType("integer")
-                        .HasColumnName("product_id");
+                        .HasColumnType("integer");
 
                     b.Property<string>("ProductName")
                         .IsRequired()
                         .HasMaxLength(200)
-                        .HasColumnType("character varying(200)")
-                        .HasColumnName("product_name");
+                        .HasColumnType("character varying(200)");
 
                     b.Property<int>("Quantity")
-                        .HasColumnType("integer")
-                        .HasColumnName("quantity");
+                        .HasColumnType("integer");
 
                     b.Property<string>("ReceivableAccount")
                         .IsRequired()
                         .HasMaxLength(20)
-                        .HasColumnType("character varying(20)")
-                        .HasColumnName("receivable_account");
+                        .HasColumnType("character varying(20)");
 
                     b.Property<string>("RevenueAccount")
                         .IsRequired()
                         .HasMaxLength(20)
-                        .HasColumnType("character varying(20)")
-                        .HasColumnName("revenue_account");
+                        .HasColumnType("character varying(20)");
 
                     b.Property<int>("SalesOrderId")
-                        .HasColumnType("integer")
-                        .HasColumnName("sales_order_id");
+                        .HasColumnType("integer");
 
                     b.Property<string>("Unit")
                         .IsRequired()
                         .HasMaxLength(50)
-                        .HasColumnType("character varying(50)")
-                        .HasColumnName("unit");
+                        .HasColumnType("character varying(50)");
 
                     b.Property<decimal>("UnitPrice")
                         .HasPrecision(18, 2)
-                        .HasColumnType("numeric(18,2)")
-                        .HasColumnName("unit_price");
+                        .HasColumnType("numeric(18,2)");
 
                     b.HasKey("Id");
 

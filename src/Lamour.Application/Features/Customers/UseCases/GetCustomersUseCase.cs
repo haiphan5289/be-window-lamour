@@ -33,5 +33,6 @@ public class GetCustomersUseCase : IGetCustomersUseCase
         CustomerGroup = c.CustomerGroup,
         TaxCode       = c.TaxCode,
         Phone         = c.Phone,
+        SaleCare      = c.SaleCare,
     };
 }

@@ -1,6 +1,6 @@
 # Sales Orders — Feature Document (BE)
 
-> **Jira:** — | **Branch:** `dev` | **Generated:** 2026-05-01
+> **Jira:** — | **Branch:** `dev` | **Generated:** 2026-05-01 | **Last updated:** 2026-05-23
 
 ---
 
@@ -16,6 +16,7 @@
   - [x] `POST /api/v1/sales-orders` tạo mới, trừ tồn kho cho từng line (ngoại trừ line khuyến mại)
   - [x] `PUT /api/v1/sales-orders/{id}` cập nhật, hoàn tồn kho cũ rồi trừ tồn kho mới
   - [x] `DELETE /api/v1/sales-orders/{id}` xóa, hoàn tồn kho về khi xóa
+  - [x] `GET /api/v1/sales-orders/next-code` trả số chứng từ tiếp theo dạng `BC{5 digits}`
 
 ---
 
@@ -48,6 +49,7 @@
 | Controller | `Lamour.Api/Controllers/SalesOrdersController.cs` | HTTP entry point, 5 actions |
 | UseCase | `UseCases/GetSalesOrdersUseCase.cs` | Fetch & map tất cả đơn hàng |
 | UseCase | `UseCases/GetSalesOrderByIdUseCase.cs` | Fetch một đơn theo id |
+| UseCase | `UseCases/GetNextSalesOrderCodeUseCase.cs` | Trả số chứng từ tiếp theo (lightweight, không JOIN) |
 | UseCase | `UseCases/CreateSalesOrderUseCase.cs` | Validate → persist → trừ tồn kho |
 | UseCase | `UseCases/UpdateSalesOrderUseCase.cs` | Hoàn tồn kho cũ → update → trừ tồn kho mới |
 | UseCase | `UseCases/DeleteSalesOrderUseCase.cs` | Hoàn tồn kho → xóa |
@@ -101,7 +103,8 @@ graph TD
 - [`Lamour.Domain/Entities/SalesOrderLine.cs`](../../../../Lamour.Domain/Entities/SalesOrder.cs) — Line (nested in same file): `ProductId`, `ProductCode`, `ProductName`, `IsPromotion`, `Unit`, `Quantity`, `UnitPrice`, `DiscountRate`, `Amount`, `ReceivableAccount`, `RevenueAccount`
 
 ### Application — Repositories
-- [`Repositories/ISalesOrderRepository.cs`](../Repositories/ISalesOrderRepository.cs) — `GetAllAsync`, `GetByIdAsync`, `GetByIdTrackedAsync`, `AddAsync`, `UpdateAsync`, `DeleteAsync`, `SaveChangesAsync`
+- [`Repositories/ISalesOrderRepository.cs`](../Repositories/ISalesOrderRepository.cs) — `GetAllAsync`, `GetByIdAsync`, `GetByIdTrackedAsync`, `AddAsync`, `UpdateAsync`, `DeleteAsync`, `SaveChangesAsync`, `GetNextCodeNumberAsync`
+  - `GetNextCodeNumberAsync`: query chỉ cột `DocumentNumber` (không JOIN) → lấy max prefix `BC` → trả `int`
 
 ### Application — DTOs
 - [`Dtos/SalesOrderResponseDto.cs`](../Dtos/SalesOrderResponseDto.cs) — Response: 18 fields snake_case + `lines[]`
@@ -111,6 +114,7 @@ graph TD
 
 ### Application — UseCases
 - [`UseCases/GetSalesOrdersUseCase.cs`](../UseCases/GetSalesOrdersUseCase.cs) — `ExecuteAsync()` → `IEnumerable<SalesOrderResponseDto>`; chứa `internal static MapToDto()` dùng chung
+- [`UseCases/GetNextSalesOrderCodeUseCase.cs`](../UseCases/GetNextSalesOrderCodeUseCase.cs) — `ExecuteAsync()` → `string` (`BC00001`...); gọi `GetNextCodeNumberAsync`, format `$"BC{n:D5}"`
 - [`UseCases/GetSalesOrderByIdUseCase.cs`](../UseCases/GetSalesOrderByIdUseCase.cs) — `ExecuteAsync(id)` → `SalesOrderResponseDto?`
 - [`UseCases/CreateSalesOrderUseCase.cs`](../UseCases/CreateSalesOrderUseCase.cs) — Validate lines → clamp DiscountRate → tính `Amount = Qty × UnitPrice × (1 − CK/100)` → `AddAsync` → trừ stock
 - [`UseCases/UpdateSalesOrderUseCase.cs`](../UseCases/UpdateSalesOrderUseCase.cs) — `GetByIdTrackedAsync` → hoàn stock cũ → tính Amount mới → update → trừ stock mới
@@ -128,6 +132,7 @@ graph TD
 |--------|----------|-------|--------|
 | `GET` | `/api/v1/sales-orders` | — | `SalesOrderResponseDto[]` |
 | `GET` | `/api/v1/sales-orders/{id}` | — | `SalesOrderResponseDto` (200) / 404 |
+| `GET` | `/api/v1/sales-orders/next-code` | — | `{ "code": "BC00006" }` (200) |
 | `POST` | `/api/v1/sales-orders` | `CreateSalesOrderRequestDto` | `SalesOrderResponseDto` (201) |
 | `PUT` | `/api/v1/sales-orders/{id}` | `UpdateSalesOrderRequestDto` | `SalesOrderResponseDto` (200) |
 | `DELETE` | `/api/v1/sales-orders/{id}` | — | 204 No Content |
@@ -243,6 +248,7 @@ graph TD
 builder.Services.AddScoped<ISalesOrderRepository, SalesOrderRepository>();
 builder.Services.AddScoped<IGetSalesOrdersUseCase, GetSalesOrdersUseCase>();
 builder.Services.AddScoped<IGetSalesOrderByIdUseCase, GetSalesOrderByIdUseCase>();
+builder.Services.AddScoped<IGetNextSalesOrderCodeUseCase, GetNextSalesOrderCodeUseCase>();
 builder.Services.AddScoped<ICreateSalesOrderUseCase, CreateSalesOrderUseCase>();
 builder.Services.AddScoped<IUpdateSalesOrderUseCase, UpdateSalesOrderUseCase>();
 builder.Services.AddScoped<IDeleteSalesOrderUseCase, DeleteSalesOrderUseCase>();
@@ -275,6 +281,22 @@ dotnet ef database update \
 ```
 Column added: `discount_rate numeric(5,2) NOT NULL DEFAULT 0`
 
+**Migration 3 — `RenameSalesOrderColumnsToSnakeCase` (2026-05-23):**
+```bash
+dotnet ef migrations add RenameSalesOrderColumnsToSnakeCase \
+  --project src/Lamour.Infrastructure \
+  --startup-project src/Lamour.Api
+dotnet ef database update \
+  --project src/Lamour.Infrastructure \
+  --startup-project src/Lamour.Api
+```
+Root cause: `SalesOrderConfiguration` không có `HasColumnName()` → EF Core dùng PascalCase C# property names → PostgreSQL tạo cột có dấu nháy kép (`"Id"`, `"DocumentNumber"`...) thay vì snake_case (`id`, `document_number`...).
+
+Đã rename toàn bộ 17 cột `sales_orders` + 13 cột `sales_order_lines` từ PascalCase sang snake_case.
+FK constraints và indexes cũng được rename tương ứng.
+
+Fix: Thêm `HasColumnName("snake_case")` vào tất cả property trong `SalesOrderConfiguration` và `SalesOrderLineConfiguration`.
+
 ---
 
 ## Test Coverage Notes
@@ -306,7 +328,10 @@ Column added: `discount_rate numeric(5,2) NOT NULL DEFAULT 0`
 - `SalesOrderLine` được lưu trong cùng file với `SalesOrder` entity
 - `SalesOrderLineConfiguration` được đặt trong cùng file với `SalesOrderConfiguration` — cả hai đều tự động được đăng ký qua `ApplyConfigurationsFromAssembly`
 - `IProductRepository.GetByIdTrackedAsync` được thêm mới cho Sales (và các module khác cần tracked update)
+- `GET /api/v1/sales-orders/next-code` là endpoint lightweight — chỉ query cột `document_number`, không JOIN — thay cho WPF tự tính từ full-list fetch
 
 ---
 
-*Generated by `/ct-ai-document` on 2026-05-01 — Updated 2026-05-01: thêm DiscountRate per line, đổi prefix BH → BC*
+*Generated by `/ct-ai-document` on 2026-05-01*
+*Updated 2026-05-01: thêm DiscountRate per line, đổi prefix BH → BC*
+*Updated 2026-05-23: thêm `GET next-code` endpoint + `GetNextSalesOrderCodeUseCase`; migration 3 rename columns sang snake_case; cập nhật DI*

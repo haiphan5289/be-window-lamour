@@ -1,4 +1,5 @@
 using Lamour.Domain.Entities;
+using Lamour.Domain.Enums;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
@@ -19,6 +20,12 @@ public class ProductConfiguration : IEntityTypeConfiguration<Product>
         builder.Property(p => p.SellingPrice).HasColumnName("selling_price").HasPrecision(18, 2).IsRequired();
         builder.Property(p => p.StockQuantity).HasColumnName("stock_quantity").HasDefaultValue(0);
         builder.Property(p => p.IsActive).HasColumnName("is_active").HasDefaultValue(true);
+
+        builder.Property(p => p.VatRate).HasColumnName("vat_rate").HasConversion<string>().HasMaxLength(20);
+        builder.Property(p => p.TaxReductionType).HasColumnName("tax_reduction_type").HasConversion<string>().HasMaxLength(20);
+        builder.Property(p => p.ImportTaxRate).HasColumnName("import_tax_rate").HasPrecision(18, 2);
+        builder.Property(p => p.ExportTaxRate).HasColumnName("export_tax_rate").HasPrecision(18, 2);
+        builder.Property(p => p.ExciseTaxGroup).HasColumnName("excise_tax_group").HasMaxLength(100);
 
         builder.HasIndex(p => p.Code).IsUnique().HasFilter("code <> ''");
     }

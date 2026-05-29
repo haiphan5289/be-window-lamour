@@ -74,6 +74,8 @@ builder.Services.AddScoped<Lamour.Application.Features.Customers.UseCases.IDelet
                            Lamour.Application.Features.Customers.UseCases.DeleteCustomerUseCase>();
 builder.Services.AddScoped<Lamour.Application.Features.Customers.UseCases.IDuplicateCustomerUseCase,
                            Lamour.Application.Features.Customers.UseCases.DuplicateCustomerUseCase>();
+builder.Services.AddScoped<Lamour.Application.Features.Customers.UseCases.IImportExcelCustomersUseCase,
+                           Lamour.Infrastructure.UseCases.ImportExcelCustomersUseCase>();
 
 // ── Employees DI ─────────────────────────────────────────────────────────────
 builder.Services.AddScoped<Lamour.Application.Features.Employees.Repositories.IEmployeeRepository,
@@ -154,6 +156,8 @@ builder.Services.AddScoped<Lamour.Application.Features.Sales.UseCases.IUpdateSal
                            Lamour.Application.Features.Sales.UseCases.UpdateSalesOrderUseCase>();
 builder.Services.AddScoped<Lamour.Application.Features.Sales.UseCases.IDeleteSalesOrderUseCase,
                            Lamour.Application.Features.Sales.UseCases.DeleteSalesOrderUseCase>();
+builder.Services.AddScoped<Lamour.Application.Features.Sales.UseCases.IGetNextSalesOrderCodeUseCase,
+                           Lamour.Application.Features.Sales.UseCases.GetNextSalesOrderCodeUseCase>();
 
 // ── Auth DI ───────────────────────────────────────────────────────────────────
 builder.Services.AddScoped<Lamour.Application.Features.Auth.UseCases.ILoginUseCase,

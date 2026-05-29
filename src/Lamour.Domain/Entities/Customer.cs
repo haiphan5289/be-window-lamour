@@ -10,4 +10,5 @@ public class Customer
     public string CustomerGroup { get; set; } = string.Empty;
     public string TaxCode       { get; set; } = string.Empty;
     public string Phone         { get; set; } = string.Empty;
+    public string SaleCare      { get; set; } = string.Empty;
 }

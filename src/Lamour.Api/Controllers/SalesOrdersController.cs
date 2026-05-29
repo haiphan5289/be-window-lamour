@@ -10,29 +10,36 @@ namespace Lamour.Api.Controllers;
 [Authorize]
 public class SalesOrdersController : ControllerBase
 {
-    private readonly IGetSalesOrdersUseCase    _getAll;
-    private readonly IGetSalesOrderByIdUseCase _getById;
-    private readonly ICreateSalesOrderUseCase  _create;
-    private readonly IUpdateSalesOrderUseCase  _update;
-    private readonly IDeleteSalesOrderUseCase  _delete;
+    private readonly IGetSalesOrdersUseCase         _getAll;
+    private readonly IGetSalesOrderByIdUseCase      _getById;
+    private readonly IGetNextSalesOrderCodeUseCase  _getNextCode;
+    private readonly ICreateSalesOrderUseCase       _create;
+    private readonly IUpdateSalesOrderUseCase       _update;
+    private readonly IDeleteSalesOrderUseCase       _delete;
 
     public SalesOrdersController(
-        IGetSalesOrdersUseCase    getAll,
-        IGetSalesOrderByIdUseCase getById,
-        ICreateSalesOrderUseCase  create,
-        IUpdateSalesOrderUseCase  update,
-        IDeleteSalesOrderUseCase  delete)
+        IGetSalesOrdersUseCase        getAll,
+        IGetSalesOrderByIdUseCase     getById,
+        IGetNextSalesOrderCodeUseCase getNextCode,
+        ICreateSalesOrderUseCase      create,
+        IUpdateSalesOrderUseCase      update,
+        IDeleteSalesOrderUseCase      delete)
     {
-        _getAll  = getAll;
-        _getById = getById;
-        _create  = create;
-        _update  = update;
-        _delete  = delete;
+        _getAll      = getAll;
+        _getById     = getById;
+        _getNextCode = getNextCode;
+        _create      = create;
+        _update      = update;
+        _delete      = delete;
     }
 
     [HttpGet]
     public async Task<IActionResult> GetAll(CancellationToken ct)
         => Ok(await _getAll.ExecuteAsync(ct));
+
+    [HttpGet("next-code")]
+    public async Task<IActionResult> GetNextCode(CancellationToken ct)
+        => Ok(new { code = await _getNextCode.ExecuteAsync(ct) });
 
     [HttpGet("{id:int}")]
     public async Task<IActionResult> GetById(int id, CancellationToken ct)

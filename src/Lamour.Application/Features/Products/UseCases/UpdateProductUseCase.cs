@@ -33,29 +33,23 @@ public class UpdateProductUseCase : IUpdateProductUseCase
         if (!string.IsNullOrWhiteSpace(request.Code) && await _repo.CodeExistsAsync(request.Code, excludeId: id, ct: ct))
             throw new DomainException($"Product with code '{request.Code}' already exists.");
 
-        product.Code          = request.Code.Trim();
-        product.Name          = request.Name.Trim();
-        product.Category      = request.Category.Trim();
-        product.Unit          = request.Unit;
-        product.CostPrice     = request.CostPrice;
-        product.SellingPrice  = request.SellingPrice;
-        product.StockQuantity = request.StockQuantity;
-        product.IsActive      = request.IsActive;
+        product.Code             = request.Code.Trim();
+        product.Name             = request.Name.Trim();
+        product.Category         = request.Category.Trim();
+        product.Unit             = request.Unit;
+        product.CostPrice        = request.CostPrice;
+        product.SellingPrice     = request.SellingPrice;
+        product.StockQuantity    = request.StockQuantity;
+        product.IsActive         = request.IsActive;
+        product.VatRate          = CreateProductUseCase.ParseVatRate(request.VatRate);
+        product.TaxReductionType = CreateProductUseCase.ParseTaxReductionStatus(request.TaxReductionType);
+        product.ImportTaxRate    = request.ImportTaxRate;
+        product.ExportTaxRate    = request.ExportTaxRate;
+        product.ExciseTaxGroup   = request.ExciseTaxGroup;
 
         var updated = await _repo.UpdateAsync(product, ct);
         _logger.LogInformation("Updated product {Id}", id);
 
-        return new ProductResponseDto
-        {
-            Id            = updated.Id,
-            Code          = updated.Code,
-            Name          = updated.Name,
-            Category      = updated.Category,
-            Unit          = updated.Unit,
-            CostPrice     = updated.CostPrice,
-            SellingPrice  = updated.SellingPrice,
-            StockQuantity = updated.StockQuantity,
-            IsActive      = updated.IsActive,
-        };
+        return CreateProductUseCase.MapToDto(updated);
     }
 }

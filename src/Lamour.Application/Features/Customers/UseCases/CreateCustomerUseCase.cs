@@ -33,6 +33,7 @@ public class CreateCustomerUseCase : ICreateCustomerUseCase
             CustomerGroup = request.CustomerGroup,
             TaxCode       = request.TaxCode,
             Phone         = request.Phone,
+            SaleCare      = request.SaleCare,
         };
 
         var created = await _repo.AddAsync(customer, ct);
@@ -51,5 +52,6 @@ public class CreateCustomerUseCase : ICreateCustomerUseCase
         CustomerGroup = c.CustomerGroup,
         TaxCode       = c.TaxCode,
         Phone         = c.Phone,
+        SaleCare      = c.SaleCare,
     };
 }

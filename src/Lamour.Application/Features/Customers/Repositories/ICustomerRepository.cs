@@ -8,6 +8,7 @@ public interface ICustomerRepository
     Task<Customer?> GetByIdAsync(int id, CancellationToken ct = default);
     Task<string> GetNextCodeAsync(CancellationToken ct = default);
     Task<Customer> AddAsync(Customer customer, CancellationToken ct = default);
+    Task AddRangeAsync(IEnumerable<Customer> customers, CancellationToken ct = default);
     Task<Customer> UpdateAsync(Customer customer, CancellationToken ct = default);
     Task DeleteAsync(Customer customer, CancellationToken ct = default);
 }

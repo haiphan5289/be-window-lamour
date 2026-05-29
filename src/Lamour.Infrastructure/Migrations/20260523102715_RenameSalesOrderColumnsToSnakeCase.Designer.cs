@@ -3,6 +3,7 @@ using System;
 using Lamour.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
@@ -11,9 +12,11 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace Lamour.Infrastructure.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260523102715_RenameSalesOrderColumnsToSnakeCase")]
+    partial class RenameSalesOrderColumnsToSnakeCase
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -553,21 +556,6 @@ namespace Lamour.Infrastructure.Migrations
                         .HasColumnType("numeric(18,2)")
                         .HasColumnName("cost_price");
 
-                    b.Property<string>("ExciseTaxGroup")
-                        .HasMaxLength(100)
-                        .HasColumnType("character varying(100)")
-                        .HasColumnName("excise_tax_group");
-
-                    b.Property<decimal?>("ExportTaxRate")
-                        .HasPrecision(18, 2)
-                        .HasColumnType("numeric(18,2)")
-                        .HasColumnName("export_tax_rate");
-
-                    b.Property<decimal?>("ImportTaxRate")
-                        .HasPrecision(18, 2)
-                        .HasColumnType("numeric(18,2)")
-                        .HasColumnName("import_tax_rate");
-
                     b.Property<bool>("IsActive")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("boolean")
@@ -591,21 +579,11 @@ namespace Lamour.Infrastructure.Migrations
                         .HasDefaultValue(0)
                         .HasColumnName("stock_quantity");
 
-                    b.Property<string>("TaxReductionType")
-                        .HasMaxLength(20)
-                        .HasColumnType("character varying(20)")
-                        .HasColumnName("tax_reduction_type");
-
                     b.Property<string>("Unit")
                         .IsRequired()
                         .HasMaxLength(50)
                         .HasColumnType("character varying(50)")
                         .HasColumnName("unit");
-
-                    b.Property<string>("VatRate")
-                        .HasMaxLength(20)
-                        .HasColumnType("character varying(20)")
-                        .HasColumnName("vat_rate");
 
                     b.HasKey("Id");
 

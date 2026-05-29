@@ -29,30 +29,24 @@ public class DuplicateProductUseCase : IDuplicateProductUseCase
 
         var copy = new Product
         {
-            Code          = newCode,
-            Name          = source.Name,
-            Category      = source.Category,
-            Unit          = source.Unit,
-            CostPrice     = source.CostPrice,
-            SellingPrice  = source.SellingPrice,
-            StockQuantity = source.StockQuantity,
-            IsActive      = source.IsActive,
+            Code             = newCode,
+            Name             = source.Name,
+            Category         = source.Category,
+            Unit             = source.Unit,
+            CostPrice        = source.CostPrice,
+            SellingPrice     = source.SellingPrice,
+            StockQuantity    = source.StockQuantity,
+            IsActive         = source.IsActive,
+            VatRate          = source.VatRate,
+            TaxReductionType = source.TaxReductionType,
+            ImportTaxRate    = source.ImportTaxRate,
+            ExportTaxRate    = source.ExportTaxRate,
+            ExciseTaxGroup   = source.ExciseTaxGroup,
         };
 
         var created = await _repo.AddAsync(copy, ct);
         _logger.LogInformation("Duplicated product {SourceId} → {NewId}", id, created.Id);
 
-        return new ProductResponseDto
-        {
-            Id            = created.Id,
-            Code          = created.Code,
-            Name          = created.Name,
-            Category      = created.Category,
-            Unit          = created.Unit,
-            CostPrice     = created.CostPrice,
-            SellingPrice  = created.SellingPrice,
-            StockQuantity = created.StockQuantity,
-            IsActive      = created.IsActive,
-        };
+        return CreateProductUseCase.MapToDto(created);
     }
 }

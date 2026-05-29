@@ -10,6 +10,20 @@ DOCS=""
 BE="/Users/hai.phan/Desktop/haiphan/be-window-lamour/src/Lamour.Application/Features"
 APP="/Users/hai.phan/Desktop/haiphan/desktop-lamour/src/DesktopLamour/Features/HomePage"
 
+# ── Explicit /skill-name detection — user typed /skill directly ──────────────
+# If prompt starts with /skill-name, respect it and skip keyword matching.
+EXPLICIT=$(echo "$P" | grep -oE '^/[a-zA-Z0-9_-]+' | head -1 | sed 's|^/||')
+if [ -n "$EXPLICIT" ]; then
+  SKILLS+=("$EXPLICIT")
+  echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+  echo "🔧 Skills auto-triggered:"
+  for s in "${SKILLS[@]}"; do
+    echo "   ▶ /$s"
+  done
+  echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+  exit 0
+fi
+
 # ── Skill matchers (ordered: specific → general) ─────────────────────────────
 
 # ct-bugfix-skill — runtime errors, crashes, exceptions

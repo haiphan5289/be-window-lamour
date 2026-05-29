@@ -10,17 +10,22 @@ public class SalesOrderConfiguration : IEntityTypeConfiguration<SalesOrder>
     {
         builder.ToTable("sales_orders");
         builder.HasKey(x => x.Id);
-        builder.Property(x => x.DocumentNumber).HasMaxLength(50).IsRequired();
-        builder.Property(x => x.AccountingDate).IsRequired();
-        builder.Property(x => x.DocumentDate).IsRequired();
-        builder.Property(x => x.Description).HasMaxLength(500);
-        builder.Property(x => x.Reference).HasMaxLength(200);
-        builder.Property(x => x.PaymentTerms).HasMaxLength(200);
-        builder.Property(x => x.Notes).HasMaxLength(1000);
-        builder.Property(x => x.DeliveryMethod).HasMaxLength(200);
-        builder.Property(x => x.PaymentMethod).HasMaxLength(200);
-        builder.Property(x => x.TotalAmount).HasPrecision(18, 2).IsRequired();
-        builder.Property(x => x.CreatedAt).IsRequired();
+        builder.Property(x => x.Id).HasColumnName("id");
+        builder.Property(x => x.DocumentNumber).HasColumnName("document_number").HasMaxLength(50).IsRequired();
+        builder.Property(x => x.AccountingDate).HasColumnName("accounting_date").IsRequired();
+        builder.Property(x => x.DocumentDate).HasColumnName("document_date").IsRequired();
+        builder.Property(x => x.CustomerId).HasColumnName("customer_id");
+        builder.Property(x => x.EmployeeId).HasColumnName("employee_id");
+        builder.Property(x => x.Description).HasColumnName("description").HasMaxLength(500);
+        builder.Property(x => x.Reference).HasColumnName("reference").HasMaxLength(200);
+        builder.Property(x => x.PaymentTerms).HasColumnName("payment_terms").HasMaxLength(200);
+        builder.Property(x => x.PaymentDueDays).HasColumnName("payment_due_days");
+        builder.Property(x => x.PaymentDueDate).HasColumnName("payment_due_date");
+        builder.Property(x => x.Notes).HasColumnName("notes").HasMaxLength(1000);
+        builder.Property(x => x.DeliveryMethod).HasColumnName("delivery_method").HasMaxLength(200);
+        builder.Property(x => x.PaymentMethod).HasColumnName("payment_method").HasMaxLength(200);
+        builder.Property(x => x.TotalAmount).HasColumnName("total_amount").HasPrecision(18, 2).IsRequired();
+        builder.Property(x => x.CreatedAt).HasColumnName("created_at").IsRequired();
 
         builder.HasOne(x => x.Customer)
                .WithMany()
@@ -48,15 +53,19 @@ public class SalesOrderLineConfiguration : IEntityTypeConfiguration<SalesOrderLi
     {
         builder.ToTable("sales_order_lines");
         builder.HasKey(x => x.Id);
-        builder.Property(x => x.ProductCode).HasMaxLength(50).IsRequired();
-        builder.Property(x => x.ProductName).HasMaxLength(200).IsRequired();
-        builder.Property(x => x.Unit).HasMaxLength(50).IsRequired();
-        builder.Property(x => x.Quantity).IsRequired();
-        builder.Property(x => x.UnitPrice).HasPrecision(18, 2).IsRequired();
-        builder.Property(x => x.DiscountRate).HasPrecision(5, 2).IsRequired().HasDefaultValue(0m);
-        builder.Property(x => x.Amount).HasPrecision(18, 2).IsRequired();
-        builder.Property(x => x.ReceivableAccount).HasMaxLength(20).IsRequired();
-        builder.Property(x => x.RevenueAccount).HasMaxLength(20).IsRequired();
+        builder.Property(x => x.Id).HasColumnName("id");
+        builder.Property(x => x.SalesOrderId).HasColumnName("sales_order_id");
+        builder.Property(x => x.ProductId).HasColumnName("product_id");
+        builder.Property(x => x.ProductCode).HasColumnName("product_code").HasMaxLength(50).IsRequired();
+        builder.Property(x => x.ProductName).HasColumnName("product_name").HasMaxLength(200).IsRequired();
+        builder.Property(x => x.IsPromotion).HasColumnName("is_promotion");
+        builder.Property(x => x.Unit).HasColumnName("unit").HasMaxLength(50).IsRequired();
+        builder.Property(x => x.Quantity).HasColumnName("quantity").IsRequired();
+        builder.Property(x => x.UnitPrice).HasColumnName("unit_price").HasPrecision(18, 2).IsRequired();
+        builder.Property(x => x.DiscountRate).HasColumnName("discount_rate").HasPrecision(5, 2).IsRequired().HasDefaultValue(0m);
+        builder.Property(x => x.Amount).HasColumnName("amount").HasPrecision(18, 2).IsRequired();
+        builder.Property(x => x.ReceivableAccount).HasColumnName("receivable_account").HasMaxLength(20).IsRequired();
+        builder.Property(x => x.RevenueAccount).HasColumnName("revenue_account").HasMaxLength(20).IsRequired();
 
         builder.HasOne(x => x.Product)
                .WithMany()

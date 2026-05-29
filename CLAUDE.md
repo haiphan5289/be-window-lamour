@@ -35,6 +35,63 @@ dotnet ef database drop --project src/Lamour.Infrastructure --startup-project sr
 dotnet ef database update --project src/Lamour.Infrastructure --startup-project src/Lamour.Api
 ```
 
+## UTM Workflow (Run on Windows VM)
+
+Step-by-step to run the full stack locally with the WPF client on UTM.
+
+### Step 1 — Start BE API on Mac
+
+```bash
+cd /Users/hai.phan/Desktop/haiphan/be-window-lamour
+dotnet run --project src/Lamour.Api
+```
+
+API will listen on `http://0.0.0.0:5282` — accessible from UTM at `http://192.168.64.1:5282`.
+
+### Step 2 — Sync WPF files to UTM
+
+On **UTM Terminal 2** (PowerShell inside Windows VM), run:
+
+```powershell
+cd C:\projects\desktop-lamour
+.\sync.ps1
+```
+
+Syncs only `src\` (skips `obj\`, `bin\`, `.git\`) + root-level files. Shows progress: `Copied: N  Skipped: N  Synced in Xs!`
+
+### Step 3 — Run WPF on UTM
+
+On **UTM Terminal 1** (PowerShell **Run as Administrator**, inside Windows VM):
+
+> **Prerequisite (one-time):** Enable Windows long path support, otherwise NuGet restore fails with `NETSDK1064`:
+> ```powershell
+> Set-ItemProperty -Path 'HKLM:\SYSTEM\CurrentControlSet\Control\FileSystem' -Name 'LongPathsEnabled' -Value 1
+> # Then open a NEW terminal for the change to take effect
+> ```
+
+```powershell
+cd C:\projects\desktop-lamour
+dotnet watch run --project src\DesktopLamour
+```
+
+> `dotnet watch run` builds and auto-restarts whenever files change after `.\sync.ps1`.
+
+### Network Reference
+
+| Machine | IP |
+|---|---|
+| MacBook (BE API host) | `192.168.64.1` |
+| UTM Windows VM (WPF client) | `192.168.64.2` |
+
+### Quick Checklist
+
+- [ ] BE API running on Mac (`dotnet run --project src/Lamour.Api`)
+- [ ] `sync.ps1` executed on UTM Terminal 2
+- [ ] WPF app launched on UTM Terminal 1
+- [ ] WPF connects to `http://192.168.64.1:5282`
+
+---
+
 ## Deployment (Windows Server)
 
 ### Khi deploy lên máy chủ/máy client mới — chỗ cần sửa
@@ -69,6 +126,18 @@ publish-wpf.bat
 ```
 
 Scripts nằm ở: `deploy/publish-be.bat`, `deploy/publish-wpf.bat`, `deploy/installer.iss`, `deploy/postgresql-setup.sql`
+
+---
+
+## Feature Docs (REQUIRED before implement or debug)
+
+Each feature has a dedicated doc. **Always read the feature doc before implementing or debugging.**
+
+| Feature | Doc path |
+|---------|----------|
+| Sales / Chứng từ bán hàng | `src/Lamour.Application/Features/Sales/docs/sales.md` |
+
+> For any other feature, check `src/Lamour.Application/Features/[Feature]/docs/` first.
 
 ---
 

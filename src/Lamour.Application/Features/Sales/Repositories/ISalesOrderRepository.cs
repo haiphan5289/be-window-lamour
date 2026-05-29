@@ -11,4 +11,5 @@ public interface ISalesOrderRepository
     Task UpdateAsync(SalesOrder order, CancellationToken ct = default);
     Task DeleteAsync(SalesOrder order, CancellationToken ct = default);
     Task SaveChangesAsync(CancellationToken ct = default);
+    Task<int> GetNextCodeNumberAsync(CancellationToken ct = default);
 }

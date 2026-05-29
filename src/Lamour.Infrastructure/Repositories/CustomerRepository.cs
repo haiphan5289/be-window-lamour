@@ -35,6 +35,12 @@ public class CustomerRepository : ICustomerRepository
         return customer;
     }
 
+    public async Task AddRangeAsync(IEnumerable<Customer> customers, CancellationToken ct = default)
+    {
+        _db.Customers.AddRange(customers);
+        await _db.SaveChangesAsync(ct);
+    }
+
     public async Task<Customer> UpdateAsync(Customer customer, CancellationToken ct = default)
     {
         _db.Customers.Update(customer);

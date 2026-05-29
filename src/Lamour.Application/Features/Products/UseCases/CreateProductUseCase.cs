@@ -1,6 +1,7 @@
 using Lamour.Application.Features.Products.Dtos;
 using Lamour.Application.Features.Products.Repositories;
 using Lamour.Domain.Entities;
+using Lamour.Domain.Enums;
 using Lamour.Domain.Exceptions;
 using Microsoft.Extensions.Logging;
 
@@ -33,14 +34,19 @@ public class CreateProductUseCase : ICreateProductUseCase
 
         var product = new Product
         {
-            Code          = request.Code.Trim(),
-            Name          = request.Name.Trim(),
-            Category      = request.Category.Trim(),
-            Unit          = request.Unit,
-            CostPrice     = request.CostPrice,
-            SellingPrice  = request.SellingPrice,
-            StockQuantity = request.StockQuantity,
-            IsActive      = request.IsActive,
+            Code             = request.Code.Trim(),
+            Name             = request.Name.Trim(),
+            Category         = request.Category.Trim(),
+            Unit             = request.Unit,
+            CostPrice        = request.CostPrice,
+            SellingPrice     = request.SellingPrice,
+            StockQuantity    = request.StockQuantity,
+            IsActive         = request.IsActive,
+            VatRate          = ParseVatRate(request.VatRate),
+            TaxReductionType = ParseTaxReductionStatus(request.TaxReductionType),
+            ImportTaxRate    = request.ImportTaxRate,
+            ExportTaxRate    = request.ExportTaxRate,
+            ExciseTaxGroup   = request.ExciseTaxGroup,
         };
 
         var created = await _repo.AddAsync(product, ct);
@@ -49,16 +55,27 @@ public class CreateProductUseCase : ICreateProductUseCase
         return MapToDto(created);
     }
 
-    private static ProductResponseDto MapToDto(Product p) => new()
+    internal static VatRateType? ParseVatRate(string? value) =>
+        Enum.TryParse<VatRateType>(value, out var result) ? result : null;
+
+    internal static TaxReductionStatus? ParseTaxReductionStatus(string? value) =>
+        Enum.TryParse<TaxReductionStatus>(value, out var result) ? result : null;
+
+    internal static ProductResponseDto MapToDto(Product p) => new()
     {
-        Id            = p.Id,
-        Code          = p.Code,
-        Name          = p.Name,
-        Category      = p.Category,
-        Unit          = p.Unit,
-        CostPrice     = p.CostPrice,
-        SellingPrice  = p.SellingPrice,
-        StockQuantity = p.StockQuantity,
-        IsActive      = p.IsActive,
+        Id               = p.Id,
+        Code             = p.Code,
+        Name             = p.Name,
+        Category         = p.Category,
+        Unit             = p.Unit,
+        CostPrice        = p.CostPrice,
+        SellingPrice     = p.SellingPrice,
+        StockQuantity    = p.StockQuantity,
+        IsActive         = p.IsActive,
+        VatRate          = p.VatRate?.ToString(),
+        TaxReductionType = p.TaxReductionType?.ToString(),
+        ImportTaxRate    = p.ImportTaxRate,
+        ExportTaxRate    = p.ExportTaxRate,
+        ExciseTaxGroup   = p.ExciseTaxGroup,
     };
 }

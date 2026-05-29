@@ -10,27 +10,30 @@ namespace Lamour.Api.Controllers;
 [Authorize]
 public class CustomersController : ControllerBase
 {
-    private readonly IGetCustomersUseCase      _getAll;
-    private readonly IGetNextCustomerCodeUseCase _nextCode;
-    private readonly ICreateCustomerUseCase    _create;
-    private readonly IUpdateCustomerUseCase    _update;
-    private readonly IDeleteCustomerUseCase    _delete;
-    private readonly IDuplicateCustomerUseCase _duplicate;
+    private readonly IGetCustomersUseCase         _getAll;
+    private readonly IGetNextCustomerCodeUseCase  _nextCode;
+    private readonly ICreateCustomerUseCase       _create;
+    private readonly IUpdateCustomerUseCase       _update;
+    private readonly IDeleteCustomerUseCase       _delete;
+    private readonly IDuplicateCustomerUseCase    _duplicate;
+    private readonly IImportExcelCustomersUseCase _importExcel;
 
     public CustomersController(
-        IGetCustomersUseCase      getAll,
-        IGetNextCustomerCodeUseCase nextCode,
-        ICreateCustomerUseCase    create,
-        IUpdateCustomerUseCase    update,
-        IDeleteCustomerUseCase    delete,
-        IDuplicateCustomerUseCase duplicate)
+        IGetCustomersUseCase         getAll,
+        IGetNextCustomerCodeUseCase  nextCode,
+        ICreateCustomerUseCase       create,
+        IUpdateCustomerUseCase       update,
+        IDeleteCustomerUseCase       delete,
+        IDuplicateCustomerUseCase    duplicate,
+        IImportExcelCustomersUseCase importExcel)
     {
-        _getAll    = getAll;
-        _nextCode  = nextCode;
-        _create    = create;
-        _update    = update;
-        _delete    = delete;
-        _duplicate = duplicate;
+        _getAll      = getAll;
+        _nextCode    = nextCode;
+        _create      = create;
+        _update      = update;
+        _delete      = delete;
+        _duplicate   = duplicate;
+        _importExcel = importExcel;
     }
 
     [HttpGet]
@@ -73,5 +76,16 @@ public class CustomersController : ControllerBase
     {
         var result = await _duplicate.ExecuteAsync(id, ct);
         return CreatedAtAction(nameof(GetAll), new { }, result);
+    }
+
+    [HttpPost("import-excel")]
+    public async Task<IActionResult> ImportExcel(IFormFile file, CancellationToken ct)
+    {
+        if (file is null || file.Length == 0)
+            return BadRequest(new { message = "File không được để trống." });
+
+        using var stream = file.OpenReadStream();
+        var result = await _importExcel.ExecuteAsync(stream, ct);
+        return Ok(result);
     }
 }
