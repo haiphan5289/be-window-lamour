@@ -1,3 +1,4 @@
+using Lamour.Application.Abstractions;
 using Lamour.Application.Features.Products.Repositories;
 using Lamour.Application.Features.Sales.Dtos;
 using Lamour.Application.Features.Sales.Repositories;
@@ -11,15 +12,18 @@ public class CreateSalesOrderUseCase : ICreateSalesOrderUseCase
 {
     private readonly ISalesOrderRepository _repo;
     private readonly IProductRepository    _productRepo;
+    private readonly IUnitOfWork           _uow;
     private readonly ILogger<CreateSalesOrderUseCase> _logger;
 
     public CreateSalesOrderUseCase(
         ISalesOrderRepository repo,
         IProductRepository productRepo,
+        IUnitOfWork uow,
         ILogger<CreateSalesOrderUseCase> logger)
     {
         _repo        = repo;
         _productRepo = productRepo;
+        _uow         = uow;
         _logger      = logger;
     }
 
@@ -29,7 +33,8 @@ public class CreateSalesOrderUseCase : ICreateSalesOrderUseCase
         if (request.Lines.Count == 0)
             throw new DomainException("At least one line item is required.");
 
-        // Validate products and build lines
+        // Validate products, stock, and build lines
+        var stockErrors = new List<string>();
         var lines = new List<SalesOrderLine>();
         foreach (var dto in request.Lines)
         {
@@ -38,6 +43,8 @@ public class CreateSalesOrderUseCase : ICreateSalesOrderUseCase
                 throw new DomainException($"Sản phẩm với id {dto.ProductId} không tồn tại.");
             if (!product.IsActive)
                 throw new DomainException($"Hàng hóa '{product.Name}' đã ngưng kinh doanh.");
+            if (!dto.IsPromotion && product.StockQuantity < dto.Quantity)
+                stockErrors.Add($"• {product.Name}: có {product.StockQuantity}, cần {dto.Quantity}");
 
             var discountRate = Math.Max(0, Math.Min(100, dto.DiscountRate));
             lines.Add(new SalesOrderLine
@@ -55,6 +62,9 @@ public class CreateSalesOrderUseCase : ICreateSalesOrderUseCase
                 RevenueAccount    = string.IsNullOrWhiteSpace(dto.RevenueAccount) ? "511" : dto.RevenueAccount,
             });
         }
+
+        if (stockErrors.Count > 0)
+            throw new DomainException("Các sản phẩm không đủ tồn kho:\n" + string.Join("\n", stockErrors));
 
         var order = new SalesOrder
         {
@@ -75,25 +85,36 @@ public class CreateSalesOrderUseCase : ICreateSalesOrderUseCase
             PaymentMethod  = request.PaymentMethod,
             TotalAmount    = lines.Sum(l => l.Amount),
             CreatedAt      = DateTime.UtcNow,
+            Status         = SalesOrderStatus.Held,
             Lines          = lines,
         };
 
-        var saved = await _repo.AddAsync(order, ct);
-
-        // Auto-decrement stock for each non-promotion line
-        foreach (var line in lines.Where(l => !l.IsPromotion))
+        await _uow.BeginAsync(ct);
+        try
         {
-            var product = await _productRepo.GetByIdTrackedAsync(line.ProductId, ct);
-            if (product is not null)
+            var saved = await _repo.AddAsync(order, ct);
+
+            foreach (var line in lines.Where(l => !l.IsPromotion))
             {
-                product.StockQuantity -= line.Quantity;
-                await _productRepo.UpdateAsync(product, ct);
+                var product = await _productRepo.GetByIdTrackedAsync(line.ProductId, ct);
+                if (product is not null)
+                {
+                    product.StockQuantity -= line.Quantity;
+                    await _productRepo.UpdateAsync(product, ct);
+                }
             }
+
+            await _uow.CommitAsync(ct);
+
+            _logger.LogInformation("Created SalesOrder {DocumentNumber} for customer {CustomerId}",
+                saved.DocumentNumber, saved.CustomerId);
+
+            return GetSalesOrdersUseCase.MapToDto(saved);
         }
-
-        _logger.LogInformation("Created SalesOrder {DocumentNumber} for customer {CustomerId}",
-            saved.DocumentNumber, saved.CustomerId);
-
-        return GetSalesOrdersUseCase.MapToDto(saved);
+        catch
+        {
+            await _uow.RollbackAsync(ct);
+            throw;
+        }
     }
 }

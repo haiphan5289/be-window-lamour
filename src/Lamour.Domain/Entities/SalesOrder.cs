@@ -1,5 +1,12 @@
 namespace Lamour.Domain.Entities;
 
+public enum SalesOrderStatus
+{
+    Normal    = 0,
+    Held      = 1,  // Treo đơn — chờ KH xác nhận
+    Confirmed = 2,  // Đã xác nhận — bất biến
+}
+
 public class SalesOrder
 {
     public int      Id             { get; set; }
@@ -27,8 +34,9 @@ public class SalesOrder
     public string?  DeliveryMethod { get; set; }          // PT Giao hàng
     public string?  PaymentMethod  { get; set; }          // PT thanh toán
 
-    public decimal  TotalAmount { get; set; }
-    public DateTime CreatedAt   { get; set; }
+    public decimal           TotalAmount { get; set; }
+    public DateTime          CreatedAt   { get; set; }
+    public SalesOrderStatus  Status      { get; set; } = SalesOrderStatus.Normal;
 
     public ICollection<SalesOrderLine> Lines { get; set; } = new List<SalesOrderLine>();
 }

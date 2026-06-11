@@ -42,6 +42,7 @@ public class GetSalesOrdersUseCase : IGetSalesOrdersUseCase
         PaymentMethod  = o.PaymentMethod,
         TotalAmount    = o.TotalAmount,
         CreatedAt      = o.CreatedAt,
+        Status         = (int)o.Status,
         Lines          = o.Lines.Select(l => new SalesOrderLineDto
         {
             Id                = l.Id,

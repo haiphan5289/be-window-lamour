@@ -105,3 +105,86 @@ start "Lamour API" /min /d "D:\app-lamour\LamourApi\api-win" "D:\app-lamour\Lamo
 3. WPF mở tự động
 4. Login với số điện thoại + mật khẩu
 5. Mở Task Manager → Processes → kiểm tra có `Lamour.Api` và `DesktopLamour` trong Apps
+
+---
+
+## Khi update build (lần sau deploy nhanh hơn)
+
+### Checklist các lỗi hay gặp
+
+| Lỗi | Nguyên nhân | Fix |
+|---|---|---|
+| `password authentication failed for user "lamour"` | `appsettings.Production.json` có `Password=CHANGE_ME` chưa đổi | Sửa `D:\app-lamour\LamourApi\api-win\appsettings.Production.json` |
+| Login failed trên WPF | ServerUrl sai IP | Sửa `D:\app-lamour\LamourDesktop\desktop-win\appsettings.json` thành `localhost` nếu cùng máy |
+| WPF hiện build cũ | Copy nhầm file cũ từ Mac | Lấy file từ UTM `C:\projects\desktop-lamour\publish\desktop-win\` |
+
+### Quy trình update build chuẩn
+
+**Bước 1 — Publish BE (Mac terminal):**
+```bash
+cd /Users/hai.phan/Desktop/haiphan/be-window-lamour
+dotnet publish src/Lamour.Api -r win-x64 --self-contained true -c Release -o publish/api-win
+```
+
+**Bước 2 — Publish WPF (UTM PowerShell):**
+```powershell
+cd C:\projects\desktop-lamour
+dotnet publish src\DesktopLamour -r win-x64 --self-contained true -c Release -o publish\desktop-win
+```
+
+**Bước 3 — Zip WPF từ UTM ra Mac (UTM PowerShell):**
+```powershell
+Compress-Archive -Path "C:\projects\desktop-lamour\publish\desktop-win\*" `
+  -DestinationPath "Z:\publish\desktop-win-new.zip" -Force
+```
+
+**Bước 4 — Dừng app trên máy đích:**
+```powershell
+Stop-Process -Name "Lamour.Api" -Force -ErrorAction SilentlyContinue
+Stop-Process -Name "DesktopLamour" -Force -ErrorAction SilentlyContinue
+```
+
+**Bước 5 — Copy file lên máy đích (dùng TeamViewer File Transfer):**
+- BE: copy toàn bộ `publish/api-win/` → `D:\app-lamour\LamourApi\api-win\`
+- WPF: copy `desktop-win-new.zip` → extract vào `D:\app-lamour\LamourDesktop\desktop-win\`
+
+**Bước 6 — Kiểm tra 3 file config quan trọng sau mỗi lần copy:**
+
+`D:\app-lamour\LamourApi\api-win\appsettings.Production.json`:
+```json
+{
+  "ConnectionStrings": {
+    "DefaultConnection": "Host=localhost;Database=lamour_db;Username=lamour;Password=lamour123"
+  },
+  "Jwt": { "Key": "supersecretkey_changeme_32chars!!" },
+  "Urls": "http://0.0.0.0:5282"
+}
+```
+
+`D:\app-lamour\LamourDesktop\desktop-win\appsettings.json`:
+```json
+{
+  "ServerUrl": "http://localhost:5282"
+}
+```
+
+**Bước 7 — Chạy lại:**
+```
+Double-click D:\app-lamour\start-lamour.bat
+```
+
+### Lưu ý quan trọng
+
+- **KHÔNG** lấy WPF publish từ Mac path `/Users/hai.phan/.../publish/desktop-win/` — file đó cũ, publish WPF phải chạy trên UTM
+- **appsettings.Production.json** của API luôn override `appsettings.json` — kiểm tra file này trước tiên khi gặp lỗi DB
+- Password PostgreSQL user `lamour`: `lamour123`
+- Nếu quên password `postgres`: dùng pgAdmin hoặc reset qua `pg_hba.conf`
+
+### Credentials máy Windows (lưu để không quên)
+
+| Thứ | Giá trị |
+|---|---|
+| PostgreSQL user | `lamour` |
+| PostgreSQL password | `lamour123` |
+| App login (phone) | `0901234567` |
+| App login (password) | `123456` |

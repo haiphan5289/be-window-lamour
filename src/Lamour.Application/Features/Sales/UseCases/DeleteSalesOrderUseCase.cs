@@ -1,3 +1,4 @@
+using Lamour.Application.Abstractions;
 using Lamour.Application.Features.Products.Repositories;
 using Lamour.Application.Features.Sales.Repositories;
 using Lamour.Domain.Exceptions;
@@ -9,15 +10,18 @@ public class DeleteSalesOrderUseCase : IDeleteSalesOrderUseCase
 {
     private readonly ISalesOrderRepository _repo;
     private readonly IProductRepository    _productRepo;
+    private readonly IUnitOfWork           _uow;
     private readonly ILogger<DeleteSalesOrderUseCase> _logger;
 
     public DeleteSalesOrderUseCase(
         ISalesOrderRepository repo,
         IProductRepository productRepo,
+        IUnitOfWork uow,
         ILogger<DeleteSalesOrderUseCase> logger)
     {
         _repo        = repo;
         _productRepo = productRepo;
+        _uow         = uow;
         _logger      = logger;
     }
 
@@ -26,19 +30,32 @@ public class DeleteSalesOrderUseCase : IDeleteSalesOrderUseCase
         var order = await _repo.GetByIdTrackedAsync(id, ct)
             ?? throw new DomainException($"Sales order with id {id} not found.");
 
-        // Restore stock for non-promotion lines
-        foreach (var line in order.Lines.Where(l => !l.IsPromotion))
+        if (order.Status == Lamour.Domain.Entities.SalesOrderStatus.Confirmed)
+            throw new DomainException("Không thể xóa đơn hàng đã xác nhận.");
+
+        await _uow.BeginAsync(ct);
+        try
         {
-            var product = await _productRepo.GetByIdTrackedAsync(line.ProductId, ct);
-            if (product is not null)
+            // Restore stock for non-promotion lines
+            foreach (var line in order.Lines.Where(l => !l.IsPromotion))
             {
-                product.StockQuantity += line.Quantity;
-                await _productRepo.UpdateAsync(product, ct);
+                var product = await _productRepo.GetByIdTrackedAsync(line.ProductId, ct);
+                if (product is not null)
+                {
+                    product.StockQuantity += line.Quantity;
+                    await _productRepo.UpdateAsync(product, ct);
+                }
             }
+
+            await _repo.DeleteAsync(order, ct);
+            await _uow.CommitAsync(ct);
+
+            _logger.LogInformation("Deleted SalesOrder {Id} ({DocumentNumber})", id, order.DocumentNumber);
         }
-
-        await _repo.DeleteAsync(order, ct);
-
-        _logger.LogInformation("Deleted SalesOrder {Id} ({DocumentNumber})", id, order.DocumentNumber);
+        catch
+        {
+            await _uow.RollbackAsync(ct);
+            throw;
+        }
     }
 }

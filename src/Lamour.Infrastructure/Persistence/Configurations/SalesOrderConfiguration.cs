@@ -26,6 +26,7 @@ public class SalesOrderConfiguration : IEntityTypeConfiguration<SalesOrder>
         builder.Property(x => x.PaymentMethod).HasColumnName("payment_method").HasMaxLength(200);
         builder.Property(x => x.TotalAmount).HasColumnName("total_amount").HasPrecision(18, 2).IsRequired();
         builder.Property(x => x.CreatedAt).HasColumnName("created_at").IsRequired();
+        builder.Property(x => x.Status).HasColumnName("status").IsRequired().HasDefaultValue(SalesOrderStatus.Normal);
 
         builder.HasOne(x => x.Customer)
                .WithMany()

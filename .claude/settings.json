@@ -76,7 +76,12 @@
       "Bash(psql -U hai.phan -d lamour_db -c \"INSERT INTO \\\\\"__EFMigrationsHistory\\\\\" \\(\\\\\"MigrationId\\\\\", \\\\\"ProductVersion\\\\\"\\) VALUES \\('20260523100425_AddSaleCareToCustomers', '10.0.0'\\) ON CONFLICT DO NOTHING;\")",
       "Bash(psql -U hai.phan -d lamour_db -c \"UPDATE customers SET sale_care = 'AAA' WHERE id = \\(SELECT MIN\\(id\\) FROM customers\\) RETURNING id, code, name, sale_care;\")",
       "Bash(python3 -c \"import openpyxl; print\\('ok'\\)\")",
-      "Bash(pip3 install *)"
+      "Bash(pip3 install *)",
+      "Bash(psql -U hai.phan -d lamour_db -c \"SELECT id, code, name FROM employees LIMIT 20;\")",
+      "Bash(psql -U hai.phan -d lamour_db -c \"SELECT DISTINCT sale_care FROM customers WHERE sale_care IS NOT NULL AND sale_care != '' ORDER BY sale_care;\")",
+      "Bash(psql -U hai.phan -d lamour_db -c \"SELECT MAX\\(CAST\\(SUBSTRING\\(code, 3\\) AS INTEGER\\)\\) FROM employees WHERE code ~ '^NV[0-9]+$';\")",
+      "Bash(psql -U hai.phan -d lamour_db -c ' *)",
+      "Bash(psql -U hai.phan -d lamour_db -c \"\\\\d employees\")"
     ],
     "additionalDirectories": [
       "/Users/hai.phan/Library/Developer/Xcode/DerivedData",

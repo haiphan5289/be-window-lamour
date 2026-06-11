@@ -797,6 +797,12 @@ namespace Lamour.Infrastructure.Migrations
                         .HasColumnType("character varying(200)")
                         .HasColumnName("reference");
 
+                    b.Property<int>("Status")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasDefaultValue(0)
+                        .HasColumnName("status");
+
                     b.Property<decimal>("TotalAmount")
                         .HasPrecision(18, 2)
                         .HasColumnType("numeric(18,2)")

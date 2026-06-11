@@ -16,6 +16,8 @@ public class SalesOrdersController : ControllerBase
     private readonly ICreateSalesOrderUseCase       _create;
     private readonly IUpdateSalesOrderUseCase       _update;
     private readonly IDeleteSalesOrderUseCase       _delete;
+    private readonly IHoldSalesOrderUseCase         _hold;
+    private readonly IConfirmSalesOrderUseCase      _confirm;
 
     public SalesOrdersController(
         IGetSalesOrdersUseCase        getAll,
@@ -23,7 +25,9 @@ public class SalesOrdersController : ControllerBase
         IGetNextSalesOrderCodeUseCase getNextCode,
         ICreateSalesOrderUseCase      create,
         IUpdateSalesOrderUseCase      update,
-        IDeleteSalesOrderUseCase      delete)
+        IDeleteSalesOrderUseCase      delete,
+        IHoldSalesOrderUseCase        hold,
+        IConfirmSalesOrderUseCase     confirm)
     {
         _getAll      = getAll;
         _getById     = getById;
@@ -31,6 +35,8 @@ public class SalesOrdersController : ControllerBase
         _create      = create;
         _update      = update;
         _delete      = delete;
+        _hold        = hold;
+        _confirm     = confirm;
     }
 
     [HttpGet]
@@ -67,4 +73,12 @@ public class SalesOrdersController : ControllerBase
         await _delete.ExecuteAsync(id, ct);
         return NoContent();
     }
+
+    [HttpPut("{id:int}/hold")]
+    public async Task<IActionResult> Hold(int id, CancellationToken ct)
+        => Ok(await _hold.ExecuteAsync(id, ct));
+
+    [HttpPut("{id:int}/confirm")]
+    public async Task<IActionResult> Confirm(int id, CancellationToken ct)
+        => Ok(await _confirm.ExecuteAsync(id, ct));
 }
