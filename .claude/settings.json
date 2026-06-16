@@ -81,7 +81,8 @@
       "Bash(psql -U hai.phan -d lamour_db -c \"SELECT DISTINCT sale_care FROM customers WHERE sale_care IS NOT NULL AND sale_care != '' ORDER BY sale_care;\")",
       "Bash(psql -U hai.phan -d lamour_db -c \"SELECT MAX\\(CAST\\(SUBSTRING\\(code, 3\\) AS INTEGER\\)\\) FROM employees WHERE code ~ '^NV[0-9]+$';\")",
       "Bash(psql -U hai.phan -d lamour_db -c ' *)",
-      "Bash(psql -U hai.phan -d lamour_db -c \"\\\\d employees\")"
+      "Bash(psql -U hai.phan -d lamour_db -c \"\\\\d employees\")",
+      "Bash(xargs basename -a)"
     ],
     "additionalDirectories": [
       "/Users/hai.phan/Library/Developer/Xcode/DerivedData",

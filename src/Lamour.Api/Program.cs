@@ -167,6 +167,22 @@ builder.Services.AddScoped<Lamour.Application.Features.Sales.UseCases.IHoldSales
 builder.Services.AddScoped<Lamour.Application.Features.Sales.UseCases.IConfirmSalesOrderUseCase,
                            Lamour.Application.Features.Sales.UseCases.ConfirmSalesOrderUseCase>();
 
+// ── SalesReturn DI ────────────────────────────────────────────────────────────
+builder.Services.AddScoped<Lamour.Application.Features.SalesReturn.Repositories.ISalesReturnRepository,
+                           Lamour.Infrastructure.Repositories.SalesReturnRepository>();
+builder.Services.AddScoped<Lamour.Application.Features.SalesReturn.UseCases.IGetSalesReturnsUseCase,
+                           Lamour.Application.Features.SalesReturn.UseCases.GetSalesReturnsUseCase>();
+builder.Services.AddScoped<Lamour.Application.Features.SalesReturn.UseCases.IGetSalesReturnByIdUseCase,
+                           Lamour.Application.Features.SalesReturn.UseCases.GetSalesReturnByIdUseCase>();
+builder.Services.AddScoped<Lamour.Application.Features.SalesReturn.UseCases.IGetNextSalesReturnCodeUseCase,
+                           Lamour.Application.Features.SalesReturn.UseCases.GetNextSalesReturnCodeUseCase>();
+builder.Services.AddScoped<Lamour.Application.Features.SalesReturn.UseCases.ICreateSalesReturnUseCase,
+                           Lamour.Application.Features.SalesReturn.UseCases.CreateSalesReturnUseCase>();
+builder.Services.AddScoped<Lamour.Application.Features.SalesReturn.UseCases.IUpdateSalesReturnUseCase,
+                           Lamour.Application.Features.SalesReturn.UseCases.UpdateSalesReturnUseCase>();
+builder.Services.AddScoped<Lamour.Application.Features.SalesReturn.UseCases.IDeleteSalesReturnUseCase,
+                           Lamour.Application.Features.SalesReturn.UseCases.DeleteSalesReturnUseCase>();
+
 // ── Auth DI ───────────────────────────────────────────────────────────────────
 builder.Services.AddScoped<Lamour.Application.Features.Auth.UseCases.ILoginUseCase,
                            Lamour.Application.Features.Auth.UseCases.LoginUseCase>();
