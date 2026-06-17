@@ -82,7 +82,11 @@
       "Bash(psql -U hai.phan -d lamour_db -c \"SELECT MAX\\(CAST\\(SUBSTRING\\(code, 3\\) AS INTEGER\\)\\) FROM employees WHERE code ~ '^NV[0-9]+$';\")",
       "Bash(psql -U hai.phan -d lamour_db -c ' *)",
       "Bash(psql -U hai.phan -d lamour_db -c \"\\\\d employees\")",
-      "Bash(xargs basename -a)"
+      "Bash(xargs basename -a)",
+      "Bash(git -C /Users/hai.phan/Desktop/haiphan/desktop-lamour status --short)",
+      "Bash(git -C /Users/hai.phan/Desktop/haiphan/desktop-lamour remote -v)",
+      "Bash(psql -U hai.phan -d lamour_db -c \"SELECT id, name, phone, role, is_active FROM employees;\")",
+      "Bash(psql -U hai.phan -d lamour_db -c \"SELECT id, name, phone, role, password_hash, is_active FROM employees WHERE phone = '0901234567';\")"
     ],
     "additionalDirectories": [
       "/Users/hai.phan/Library/Developer/Xcode/DerivedData",
