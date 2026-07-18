@@ -1,6 +1,6 @@
 # Sales Orders — Feature Document (BE)
 
-> **Jira:** — | **Branch:** `dev` | **Generated:** 2026-05-01 | **Last updated:** 2026-06-11
+> **Jira:** — | **Branch:** `dev` | **Generated:** 2026-05-01 | **Last updated:** 2026-07-18 (summary-report: tổng hợp theo mặt hàng/khách hàng/nhân viên + trả lại)
 
 ---
 
@@ -8,20 +8,19 @@
 
 > API quản lý đơn hàng bán (Sales Orders) cho hệ thống Lamour Spa & Cosmetics.
 
-- **Goal:** Cung cấp CRUD API đầy đủ cho module Bán Hàng, tự động điều chỉnh tồn kho khi tạo/sửa/xóa đơn, hỗ trợ treo đơn và xác nhận đơn.
-- **User story:** As a Lamour admin, I want to manage sales orders via a REST API so that the WPF desktop client can create, hold, confirm, and track customer sales with automatic stock deduction.
+- **Goal:** Cung cấp CRUD API đầy đủ cho module Bán Hàng, tự động điều chỉnh tồn kho khi tạo/sửa/xóa đơn, hỗ trợ treo đơn.
+- **User story:** As a Lamour admin, I want to manage sales orders via a REST API so that the WPF desktop client can create, hold, and track customer sales with automatic stock deduction.
 - **Acceptance criteria:**
   - [x] `GET /api/v1/sales-orders` trả danh sách tất cả đơn hàng kèm lines
   - [x] `GET /api/v1/sales-orders/{id}` trả chi tiết một đơn hàng
-  - [x] `POST /api/v1/sales-orders` tạo mới, trừ tồn kho cho từng line (ngoại trừ line khuyến mại)
+  - [x] `POST /api/v1/sales-orders` tạo mới, mặc định Status = Normal (Ghi sổ), trừ tồn kho cho từng line (ngoại trừ line khuyến mại)
   - [x] `PUT /api/v1/sales-orders/{id}` cập nhật, hoàn tồn kho cũ rồi trừ tồn kho mới
   - [x] `DELETE /api/v1/sales-orders/{id}` xóa, hoàn tồn kho về khi xóa
   - [x] `GET /api/v1/sales-orders/next-code` trả số chứng từ tiếp theo dạng `BC{5 digits}`
   - [x] `PUT /api/v1/sales-orders/{id}/hold` treo đơn (Status → Held)
-  - [x] `PUT /api/v1/sales-orders/{id}/confirm` xác nhận đơn (Status → Confirmed; bất biến sau đó)
+  - [x] `GET /api/v1/sales-orders/report` báo cáo chi tiết dòng bán hàng, lọc theo mặt hàng/nhân viên/khách hàng/khoảng ngày
   - [x] Stock guard: kiểm tra tất cả sản phẩm trước khi trừ kho, gom tất cả lỗi rồi throw 1 lần
   - [x] DB transaction: Create/Update/Delete dùng `IUnitOfWork` — rollback khi lỗi
-  - [x] Đơn đã Confirmed không thể sửa hoặc xóa
 
 ---
 
@@ -39,15 +38,23 @@
 | Line khuyến mại | `IsPromotion = true` → không trừ/hoàn tồn kho |
 | Tỷ lệ chiết khấu | `DiscountRate` (0–100%) per line — BE clamp `Math.Max(0, Math.Min(100, dto.DiscountRate))` |
 | Tính Thành tiền | `Amount = Quantity × UnitPrice × (1 − DiscountRate / 100)` — BE tính server-side, bỏ qua `amount` từ client |
-| Denormalize | `ProductCode`, `ProductName` được copy vào line tại thời điểm tạo — không phụ thuộc sản phẩm sau này |
+| Tính thuế (2026-07-15) | `TaxRate` lấy từ `Product.VatRate` tại thời điểm ghi sổ (không tin client): `Five→5`, `Eight→8`, `Ten→10`, còn lại (`Zero`/`KCT`/`KKKNT`/`KHAC`/null) → `0`. `TaxAmount = Amount × TaxRate / 100` — xem `SalesOrderTaxCalculator.ToPercent()` |
+| Denormalize | `ProductCode`, `ProductName`, `TaxRate` được copy vào line tại thời điểm tạo — không phụ thuộc sản phẩm/thuế suất sản phẩm thay đổi sau này |
 | DateTime UTC | Lưu `DateTime.UtcNow`, WPF convert sang local time khi hiển thị |
 | TK mặc định | `ReceivableAccount = "131"`, `RevenueAccount = "511"` |
-| Tổng tiền | `TotalAmount = SUM(line.Amount)` (net sau chiết khấu) tính tại BE |
+| Tổng tiền | `TotalAmount = SUM(line.Amount)` (net sau chiết khấu, **chưa thuế**); `TotalTaxAmount = SUM(line.TaxAmount)`; `GrandTotal = TotalAmount + TotalTaxAmount` (tổng thanh toán thật) — tất cả tính tại BE |
 | DB Transaction | Mỗi mutation UseCase dùng `IUnitOfWork.BeginAsync` → `CommitAsync` hoặc `RollbackAsync` |
-| SalesOrderStatus | `Normal=0` (mặc định), `Held=1` (treo đơn), `Confirmed=2` (đã xác nhận — bất biến) |
-| Immutability | Đơn `Confirmed` không thể sửa (`UpdateSalesOrderUseCase`) hoặc xóa (`DeleteSalesOrderUseCase`) — throw `DomainException` |
-| Treo đơn | `HoldSalesOrderUseCase` → Status = Held. Nếu đã Confirmed → `DomainException` |
-| Xác nhận đơn | `ConfirmSalesOrderUseCase` → Status = Confirmed. Nếu đã Confirmed → `DomainException` |
+| SalesOrderStatus | `Normal=0` (Ghi sổ — mặc định khi tạo đơn), `Held=1` (treo đơn) |
+| Treo đơn | `HoldSalesOrderUseCase` → Status = Held. Có thể treo bất kể trạng thái hiện tại |
+| Immutability | Không còn — mọi đơn hàng (Ghi sổ hoặc Treo) đều có thể sửa/xóa bình thường (2026-07-16, bỏ bước xác nhận) |
+| Báo cáo là cấp DÒNG, không phải cấp CHỨNG TỪ | `GET /report` trả về danh sách `SalesOrderLine` (kèm thông tin chứng từ cha), không phải `SalesOrder` — vì lọc theo "mặt hàng" (`product_ids`) là field ở dòng chi tiết, một chứng từ có thể có dòng khớp và dòng không khớp |
+| Báo cáo filter | `product_ids` (list, OR giữa các sản phẩm)/`employee_id`/`customer_id`/`unit`/`category`/`from_date`/`to_date` đều optional, kết hợp **AND** giữa các field khác nhau — bỏ qua field nào không truyền (2026-07-18) |
+| Báo cáo khoảng ngày | Lọc theo `SalesOrder.AccountingDate`, không phải `DocumentDate` |
+| Báo cáo lọc theo ĐVT | `unit` so khớp `SalesOrderLine.Unit` (đã denormalize sẵn trên dòng, không cần join `Product`) |
+| Báo cáo lọc theo Nhóm VTHH | `category` so khớp `Product.Category` — field này KHÔNG có trên `SalesOrderLine`, phải `.Include(l => l.Product)` để lọc |
+| Summary-report gộp bán hàng + trả lại (2026-07-18) | `GET /summary-report` gọi CẢ `ISalesOrderRepository.GetReportLinesAsync` VÀ `ISalesReturnRepository.GetReportLinesAsync` (cùng bộ filter), rồi merge trong C# (không phải SQL join) theo key `(ProductId, CustomerId, EmployeeId)` — tránh viết 1 query LINQ phức tạp union 2 bảng khác nhau |
+| Summary-report công thức | `SalesAmount` = Σ(Quantity×UnitPrice) gross; `DiscountAmount` = Σ(Quantity×UnitPrice×DiscountRate/100); `ReturnValue` = Σ(SalesReturnLine.Amount − SalesReturnLine.DiscountAmount) (net); `NetRevenue` = SalesAmount − DiscountAmount − ReturnValue. "Giá trị giảm giá" (price-reduction riêng biệt với chiết khấu) KHÔNG được model trong domain — WPF hiển thị cột này nhưng luôn = 0 |
+| Summary-report không có sản phẩm/KH/NV không hoạt động | Chỉ trả về các triple `(product, customer, employee)` có ít nhất 1 dòng bán HOẶC trả lại trong kỳ lọc — sản phẩm không bán được trong kỳ sẽ KHÔNG xuất hiện trong kết quả (khác với ảnh tham chiếu MISA vốn liệt kê mọi sản phẩm kể cả SL=0) |
 
 ---
 
@@ -63,11 +70,12 @@
 | UseCase | `UseCases/GetSalesOrdersUseCase.cs` | Fetch & map tất cả đơn hàng |
 | UseCase | `UseCases/GetSalesOrderByIdUseCase.cs` | Fetch một đơn theo id |
 | UseCase | `UseCases/GetNextSalesOrderCodeUseCase.cs` | Trả số chứng từ tiếp theo (lightweight, không JOIN) |
-| UseCase | `UseCases/CreateSalesOrderUseCase.cs` | Stock guard → IUnitOfWork transaction → persist → trừ tồn kho |
-| UseCase | `UseCases/UpdateSalesOrderUseCase.cs` | Confirmed guard → stock guard → IUnitOfWork → hoàn cũ → trừ mới |
-| UseCase | `UseCases/DeleteSalesOrderUseCase.cs` | Confirmed guard → IUnitOfWork → hoàn kho → xóa |
-| UseCase | `UseCases/HoldSalesOrderUseCase.cs` | Confirmed guard → Status = Held |
-| UseCase | `UseCases/ConfirmSalesOrderUseCase.cs` | Already-confirmed guard → Status = Confirmed |
+| UseCase | `UseCases/CreateSalesOrderUseCase.cs` | Stock guard → tính `TaxRate`/`TaxAmount` từ `Product.VatRate` → IUnitOfWork transaction → persist → trừ tồn kho |
+| UseCase | `UseCases/UpdateSalesOrderUseCase.cs` | Stock guard → tính lại `TaxRate`/`TaxAmount` → IUnitOfWork → hoàn cũ → trừ mới |
+| Helper | `SalesOrderTaxCalculator.cs` | `ToPercent(VatRateType?)` — map enum VAT sang % dùng chung cho Create/Update |
+| UseCase | `UseCases/DeleteSalesOrderUseCase.cs` | IUnitOfWork → hoàn kho → xóa |
+| UseCase | `UseCases/HoldSalesOrderUseCase.cs` | Status = Held |
+| UseCase | `UseCases/GetSalesOrderReportUseCase.cs` | Nhận filter (product/employee/customer/date range) → `GetReportLinesAsync` → map sang `SalesOrderReportLineDto` |
 | Repository | `Repositories/ISalesOrderRepository.cs` | Data access contract |
 | Repository | `Lamour.Infrastructure/Repositories/SalesOrderRepository.cs` | EF Core implementation |
 | Entity | `Lamour.Domain/Entities/SalesOrder.cs` | Domain model + `SalesOrderStatus` enum |
@@ -98,7 +106,7 @@ graph TD
     A --> D[UpdateSalesOrderUseCase]
     A --> E[DeleteSalesOrderUseCase]
     A --> Ho[HoldSalesOrderUseCase]
-    A --> Co[ConfirmSalesOrderUseCase]
+    A --> Re[GetSalesOrderReportUseCase]
     B --> H[ISalesOrderRepository]
     BB --> H
     C --> H
@@ -111,11 +119,11 @@ graph TD
     E --> P
     E --> U
     Ho --> H
-    Co --> H
+    Re --> H
     H --> I[AppDbContext / PostgreSQL]
     P --> I
     C --> J[DomainException - stock guard]
-    D --> K[DomainException - confirmed guard / stock guard]
+    D --> K[DomainException - stock guard]
     E --> K
 ```
 
@@ -124,7 +132,7 @@ graph TD
 ## Key Files & Symbols
 
 ### Domain
-- [`Lamour.Domain/Entities/SalesOrder.cs`](../../../../Lamour.Domain/Entities/SalesOrder.cs) — Entity header + `SalesOrderStatus` enum (`Normal=0`, `Held=1`, `Confirmed=2`) + `Status` property (default `Normal`)
+- [`Lamour.Domain/Entities/SalesOrder.cs`](../../../../Lamour.Domain/Entities/SalesOrder.cs) — Entity header + `SalesOrderStatus` enum (`Normal=0`, `Held=1`) + `Status` property (default `Normal`)
 - [`Lamour.Domain/Entities/SalesOrderLine.cs`](../../../../Lamour.Domain/Entities/SalesOrder.cs) — Line (nested in same file): `ProductId`, `ProductCode`, `ProductName`, `IsPromotion`, `Unit`, `Quantity`, `UnitPrice`, `DiscountRate`, `Amount`, `ReceivableAccount`, `RevenueAccount`
 
 ### Application — Abstractions
@@ -134,26 +142,29 @@ graph TD
 - [`Lamour.Infrastructure/Persistence/UnitOfWork.cs`](../../../../Lamour.Infrastructure/Persistence/UnitOfWork.cs) — Wraps `IDbContextTransaction`; registered as `Scoped` in DI
 
 ### Application — Repositories
-- [`Repositories/ISalesOrderRepository.cs`](../Repositories/ISalesOrderRepository.cs) — `GetAllAsync`, `GetByIdAsync`, `GetByIdTrackedAsync`, `AddAsync`, `UpdateAsync`, `DeleteAsync`, `SaveChangesAsync`, `GetNextCodeNumberAsync`
+- [`Repositories/ISalesOrderRepository.cs`](../Repositories/ISalesOrderRepository.cs) — `GetAllAsync`, `GetByIdAsync`, `GetByIdTrackedAsync`, `AddAsync`, `UpdateAsync`, `DeleteAsync`, `SaveChangesAsync`, `GetNextCodeNumberAsync`, `GetReportLinesAsync(productIds?, employeeId?, customerId?, unit?, category?, fromDate?, toDate?)` (2026-07-16, extended 2026-07-18)
 
 ### Application — DTOs
-- [`Dtos/SalesOrderResponseDto.cs`](../Dtos/SalesOrderResponseDto.cs) — Response: 19 fields snake_case + `lines[]` + `status` (int)
+- [`Dtos/SalesOrderResponseDto.cs`](../Dtos/SalesOrderResponseDto.cs) — Response: 21 fields snake_case + `lines[]` + `status` (int); thêm `total_tax_amount`, `grand_total` (2026-07-15)
 - [`Dtos/CreateSalesOrderRequestDto.cs`](../Dtos/CreateSalesOrderRequestDto.cs) — Create: 14 header fields + `lines[]`
 - [`Dtos/UpdateSalesOrderRequestDto.cs`](../Dtos/UpdateSalesOrderRequestDto.cs) — Update: same shape as Create
-- [`Dtos/SalesOrderLineDto.cs`](../Dtos/SalesOrderLineDto.cs) — Line: 12 fields (shared cho cả request và response); `discount_rate` (decimal, default 0)
+- [`Dtos/SalesOrderLineDto.cs`](../Dtos/SalesOrderLineDto.cs) — Line: 14 fields (shared cho cả request và response); `discount_rate` (decimal, default 0); thêm `tax_rate`, `tax_amount` (2026-07-15) — BE luôn tự tính từ `Product.VatRate`, bỏ qua giá trị client gửi lên (giống `amount`)
+- [`Dtos/SalesOrderReportLineDto.cs`](../Dtos/SalesOrderReportLineDto.cs) — Báo cáo (2026-07-16, +2 fields 2026-07-18): 18 fields snake_case — 1 dòng chi tiết kèm thông tin chứng từ cha (`order_id`, `document_number`, `accounting_date`, `customer_id`, `customer_name`, `employee_id`, `employee_name`) + thông tin dòng (`product_id`, `product_code`, `product_name`, `unit`, `category`, `quantity`, `unit_price`, `discount_rate`, `amount`, `tax_rate`, `tax_amount`) — `category` lấy từ `Product.Category` (không denormalize trên line, có thể null nếu sản phẩm bị xóa)
+- [`Dtos/SalesOrderSummaryLineDto.cs`](../Dtos/SalesOrderSummaryLineDto.cs) (2026-07-18) — Báo cáo TỔNG HỢP: 1 dòng = 1 triple `(product, customer, employee)` đã cộng dồn cả kỳ — `product_id/code/name`, `unit`, `customer_id/code/name`, `employee_id/code/name` (nullable) + `quantity_sold`, `sales_amount` (gross), `discount_amount`, `return_quantity`, `return_value` (net), `net_revenue`
 
 ### Application — UseCases
 - [`UseCases/GetSalesOrdersUseCase.cs`](../UseCases/GetSalesOrdersUseCase.cs) — `ExecuteAsync()` → `IEnumerable<SalesOrderResponseDto>`; chứa `internal static MapToDto()` dùng chung (maps `Status`)
 - [`UseCases/GetNextSalesOrderCodeUseCase.cs`](../UseCases/GetNextSalesOrderCodeUseCase.cs) — `ExecuteAsync()` → `string` (`BC00001`...)
 - [`UseCases/GetSalesOrderByIdUseCase.cs`](../UseCases/GetSalesOrderByIdUseCase.cs) — `ExecuteAsync(id)` → `SalesOrderResponseDto?`
 - [`UseCases/CreateSalesOrderUseCase.cs`](../UseCases/CreateSalesOrderUseCase.cs) — Stock guard (collect all errors) → `IUnitOfWork` transaction → `AddAsync` → trừ stock
-- [`UseCases/UpdateSalesOrderUseCase.cs`](../UseCases/UpdateSalesOrderUseCase.cs) — Confirmed guard → stock guard → `IUnitOfWork` → hoàn stock cũ → trừ stock mới
-- [`UseCases/DeleteSalesOrderUseCase.cs`](../UseCases/DeleteSalesOrderUseCase.cs) — Confirmed guard → `IUnitOfWork` → hoàn stock → xóa
-- [`UseCases/HoldSalesOrderUseCase.cs`](../UseCases/HoldSalesOrderUseCase.cs) — `GetByIdTrackedAsync` → Confirmed guard → `Status = Held` → `SaveChangesAsync`
-- [`UseCases/ConfirmSalesOrderUseCase.cs`](../UseCases/ConfirmSalesOrderUseCase.cs) — `GetByIdTrackedAsync` → already-confirmed guard → `Status = Confirmed` → `SaveChangesAsync`
+- [`UseCases/UpdateSalesOrderUseCase.cs`](../UseCases/UpdateSalesOrderUseCase.cs) — Stock guard → `IUnitOfWork` → hoàn stock cũ → trừ stock mới
+- [`UseCases/DeleteSalesOrderUseCase.cs`](../UseCases/DeleteSalesOrderUseCase.cs) — `IUnitOfWork` → hoàn stock → xóa
+- [`UseCases/HoldSalesOrderUseCase.cs`](../UseCases/HoldSalesOrderUseCase.cs) — `GetByIdTrackedAsync` → `Status = Held` → `SaveChangesAsync`
+- [`UseCases/GetSalesOrderReportUseCase.cs`](../UseCases/GetSalesOrderReportUseCase.cs) — `ExecuteAsync(productIds?, employeeId?, customerId?, unit?, category?, fromDate?, toDate?)` → `GetReportLinesAsync` → map `SalesOrderLine` (+ parent `SalesOrder`/`Customer`/`Employee`/`Product`) → `IEnumerable<SalesOrderReportLineDto>`
+- [`UseCases/GetSalesOrderSummaryReportUseCase.cs`](../UseCases/GetSalesOrderSummaryReportUseCase.cs) (2026-07-18) — gọi CẢ `ISalesOrderRepository.GetReportLinesAsync` VÀ `ISalesReturnRepository.GetReportLinesAsync` (cùng filter), merge trong C# theo `(ProductId, CustomerId, EmployeeId)` key vào `Dictionary`, tính `SalesAmount`/`DiscountAmount` từ sales lines, `ReturnQuantity`/`ReturnValue` từ return lines, `NetRevenue` = SalesAmount − DiscountAmount − ReturnValue → `IEnumerable<SalesOrderSummaryLineDto>`
 
 ### Infrastructure
-- [`Lamour.Infrastructure/Repositories/SalesOrderRepository.cs`](../../../../Lamour.Infrastructure/Repositories/SalesOrderRepository.cs) — EF Core impl; `GetAllAsync` / `GetByIdAsync` dùng `AsNoTracking()` + `Include(Lines)`
+- [`Lamour.Infrastructure/Repositories/SalesOrderRepository.cs`](../../../../Lamour.Infrastructure/Repositories/SalesOrderRepository.cs) — EF Core impl; `GetAllAsync` / `GetByIdAsync` dùng `AsNoTracking()` + `Include(Lines)`; `GetReportLinesAsync` (2026-07-16, extended 2026-07-18) query trực tiếp trên `SalesOrderLines` (`Include(l => l.SalesOrder).ThenInclude(o => o.Customer)` / `.Employee`, `Include(l => l.Product)` — thêm 2026-07-18 để lọc theo `category`), filter động theo từng field truyền vào; `product_ids` dùng `.Contains()` (OR nội bộ)
 - [`Lamour.Infrastructure/Persistence/Configurations/SalesOrderConfiguration.cs`](../../../../Lamour.Infrastructure/Persistence/Configurations/SalesOrderConfiguration.cs) — Table `sales_orders` + `sales_order_lines`; column `status` (`int`, default 0)
 
 ---
@@ -169,7 +180,8 @@ graph TD
 | `PUT` | `/api/v1/sales-orders/{id}` | `UpdateSalesOrderRequestDto` | `SalesOrderResponseDto` (200) |
 | `DELETE` | `/api/v1/sales-orders/{id}` | — | 204 No Content |
 | `PUT` | `/api/v1/sales-orders/{id}/hold` | — | `SalesOrderResponseDto` (200) |
-| `PUT` | `/api/v1/sales-orders/{id}/confirm` | — | `SalesOrderResponseDto` (200) |
+| `GET` | `/api/v1/sales-orders/report?product_ids=&employee_id=&customer_id=&unit=&category=&from_date=&to_date=` | — (query only) | `SalesOrderReportLineDto[]` (200) — báo cáo cấp DÒNG chi tiết, không còn dùng bởi WPF (2026-07-18) nhưng vẫn giữ nguyên endpoint |
+| `GET` | `/api/v1/sales-orders/summary-report?product_ids=&employee_id=&customer_id=&unit=&category=&from_date=&to_date=` | — (query only) | `SalesOrderSummaryLineDto[]` (200) — báo cáo TỔNG HỢP theo (product, customer, employee) triple, gộp cả dữ liệu bán hàng và hàng bán bị trả lại (2026-07-18) |
 
 ### Request — Create / Update
 ```json
@@ -198,6 +210,8 @@ graph TD
       "unit_price": 150000,
       "discount_rate": 10,
       "amount": 270000,
+      "tax_rate": 8,
+      "tax_amount": 21600,
       "receivable_account": "131",
       "revenue_account": "511"
     }
@@ -205,7 +219,9 @@ graph TD
 }
 ```
 
-### Response (includes `status`)
+> `tax_rate`/`tax_amount` gửi lên (nếu có) bị **bỏ qua** — BE luôn tự tra `Product.VatRate` thật tại thời điểm ghi sổ.
+
+### Response (includes `status`, `total_tax_amount`, `grand_total`)
 ```json
 {
   "id": 1,
@@ -225,13 +241,50 @@ graph TD
   "delivery_method": null,
   "payment_method": "Tiền mặt",
   "total_amount": 270000,
+  "total_tax_amount": 21600,
+  "grand_total": 291600,
   "status": 0,
   "created_at": "2026-05-01T08:00:00Z",
   "lines": [ ... ]
 }
 ```
 
-`status` values: `0` = Normal, `1` = Held (Treo), `2` = Confirmed (Xác nhận)
+`status` values: `0` = Normal (Ghi sổ — mặc định khi tạo), `1` = Held (Treo)
+
+### Request/Response — Report (2026-07-16, extended 2026-07-18)
+
+```
+GET /api/v1/sales-orders/report?product_ids=5&product_ids=8&employee_id=2&unit=Hộp&category=Serum&from_date=2026-07-01&to_date=2026-07-31
+```
+
+Tất cả 7 query param optional, kết hợp AND (riêng `product_ids` là OR nội bộ giữa các id truyền vào) — bỏ trống param nào thì không lọc theo field đó. `product_ids` binds từ nhiều key lặp lại (`product_ids=5&product_ids=8`), không phải chuỗi phân tách dấu phẩy.
+
+```json
+[
+  {
+    "order_id": 1,
+    "document_number": "BC00001",
+    "accounting_date": "2026-07-16T00:00:00Z",
+    "customer_id": 1,
+    "customer_name": "CHI NHI",
+    "employee_id": 2,
+    "employee_name": "Nguyễn Văn A",
+    "product_id": 5,
+    "product_code": "SP001",
+    "product_name": "Kem dưỡng da",
+    "unit": "Hộp",
+    "category": "Serum",
+    "quantity": 2,
+    "unit_price": 150000,
+    "discount_rate": 10,
+    "amount": 270000,
+    "tax_rate": 8,
+    "tax_amount": 21600
+  }
+]
+```
+
+Mỗi phần tử là **1 dòng** (`SalesOrderLine`), không phải 1 chứng từ — một `document_number` có thể xuất hiện nhiều lần nếu chứng từ đó có nhiều dòng khớp filter.
 
 ---
 
@@ -293,11 +346,11 @@ catch
 | Tồn kho không đủ — 1 sản phẩm | `DomainException` với message riêng → 400 | ✅ |
 | Tồn kho không đủ — nhiều sản phẩm | Gom tất cả lỗi → 1 `DomainException` → 400 | ✅ |
 | Crash giữa chừng (nhiều SaveChanges) | `IUnitOfWork` rollback toàn bộ transaction | ✅ |
-| Sửa/xóa đơn đã Confirmed | `DomainException("Không thể chỉnh sửa/xóa đơn đã xác nhận.")` → 400 | ✅ |
-| Treo đơn đã Confirmed | `DomainException` → 400 | ✅ |
-| Xác nhận đơn đã Confirmed | `DomainException` → 400 | ✅ |
 | Database unreachable | `GlobalExceptionHandler` → 500 | ✅ |
 | `document_number` trùng | PostgreSQL unique constraint → 500 | ⚠️ Cần handle |
+| Report: không truyền filter nào | Trả về toàn bộ dòng của mọi chứng từ | ✅ |
+| Report: không có dòng nào khớp | Trả về mảng rỗng `[]` (200) | ✅ |
+| Report: `employee_id`/`customer_id` không tồn tại | Trả về mảng rỗng (không throw 404) | ✅ |
 
 ---
 
@@ -308,9 +361,10 @@ catch
 | ~~1~~ | ~~🔴 Critical~~ | ~~Không có stock guard — `StockQuantity` có thể âm~~ | ✅ **Fixed 2026-06-11** — collect-all-errors guard |
 | ~~2~~ | ~~🔴 Critical~~ | ~~Không có DB transaction — nhiều `SaveChanges` riêng biệt~~ | ✅ **Fixed 2026-06-11** — `IUnitOfWork` pattern |
 | 3 | 🟠 High | `DomainException` cho not-found trong Update/Delete → trả về 400 thay vì 404 | Đổi sang `NotFoundException` |
-| ~~4~~ | ~~🟠 High~~ | ~~Không có trường `Status` — không phân biệt Draft/Confirmed~~ | ✅ **Fixed 2026-06-11** — `SalesOrderStatus` enum |
+| ~~4~~ | ~~🟠 High~~ | ~~Không có trường `Status` — không phân biệt Draft/Confirmed~~ | ✅ **Fixed 2026-06-11** — `SalesOrderStatus` enum; **Confirmed status bị bỏ lại 2026-07-16** |
 | 5 | 🟡 Medium | `MapToDto` đặt trong `GetSalesOrdersUseCase` nhưng được gọi bởi UseCase khác | Extract sang `SalesOrderMapper` static class |
 | 6 | 🟡 Medium | N+1 trong stock loop: load product trong validate loop, rồi load lại khi trừ | Cache vào `Dictionary<int, Product>` |
+| ~~7~~ | ~~🟠 High~~ | ~~Sản phẩm có `VatRate` (8%/5%/10%) nhưng đơn hàng bỏ qua hoàn toàn, không tính thuế~~ | ✅ **Fixed 2026-07-15** — `TaxRate`/`TaxAmount` denormalize từ `Product.VatRate`, `TotalTaxAmount`/`GrandTotal` trên `SalesOrder` |
 
 ---
 
@@ -329,7 +383,7 @@ builder.Services.AddScoped<ICreateSalesOrderUseCase, CreateSalesOrderUseCase>();
 builder.Services.AddScoped<IUpdateSalesOrderUseCase, UpdateSalesOrderUseCase>();
 builder.Services.AddScoped<IDeleteSalesOrderUseCase, DeleteSalesOrderUseCase>();
 builder.Services.AddScoped<IHoldSalesOrderUseCase, HoldSalesOrderUseCase>();
-builder.Services.AddScoped<IConfirmSalesOrderUseCase, ConfirmSalesOrderUseCase>();
+builder.Services.AddScoped<IGetSalesOrderReportUseCase, GetSalesOrderReportUseCase>();
 ```
 
 ---
@@ -366,6 +420,23 @@ dotnet ef database update \
 ```
 Column added: `status int NOT NULL DEFAULT 0` trên bảng `sales_orders`.
 
+**Migration 5 — `AddTaxToSalesOrder` (2026-07-15):**
+```bash
+dotnet ef migrations add AddTaxToSalesOrder \
+  --project src/Lamour.Infrastructure \
+  --startup-project src/Lamour.Api
+dotnet ef database update \
+  --project src/Lamour.Infrastructure \
+  --startup-project src/Lamour.Api
+```
+Columns added:
+- `sales_order_lines.tax_rate numeric(5,2) NOT NULL DEFAULT 0`
+- `sales_order_lines.tax_amount numeric(18,2) NOT NULL DEFAULT 0`
+- `sales_orders.total_tax_amount numeric(18,2) NOT NULL DEFAULT 0`
+- `sales_orders.grand_total numeric(18,2) NOT NULL DEFAULT 0`
+
+Fix cho bug: sản phẩm có `VatRate` (8%/5%/10%) nhưng đơn hàng bỏ qua hoàn toàn, không tính thuế. Đơn hàng cũ (trước migration) có `tax_rate`/`tax_amount`/`total_tax_amount`/`grand_total` = 0 — không backfill vì tại thời điểm ghi sổ cũ, thuế suất sản phẩm chưa được biết/denormalize.
+
 ---
 
 ## Test Coverage Notes
@@ -377,7 +448,7 @@ Column added: `status int NOT NULL DEFAULT 0` trên bảng `sales_orders`.
 | `UpdateSalesOrderUseCase` | — | ❌ Missing |
 | `DeleteSalesOrderUseCase` | — | ❌ Missing |
 | `HoldSalesOrderUseCase` | — | ❌ Missing |
-| `ConfirmSalesOrderUseCase` | — | ❌ Missing |
+| `GetSalesOrderReportUseCase` | — | ❌ Missing |
 | `SalesOrderRepository` | — | ❌ Missing |
 
 **Suggested test cases:**
@@ -388,13 +459,12 @@ Column added: `status int NOT NULL DEFAULT 0` trên bảng `sales_orders`.
 - [ ] Create: `is_promotion = false` → tồn kho giảm đúng số lượng
 - [ ] Create: 2 sản phẩm không đủ kho → message gom cả 2 lỗi
 - [ ] Create: lỗi giữa transaction → rollback, không có gì thay đổi trong DB
-- [ ] Update: Confirmed đơn → `DomainException`
-- [ ] Delete: Confirmed đơn → `DomainException`
-- [ ] Hold: Confirmed đơn → `DomainException`
-- [ ] Confirm: đã Confirmed → `DomainException`
-- [ ] Confirm: Normal → Status = 2 trong DB
 - [ ] Update: id không tồn tại → NotFoundException (sau khi fix)
 - [ ] Delete: tồn kho được hoàn lại
+- [ ] Report: không filter nào → trả tất cả dòng của mọi chứng từ
+- [ ] Report: `product_id` khớp 1 dòng trong chứng từ có nhiều dòng → chỉ trả dòng khớp, không trả cả chứng từ
+- [ ] Report: kết hợp `employee_id` + khoảng ngày → chỉ trả dòng thỏa cả 2 điều kiện (AND)
+- [ ] Report: không có dòng nào khớp → mảng rỗng, không throw
 
 ---
 
@@ -413,3 +483,8 @@ Column added: `status int NOT NULL DEFAULT 0` trên bảng `sales_orders`.
 *Updated 2026-05-01: thêm DiscountRate per line, đổi prefix BH → BC*
 *Updated 2026-05-23: thêm `GET next-code` endpoint + `GetNextSalesOrderCodeUseCase`; migration 3 rename columns sang snake_case; cập nhật DI*
 *Updated 2026-06-11: thêm stock guard (collect-all-errors), IUnitOfWork DB transaction, SalesOrderStatus enum (Normal/Held/Confirmed), Hold/Confirm endpoints, Confirmed immutability; migration 4 SalesOrderStatus; cập nhật DI*
+*Updated 2026-07-15: fix bug thuế sản phẩm không được tính khi ghi sổ — thêm `TaxRate`/`TaxAmount` per line (denormalize từ `Product.VatRate`), `TotalTaxAmount`/`GrandTotal` trên `SalesOrder`; thêm `SalesOrderTaxCalculator.ToPercent()`; migration 5 `AddTaxToSalesOrder`*
+*Updated 2026-07-16: bỏ status `Confirmed` và toàn bộ workflow xác nhận đơn (business requirement: đơn ghi sổ ngay khi tạo, không cần bước xác nhận riêng) — xóa `SalesOrderStatus.Confirmed`, `PUT /{id}/confirm`, `ConfirmSalesOrderUseCase`/`IConfirmSalesOrderUseCase`, DI registration; xóa toàn bộ guard bất biến "đã xác nhận" khỏi Update/Delete/Hold — mọi đơn hàng giờ luôn có thể sửa/xóa/treo; `CreateSalesOrderUseCase` đổi default `Status` từ `Held` → `Normal` (Ghi sổ). Không cần EF migration (cột `status` vẫn là `int`, DB local không có dữ liệu cũ status=2)*
+*Updated 2026-07-16 (Báo cáo bán hàng): thêm `GET /api/v1/sales-orders/report` — báo cáo cấp DÒNG chi tiết (không phải cấp chứng từ) vì lọc theo mặt hàng là field ở `SalesOrderLine`; filter optional `product_id`/`employee_id`/`customer_id`/`from_date`/`to_date` (kết hợp AND, lọc theo `AccountingDate`); thêm `SalesOrderReportLineDto`, `ISalesOrderRepository.GetReportLinesAsync` (join `SalesOrderLine` → `SalesOrder`/`Customer`/`Employee`, `AsNoTracking`), `GetSalesOrderReportUseCase`/`IGetSalesOrderReportUseCase`; đăng ký DI trong `Program.cs`. Không cần migration EF (chỉ thêm 1 query mới, không đổi schema). WPF: thêm nút "📊 Báo cáo" trên `SalesOrderListView` mở popup filter, sau đó điều hướng sang trang báo cáo riêng với DataGrid + xuất Excel/in — xem `desktop-lamour/.../Sales/docs/sales.md` để biết chi tiết phía client*
+*Updated 2026-07-18 (mở rộng bộ lọc báo cáo theo thiết kế popup mới): `product_id` (single) → `product_ids` (`int[]?`, ASP.NET Core bind nhiều key lặp lại `product_ids=1&product_ids=2`, OR nội bộ qua `.Contains()`); thêm 2 filter mới `unit` (so khớp `SalesOrderLine.Unit` — đã denormalize sẵn) và `category` (so khớp `Product.Category` — KHÔNG có trên `SalesOrderLine`, phải thêm `.Include(l => l.Product)` vào `GetReportLinesAsync`); `SalesOrderReportLineDto` thêm 2 field `unit`/`category`. Đổi signature `ISalesOrderRepository.GetReportLinesAsync`, `IGetSalesOrderReportUseCase.ExecuteAsync`, `SalesOrdersController.GetReport`. Không cần migration EF (Category đọc qua join, Unit đã có sẵn trên line từ trước). WPF: redesign `SalesOrderReportFilterWindow` để khớp UI tham chiếu — thêm "Kỳ báo cáo" (period presets), "Đơn vị tính"/"Nhóm VTHH" dropdown (derive distinct values từ Products đã load, không cần API mới), đổi ô "Mặt hàng" từ single-select sang checklist multi-select — xem `desktop-lamour/.../Sales/docs/sales.md` để biết chi tiết phía client*
+*Updated 2026-07-18 (summary-report — thay thế màn hình báo cáo bằng bảng tổng hợp kiểu MISA): thêm `GET /api/v1/sales-orders/summary-report` — báo cáo TỔNG HỢP theo `(product, customer, employee)` triple, cộng dồn cả kỳ lọc, gộp CẢ dữ liệu bán hàng (`ISalesOrderRepository.GetReportLinesAsync`) VÀ hàng bán bị trả lại (`ISalesReturnRepository.GetReportLinesAsync`, method mới thêm — mirror pattern của Sales, filter giống hệt: productIds/employeeId/customerId/unit/category/fromDate/toDate lọc theo `SalesReturn.AccountingDate`). Merge 2 nguồn trong C# (không phải SQL) theo key `(ProductId, CustomerId, EmployeeId)` vào `Dictionary` — tránh viết 1 query LINQ union 2 bảng khác nhau. Công thức: `SalesAmount` = Σ(Qty×UnitPrice) gross; `DiscountAmount` = Σ(Qty×UnitPrice×DiscountRate/100); `ReturnValue` = Σ(SalesReturnLine.Amount − DiscountAmount) net; `NetRevenue` = SalesAmount − DiscountAmount − ReturnValue. Thêm mới: `Dtos/SalesOrderSummaryLineDto.cs`, `UseCases/GetSalesOrderSummaryReportUseCase.cs`, `AppDbContext.SalesReturnLines` DbSet (trước đây chưa expose), `ISalesReturnRepository.GetReportLinesAsync`. Route mới `GET summary-report` trên `SalesOrdersController`; DI trong `Program.cs`. Không cần EF migration (không đổi schema, chỉ thêm query). "Giá trị giảm giá" (price-reduction riêng biệt với chiết khấu) KHÔNG được model trong domain — cột này ở WPF luôn = 0. Summary-report chỉ trả về triple có ít nhất 1 hoạt động (bán hoặc trả) trong kỳ — sản phẩm/KH/NV không hoạt động sẽ không xuất hiện (khác ảnh tham chiếu MISA vốn liệt kê cả SL=0). WPF: `SalesOrderReportView` đổi hẳn từ bảng chi tiết-per-dòng-chứng-từ sang bảng tổng hợp-per-nhóm (endpoint `/report` cũ vẫn giữ nguyên, không xóa, nhưng WPF không còn gọi tới) — xem `desktop-lamour/.../Sales/docs/sales.md`*

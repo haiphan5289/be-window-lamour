@@ -17,7 +17,8 @@ public class SalesOrdersController : ControllerBase
     private readonly IUpdateSalesOrderUseCase       _update;
     private readonly IDeleteSalesOrderUseCase       _delete;
     private readonly IHoldSalesOrderUseCase         _hold;
-    private readonly IConfirmSalesOrderUseCase      _confirm;
+    private readonly IGetSalesOrderReportUseCase    _report;
+    private readonly IGetSalesOrderSummaryReportUseCase _summaryReport;
 
     public SalesOrdersController(
         IGetSalesOrdersUseCase        getAll,
@@ -27,16 +28,18 @@ public class SalesOrdersController : ControllerBase
         IUpdateSalesOrderUseCase      update,
         IDeleteSalesOrderUseCase      delete,
         IHoldSalesOrderUseCase        hold,
-        IConfirmSalesOrderUseCase     confirm)
+        IGetSalesOrderReportUseCase   report,
+        IGetSalesOrderSummaryReportUseCase summaryReport)
     {
-        _getAll      = getAll;
-        _getById     = getById;
-        _getNextCode = getNextCode;
-        _create      = create;
-        _update      = update;
-        _delete      = delete;
-        _hold        = hold;
-        _confirm     = confirm;
+        _getAll        = getAll;
+        _getById       = getById;
+        _getNextCode   = getNextCode;
+        _create        = create;
+        _update        = update;
+        _delete        = delete;
+        _hold          = hold;
+        _report        = report;
+        _summaryReport = summaryReport;
     }
 
     [HttpGet]
@@ -46,6 +49,30 @@ public class SalesOrdersController : ControllerBase
     [HttpGet("next-code")]
     public async Task<IActionResult> GetNextCode(CancellationToken ct)
         => Ok(new { code = await _getNextCode.ExecuteAsync(ct) });
+
+    [HttpGet("report")]
+    public async Task<IActionResult> GetReport(
+        [FromQuery] int[]? product_ids,
+        [FromQuery] int? employee_id,
+        [FromQuery] int? customer_id,
+        [FromQuery] string? unit,
+        [FromQuery] string? category,
+        [FromQuery] DateTime? from_date,
+        [FromQuery] DateTime? to_date,
+        CancellationToken ct)
+        => Ok(await _report.ExecuteAsync(product_ids, employee_id, customer_id, unit, category, from_date, to_date, ct));
+
+    [HttpGet("summary-report")]
+    public async Task<IActionResult> GetSummaryReport(
+        [FromQuery] int[]? product_ids,
+        [FromQuery] int? employee_id,
+        [FromQuery] int? customer_id,
+        [FromQuery] string? unit,
+        [FromQuery] string? category,
+        [FromQuery] DateTime? from_date,
+        [FromQuery] DateTime? to_date,
+        CancellationToken ct)
+        => Ok(await _summaryReport.ExecuteAsync(product_ids, employee_id, customer_id, unit, category, from_date, to_date, ct));
 
     [HttpGet("{id:int}")]
     public async Task<IActionResult> GetById(int id, CancellationToken ct)
@@ -77,8 +104,4 @@ public class SalesOrdersController : ControllerBase
     [HttpPut("{id:int}/hold")]
     public async Task<IActionResult> Hold(int id, CancellationToken ct)
         => Ok(await _hold.ExecuteAsync(id, ct));
-
-    [HttpPut("{id:int}/confirm")]
-    public async Task<IActionResult> Confirm(int id, CancellationToken ct)
-        => Ok(await _confirm.ExecuteAsync(id, ct));
 }

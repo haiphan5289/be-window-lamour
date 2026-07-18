@@ -2,6 +2,7 @@ using ClosedXML.Excel;
 using Lamour.Application.Features.Customers.Dtos;
 using Lamour.Application.Features.Customers.Repositories;
 using Lamour.Application.Features.Customers.UseCases;
+using Lamour.Application.Features.Employees.Repositories;
 using Lamour.Domain.Entities;
 using Microsoft.Extensions.Logging;
 
@@ -10,6 +11,7 @@ namespace Lamour.Infrastructure.UseCases;
 public class ImportExcelCustomersUseCase : IImportExcelCustomersUseCase
 {
     private readonly ICustomerRepository _repo;
+    private readonly IEmployeeRepository _employeeRepo;
     private readonly ILogger<ImportExcelCustomersUseCase> _logger;
 
     private static readonly Dictionary<string, string> HeaderAliases = new(StringComparer.OrdinalIgnoreCase)
@@ -31,10 +33,11 @@ public class ImportExcelCustomersUseCase : IImportExcelCustomersUseCase
         ["nhân viên"]      = "sale_care",
     };
 
-    public ImportExcelCustomersUseCase(ICustomerRepository repo, ILogger<ImportExcelCustomersUseCase> logger)
+    public ImportExcelCustomersUseCase(ICustomerRepository repo, IEmployeeRepository employeeRepo, ILogger<ImportExcelCustomersUseCase> logger)
     {
-        _repo   = repo;
-        _logger = logger;
+        _repo         = repo;
+        _employeeRepo = employeeRepo;
+        _logger       = logger;
     }
 
     public async Task<ImportCustomerResultDto> ExecuteAsync(Stream excelStream, CancellationToken ct = default)
@@ -51,6 +54,11 @@ public class ImportExcelCustomersUseCase : IImportExcelCustomersUseCase
         var nextCodeStr = await _repo.GetNextCodeAsync(ct);
         int codeCounter = int.Parse(nextCodeStr[2..]);
 
+        var employees        = await _employeeRepo.GetAllAsync(ct);
+        var employeesByName  = employees
+            .GroupBy(e => e.Name, StringComparer.OrdinalIgnoreCase)
+            .ToDictionary(g => g.Key, g => g.First().Id, StringComparer.OrdinalIgnoreCase);
+
         foreach (var row in dataRows)
         {
             int rowNum = row.RowNumber();
@@ -62,16 +70,21 @@ public class ImportExcelCustomersUseCase : IImportExcelCustomersUseCase
                 continue;
             }
 
+            var saleCareName = GetCell(row, colMap, "sale_care");
+            int? saleCareEmployeeId = !string.IsNullOrWhiteSpace(saleCareName) && employeesByName.TryGetValue(saleCareName, out var employeeId)
+                ? employeeId
+                : null;
+
             validCustomers.Add(new Customer
             {
-                Code          = $"KH{codeCounter++:D5}",
-                Name          = name,
-                Address       = GetCell(row, colMap, "address"),
-                Province      = GetCell(row, colMap, "province"),
-                CustomerGroup = GetCell(row, colMap, "customer_group"),
-                TaxCode       = GetCell(row, colMap, "tax_code"),
-                Phone         = GetCell(row, colMap, "phone"),
-                SaleCare      = GetCell(row, colMap, "sale_care"),
+                Code               = $"KH{codeCounter++:D5}",
+                Name               = name,
+                Address            = GetCell(row, colMap, "address"),
+                Province           = GetCell(row, colMap, "province"),
+                CustomerGroup      = GetCell(row, colMap, "customer_group"),
+                TaxCode            = GetCell(row, colMap, "tax_code"),
+                Phone              = GetCell(row, colMap, "phone"),
+                SaleCareEmployeeId = saleCareEmployeeId,
             });
         }
 

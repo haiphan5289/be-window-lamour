@@ -12,4 +12,9 @@ public interface ISalesReturnRepository
     Task DeleteAsync(SalesReturnEntity salesReturn, CancellationToken ct = default);
     Task SaveChangesAsync(CancellationToken ct = default);
     Task<int> GetNextCodeNumberAsync(CancellationToken ct = default);
+
+    Task<IEnumerable<Lamour.Domain.Entities.SalesReturnLine>> GetReportLinesAsync(
+        IEnumerable<int>? productIds, int? employeeId, int? customerId,
+        string? unit, string? category,
+        DateTime? fromDate, DateTime? toDate, CancellationToken ct = default);
 }

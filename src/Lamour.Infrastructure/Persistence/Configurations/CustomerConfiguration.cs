@@ -18,7 +18,12 @@ public class CustomerConfiguration : IEntityTypeConfiguration<Customer>
         builder.Property(c => c.CustomerGroup).HasColumnName("customer_group").HasMaxLength(100);
         builder.Property(c => c.TaxCode).HasColumnName("tax_code").HasMaxLength(20);
         builder.Property(c => c.Phone).HasColumnName("phone").HasMaxLength(20);
-        builder.Property(c => c.SaleCare).HasColumnName("sale_care").HasMaxLength(200);
+        builder.Property(c => c.SaleCareEmployeeId).HasColumnName("sale_care_employee_id");
+
+        builder.HasOne(c => c.SaleCareEmployee)
+            .WithMany()
+            .HasForeignKey(c => c.SaleCareEmployeeId)
+            .OnDelete(DeleteBehavior.SetNull);
 
         builder.HasIndex(c => c.Code).IsUnique();
     }

@@ -1,5 +1,6 @@
 using Lamour.Application.Features.Customers.Dtos;
 using Lamour.Application.Features.Customers.Repositories;
+using Lamour.Application.Features.Employees.Repositories;
 using Lamour.Domain.Entities;
 using Lamour.Domain.Exceptions;
 using Microsoft.Extensions.Logging;
@@ -9,12 +10,14 @@ namespace Lamour.Application.Features.Customers.UseCases;
 public class CreateCustomerUseCase : ICreateCustomerUseCase
 {
     private readonly ICustomerRepository _repo;
+    private readonly IEmployeeRepository _employeeRepo;
     private readonly ILogger<CreateCustomerUseCase> _logger;
 
-    public CreateCustomerUseCase(ICustomerRepository repo, ILogger<CreateCustomerUseCase> logger)
+    public CreateCustomerUseCase(ICustomerRepository repo, IEmployeeRepository employeeRepo, ILogger<CreateCustomerUseCase> logger)
     {
-        _repo   = repo;
-        _logger = logger;
+        _repo         = repo;
+        _employeeRepo = employeeRepo;
+        _logger       = logger;
     }
 
     public async Task<CustomerResponseDto> ExecuteAsync(CreateCustomerRequestDto request, CancellationToken ct = default)
@@ -22,36 +25,44 @@ public class CreateCustomerUseCase : ICreateCustomerUseCase
         if (string.IsNullOrWhiteSpace(request.Name))
             throw new DomainException("Customer name is required.");
 
+        Employee? saleCareEmployee = null;
+        if (request.SaleCareEmployeeId.HasValue)
+        {
+            saleCareEmployee = await _employeeRepo.GetByIdAsync(request.SaleCareEmployeeId.Value, ct)
+                ?? throw new DomainException($"Employee {request.SaleCareEmployeeId} not found.");
+        }
+
         var code = await _repo.GetNextCodeAsync(ct);
 
         var customer = new Customer
         {
-            Code          = code,
-            Name          = request.Name.Trim(),
-            Address       = request.Address,
-            Province      = request.Province,
-            CustomerGroup = request.CustomerGroup,
-            TaxCode       = request.TaxCode,
-            Phone         = request.Phone,
-            SaleCare      = request.SaleCare,
+            Code              = code,
+            Name              = request.Name.Trim(),
+            Address           = request.Address,
+            Province          = request.Province,
+            CustomerGroup     = request.CustomerGroup,
+            TaxCode           = request.TaxCode,
+            Phone             = request.Phone,
+            SaleCareEmployeeId = request.SaleCareEmployeeId,
         };
 
         var created = await _repo.AddAsync(customer, ct);
         _logger.LogInformation("Created customer {Id} with code {Code}", created.Id, created.Code);
 
-        return MapToDto(created);
+        return MapToDto(created, saleCareEmployee);
     }
 
-    private static CustomerResponseDto MapToDto(Customer c) => new()
+    private static CustomerResponseDto MapToDto(Customer c, Employee? saleCareEmployee) => new()
     {
-        Id            = c.Id,
-        Code          = c.Code,
-        Name          = c.Name,
-        Address       = c.Address,
-        Province      = c.Province,
-        CustomerGroup = c.CustomerGroup,
-        TaxCode       = c.TaxCode,
-        Phone         = c.Phone,
-        SaleCare      = c.SaleCare,
+        Id                   = c.Id,
+        Code                 = c.Code,
+        Name                 = c.Name,
+        Address              = c.Address,
+        Province             = c.Province,
+        CustomerGroup        = c.CustomerGroup,
+        TaxCode              = c.TaxCode,
+        Phone                = c.Phone,
+        SaleCareEmployeeId   = c.SaleCareEmployeeId,
+        SaleCareEmployeeName = saleCareEmployee?.Name,
     };
 }

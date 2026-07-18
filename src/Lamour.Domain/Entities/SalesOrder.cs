@@ -2,9 +2,8 @@ namespace Lamour.Domain.Entities;
 
 public enum SalesOrderStatus
 {
-    Normal    = 0,
-    Held      = 1,  // Treo đơn — chờ KH xác nhận
-    Confirmed = 2,  // Đã xác nhận — bất biến
+    Normal = 0,  // Ghi sổ — mặc định khi tạo đơn
+    Held   = 1,  // Treo đơn
 }
 
 public class SalesOrder
@@ -34,9 +33,11 @@ public class SalesOrder
     public string?  DeliveryMethod { get; set; }          // PT Giao hàng
     public string?  PaymentMethod  { get; set; }          // PT thanh toán
 
-    public decimal           TotalAmount { get; set; }
-    public DateTime          CreatedAt   { get; set; }
-    public SalesOrderStatus  Status      { get; set; } = SalesOrderStatus.Normal;
+    public decimal           TotalAmount    { get; set; }          // Tiền hàng (net, chưa thuế)
+    public decimal           TotalTaxAmount { get; set; }          // Tổng tiền thuế
+    public decimal           GrandTotal     { get; set; }          // TotalAmount + TotalTaxAmount
+    public DateTime          CreatedAt      { get; set; }
+    public SalesOrderStatus  Status         { get; set; } = SalesOrderStatus.Normal;
 
     public ICollection<SalesOrderLine> Lines { get; set; } = new List<SalesOrderLine>();
 }
@@ -58,7 +59,10 @@ public class SalesOrderLine
     public int     Quantity     { get; set; }              // Số lượng
     public decimal UnitPrice    { get; set; }              // Đơn giá
     public decimal DiscountRate { get; set; }              // Tỷ lệ CK (%)
-    public decimal Amount       { get; set; }              // Thành tiền (net)
+    public decimal Amount       { get; set; }              // Thành tiền (net, chưa thuế)
+
+    public decimal TaxRate      { get; set; }              // Thuế suất (%) — denormalized từ Product.VatRate tại thời điểm ghi sổ
+    public decimal TaxAmount    { get; set; }              // Tiền thuế = Amount * TaxRate / 100
 
     public string ReceivableAccount { get; set; } = "131"; // TK công nợ/chi phí
     public string RevenueAccount    { get; set; } = "511"; // TK doanh thu

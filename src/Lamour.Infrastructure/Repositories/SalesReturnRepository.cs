@@ -62,6 +62,45 @@ public class SalesReturnRepository : ISalesReturnRepository
     public async Task SaveChangesAsync(CancellationToken ct = default)
         => await _db.SaveChangesAsync(ct);
 
+    public async Task<IEnumerable<SalesReturnLine>> GetReportLinesAsync(
+        IEnumerable<int>? productIds, int? employeeId, int? customerId,
+        string? unit, string? category,
+        DateTime? fromDate, DateTime? toDate, CancellationToken ct = default)
+    {
+        var query = _db.SalesReturnLines
+            .AsNoTracking()
+            .Include(l => l.SalesReturn).ThenInclude(r => r.Customer)
+            .Include(l => l.SalesReturn).ThenInclude(r => r.Employee)
+            .Include(l => l.Product)
+            .AsQueryable();
+
+        var productIdList = productIds?.ToList();
+        if (productIdList is { Count: > 0 })
+            query = query.Where(l => productIdList.Contains(l.ProductId));
+        if (employeeId.HasValue)
+            query = query.Where(l => l.SalesReturn.EmployeeId == employeeId.Value);
+        if (customerId.HasValue)
+            query = query.Where(l => l.SalesReturn.CustomerId == customerId.Value);
+        if (!string.IsNullOrWhiteSpace(unit))
+            query = query.Where(l => l.Unit == unit);
+        if (!string.IsNullOrWhiteSpace(category))
+            query = query.Where(l => l.Product.Category == category);
+        if (fromDate.HasValue)
+        {
+            var from = DateTime.SpecifyKind(fromDate.Value, DateTimeKind.Utc);
+            query = query.Where(l => l.SalesReturn.AccountingDate >= from);
+        }
+        if (toDate.HasValue)
+        {
+            var to = DateTime.SpecifyKind(toDate.Value, DateTimeKind.Utc);
+            query = query.Where(l => l.SalesReturn.AccountingDate <= to);
+        }
+
+        return await query
+            .OrderByDescending(l => l.SalesReturn.AccountingDate)
+            .ToListAsync(ct);
+    }
+
     public async Task<int> GetNextCodeNumberAsync(CancellationToken ct = default)
     {
         const string prefix = "BTL";

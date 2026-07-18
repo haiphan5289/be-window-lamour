@@ -41,6 +41,8 @@ public class GetSalesOrdersUseCase : IGetSalesOrdersUseCase
         DeliveryMethod = o.DeliveryMethod,
         PaymentMethod  = o.PaymentMethod,
         TotalAmount    = o.TotalAmount,
+        TotalTaxAmount = o.TotalTaxAmount,
+        GrandTotal     = o.GrandTotal,
         CreatedAt      = o.CreatedAt,
         Status         = (int)o.Status,
         Lines          = o.Lines.Select(l => new SalesOrderLineDto
@@ -55,6 +57,8 @@ public class GetSalesOrdersUseCase : IGetSalesOrdersUseCase
             UnitPrice         = l.UnitPrice,
             DiscountRate      = l.DiscountRate,
             Amount            = l.Amount,
+            TaxRate           = l.TaxRate,
+            TaxAmount         = l.TaxAmount,
             ReceivableAccount = l.ReceivableAccount,
             RevenueAccount    = l.RevenueAccount,
         }).ToList(),

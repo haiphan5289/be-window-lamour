@@ -25,14 +25,15 @@ public class GetCustomersUseCase : IGetCustomersUseCase
 
     private static CustomerResponseDto MapToDto(Customer c) => new()
     {
-        Id            = c.Id,
-        Code          = c.Code,
-        Name          = c.Name,
-        Address       = c.Address,
-        Province      = c.Province,
-        CustomerGroup = c.CustomerGroup,
-        TaxCode       = c.TaxCode,
-        Phone         = c.Phone,
-        SaleCare      = c.SaleCare,
+        Id                   = c.Id,
+        Code                 = c.Code,
+        Name                 = c.Name,
+        Address              = c.Address,
+        Province             = c.Province,
+        CustomerGroup        = c.CustomerGroup,
+        TaxCode              = c.TaxCode,
+        Phone                = c.Phone,
+        SaleCareEmployeeId   = c.SaleCareEmployeeId,
+        SaleCareEmployeeName = c.SaleCareEmployee?.Name,
     };
 }

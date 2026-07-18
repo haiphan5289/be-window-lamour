@@ -12,10 +12,10 @@ public class CustomerRepository : ICustomerRepository
     public CustomerRepository(AppDbContext db) => _db = db;
 
     public async Task<IEnumerable<Customer>> GetAllAsync(CancellationToken ct = default)
-        => await _db.Customers.AsNoTracking().ToListAsync(ct);
+        => await _db.Customers.AsNoTracking().Include(c => c.SaleCareEmployee).ToListAsync(ct);
 
     public async Task<Customer?> GetByIdAsync(int id, CancellationToken ct = default)
-        => await _db.Customers.AsNoTracking().FirstOrDefaultAsync(c => c.Id == id, ct);
+        => await _db.Customers.AsNoTracking().Include(c => c.SaleCareEmployee).FirstOrDefaultAsync(c => c.Id == id, ct);
 
     public async Task<string> GetNextCodeAsync(CancellationToken ct = default)
     {

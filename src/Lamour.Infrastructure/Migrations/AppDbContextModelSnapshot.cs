@@ -322,11 +322,9 @@ namespace Lamour.Infrastructure.Migrations
                         .HasColumnType("character varying(100)")
                         .HasColumnName("province");
 
-                    b.Property<string>("SaleCare")
-                        .IsRequired()
-                        .HasMaxLength(200)
-                        .HasColumnType("character varying(200)")
-                        .HasColumnName("sale_care");
+                    b.Property<int?>("SaleCareEmployeeId")
+                        .HasColumnType("integer")
+                        .HasColumnName("sale_care_employee_id");
 
                     b.Property<string>("TaxCode")
                         .IsRequired()
@@ -338,6 +336,8 @@ namespace Lamour.Infrastructure.Migrations
 
                     b.HasIndex("Code")
                         .IsUnique();
+
+                    b.HasIndex("SaleCareEmployeeId");
 
                     b.ToTable("customers", (string)null);
                 });
@@ -769,6 +769,13 @@ namespace Lamour.Infrastructure.Migrations
                         .HasColumnType("integer")
                         .HasColumnName("employee_id");
 
+                    b.Property<decimal>("GrandTotal")
+                        .ValueGeneratedOnAdd()
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)")
+                        .HasDefaultValue(0m)
+                        .HasColumnName("grand_total");
+
                     b.Property<string>("Notes")
                         .HasMaxLength(1000)
                         .HasColumnType("character varying(1000)")
@@ -807,6 +814,13 @@ namespace Lamour.Infrastructure.Migrations
                         .HasPrecision(18, 2)
                         .HasColumnType("numeric(18,2)")
                         .HasColumnName("total_amount");
+
+                    b.Property<decimal>("TotalTaxAmount")
+                        .ValueGeneratedOnAdd()
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)")
+                        .HasDefaultValue(0m)
+                        .HasColumnName("total_tax_amount");
 
                     b.HasKey("Id");
 
@@ -882,6 +896,20 @@ namespace Lamour.Infrastructure.Migrations
                     b.Property<int>("SalesOrderId")
                         .HasColumnType("integer")
                         .HasColumnName("sales_order_id");
+
+                    b.Property<decimal>("TaxAmount")
+                        .ValueGeneratedOnAdd()
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)")
+                        .HasDefaultValue(0m)
+                        .HasColumnName("tax_amount");
+
+                    b.Property<decimal>("TaxRate")
+                        .ValueGeneratedOnAdd()
+                        .HasPrecision(5, 2)
+                        .HasColumnType("numeric(5,2)")
+                        .HasDefaultValue(0m)
+                        .HasColumnName("tax_rate");
 
                     b.Property<string>("Unit")
                         .IsRequired()
@@ -1315,6 +1343,16 @@ namespace Lamour.Infrastructure.Migrations
                     b.HasIndex("WarehouseReceiptId");
 
                     b.ToTable("warehouse_receipt_lines", (string)null);
+                });
+
+            modelBuilder.Entity("Lamour.Domain.Entities.Customer", b =>
+                {
+                    b.HasOne("Lamour.Domain.Entities.Employee", "SaleCareEmployee")
+                        .WithMany()
+                        .HasForeignKey("SaleCareEmployeeId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.Navigation("SaleCareEmployee");
                 });
 
             modelBuilder.Entity("Lamour.Domain.Entities.Payment", b =>

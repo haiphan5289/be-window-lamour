@@ -30,9 +30,6 @@ public class DeleteSalesOrderUseCase : IDeleteSalesOrderUseCase
         var order = await _repo.GetByIdTrackedAsync(id, ct)
             ?? throw new DomainException($"Sales order with id {id} not found.");
 
-        if (order.Status == Lamour.Domain.Entities.SalesOrderStatus.Confirmed)
-            throw new DomainException("Không thể xóa đơn hàng đã xác nhận.");
-
         await _uow.BeginAsync(ct);
         try
         {

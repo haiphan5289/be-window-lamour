@@ -12,4 +12,9 @@ public interface ISalesOrderRepository
     Task DeleteAsync(SalesOrder order, CancellationToken ct = default);
     Task SaveChangesAsync(CancellationToken ct = default);
     Task<int> GetNextCodeNumberAsync(CancellationToken ct = default);
+
+    Task<IEnumerable<SalesOrderLine>> GetReportLinesAsync(
+        IEnumerable<int>? productIds, int? employeeId, int? customerId,
+        string? unit, string? category,
+        DateTime? fromDate, DateTime? toDate, CancellationToken ct = default);
 }

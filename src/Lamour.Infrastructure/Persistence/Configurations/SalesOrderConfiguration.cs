@@ -25,6 +25,8 @@ public class SalesOrderConfiguration : IEntityTypeConfiguration<SalesOrder>
         builder.Property(x => x.DeliveryMethod).HasColumnName("delivery_method").HasMaxLength(200);
         builder.Property(x => x.PaymentMethod).HasColumnName("payment_method").HasMaxLength(200);
         builder.Property(x => x.TotalAmount).HasColumnName("total_amount").HasPrecision(18, 2).IsRequired();
+        builder.Property(x => x.TotalTaxAmount).HasColumnName("total_tax_amount").HasPrecision(18, 2).IsRequired().HasDefaultValue(0m);
+        builder.Property(x => x.GrandTotal).HasColumnName("grand_total").HasPrecision(18, 2).IsRequired().HasDefaultValue(0m);
         builder.Property(x => x.CreatedAt).HasColumnName("created_at").IsRequired();
         builder.Property(x => x.Status).HasColumnName("status").IsRequired().HasDefaultValue(SalesOrderStatus.Normal);
 
@@ -65,6 +67,8 @@ public class SalesOrderLineConfiguration : IEntityTypeConfiguration<SalesOrderLi
         builder.Property(x => x.UnitPrice).HasColumnName("unit_price").HasPrecision(18, 2).IsRequired();
         builder.Property(x => x.DiscountRate).HasColumnName("discount_rate").HasPrecision(5, 2).IsRequired().HasDefaultValue(0m);
         builder.Property(x => x.Amount).HasColumnName("amount").HasPrecision(18, 2).IsRequired();
+        builder.Property(x => x.TaxRate).HasColumnName("tax_rate").HasPrecision(5, 2).IsRequired().HasDefaultValue(0m);
+        builder.Property(x => x.TaxAmount).HasColumnName("tax_amount").HasPrecision(18, 2).IsRequired().HasDefaultValue(0m);
         builder.Property(x => x.ReceivableAccount).HasColumnName("receivable_account").HasMaxLength(20).IsRequired();
         builder.Property(x => x.RevenueAccount).HasColumnName("revenue_account").HasMaxLength(20).IsRequired();
 

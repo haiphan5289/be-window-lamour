@@ -27,9 +27,6 @@ public class HoldSalesOrderUseCase : IHoldSalesOrderUseCase
         var order = await _repo.GetByIdTrackedAsync(id, ct)
             ?? throw new DomainException($"Sales order with id {id} not found.");
 
-        if (order.Status == SalesOrderStatus.Confirmed)
-            throw new DomainException("Không thể treo đơn hàng đã xác nhận.");
-
         order.Status = SalesOrderStatus.Held;
         await _repo.UpdateAsync(order, ct);
 

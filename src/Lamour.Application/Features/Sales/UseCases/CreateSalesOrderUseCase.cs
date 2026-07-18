@@ -1,5 +1,6 @@
 using Lamour.Application.Abstractions;
 using Lamour.Application.Features.Products.Repositories;
+using Lamour.Application.Features.Sales;
 using Lamour.Application.Features.Sales.Dtos;
 using Lamour.Application.Features.Sales.Repositories;
 using Lamour.Domain.Entities;
@@ -47,6 +48,8 @@ public class CreateSalesOrderUseCase : ICreateSalesOrderUseCase
                 stockErrors.Add($"• {product.Name}: có {product.StockQuantity}, cần {dto.Quantity}");
 
             var discountRate = Math.Max(0, Math.Min(100, dto.DiscountRate));
+            var amount       = dto.Quantity * dto.UnitPrice * (1 - discountRate / 100m);
+            var taxRate      = SalesOrderTaxCalculator.ToPercent(product.VatRate);
             lines.Add(new SalesOrderLine
             {
                 ProductId         = dto.ProductId,
@@ -57,7 +60,9 @@ public class CreateSalesOrderUseCase : ICreateSalesOrderUseCase
                 Quantity          = dto.Quantity,
                 UnitPrice         = dto.UnitPrice,
                 DiscountRate      = discountRate,
-                Amount            = dto.Quantity * dto.UnitPrice * (1 - discountRate / 100m),
+                Amount            = amount,
+                TaxRate           = taxRate,
+                TaxAmount         = amount * taxRate / 100m,
                 ReceivableAccount = string.IsNullOrWhiteSpace(dto.ReceivableAccount) ? "131" : dto.ReceivableAccount,
                 RevenueAccount    = string.IsNullOrWhiteSpace(dto.RevenueAccount) ? "511" : dto.RevenueAccount,
             });
@@ -84,8 +89,10 @@ public class CreateSalesOrderUseCase : ICreateSalesOrderUseCase
             DeliveryMethod = request.DeliveryMethod,
             PaymentMethod  = request.PaymentMethod,
             TotalAmount    = lines.Sum(l => l.Amount),
+            TotalTaxAmount = lines.Sum(l => l.TaxAmount),
+            GrandTotal     = lines.Sum(l => l.Amount + l.TaxAmount),
             CreatedAt      = DateTime.UtcNow,
-            Status         = SalesOrderStatus.Held,
+            Status         = SalesOrderStatus.Normal,
             Lines          = lines,
         };
 

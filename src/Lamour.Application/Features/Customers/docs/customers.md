@@ -89,26 +89,26 @@ graph TD
 ## Key Files & Symbols
 
 ### Domain
-- [`Lamour.Domain/Entities/Customer.cs`](../../../../Lamour.Domain/Entities/Customer.cs) — Entity: `Id`, `Code`, `Name`, `Address`, `Province`, `CustomerGroup`, `TaxCode`, `Phone`, `SaleCare`
+- [`Lamour.Domain/Entities/Customer.cs`](../../../../Lamour.Domain/Entities/Customer.cs) — Entity: `Id`, `Code`, `Name`, `Address`, `Province`, `CustomerGroup`, `TaxCode`, `Phone`, `SaleCareEmployeeId` (FK → `Employee`, nullable), `SaleCareEmployee` (navigation)
 
 ### Application — Repositories
 - [`Repositories/ICustomerRepository.cs`](../Repositories/ICustomerRepository.cs) — `GetAllAsync`, `GetByIdAsync`, `GetNextCodeAsync`, `AddAsync`, `UpdateAsync`, `DeleteAsync`
 
 ### Application — DTOs
-- [`Dtos/CustomerResponseDto.cs`](../Dtos/CustomerResponseDto.cs) — Response: 9 fields snake_case JSON (thêm `sale_care`)
-- [`Dtos/CreateCustomerRequestDto.cs`](../Dtos/CreateCustomerRequestDto.cs) — Create: `name`, `address`, `province`, `customer_group`, `tax_code`, `phone`, `sale_care` (no code)
+- [`Dtos/CustomerResponseDto.cs`](../Dtos/CustomerResponseDto.cs) — Response: 10 fields snake_case JSON (`sale_care_employee_id` + denormalized `sale_care_employee_name`)
+- [`Dtos/CreateCustomerRequestDto.cs`](../Dtos/CreateCustomerRequestDto.cs) — Create: `name`, `address`, `province`, `customer_group`, `tax_code`, `phone`, `sale_care_employee_id` (no code)
 - [`Dtos/UpdateCustomerRequestDto.cs`](../Dtos/UpdateCustomerRequestDto.cs) — Update: same fields (no code)
 
 ### Application — UseCases
 - [`UseCases/GetCustomersUseCase.cs`](../UseCases/GetCustomersUseCase.cs) — `ExecuteAsync()` → `IEnumerable<CustomerResponseDto>`
-- [`UseCases/CreateCustomerUseCase.cs`](../UseCases/CreateCustomerUseCase.cs) — Validate name → `GetNextCodeAsync` → `AddAsync`
-- [`UseCases/UpdateCustomerUseCase.cs`](../UseCases/UpdateCustomerUseCase.cs) — `GetByIdAsync` → validate → `UpdateAsync`
+- [`UseCases/CreateCustomerUseCase.cs`](../UseCases/CreateCustomerUseCase.cs) — Validate name → validate `SaleCareEmployeeId` exists (`IEmployeeRepository.GetByIdAsync`) → `GetNextCodeAsync` → `AddAsync`
+- [`UseCases/UpdateCustomerUseCase.cs`](../UseCases/UpdateCustomerUseCase.cs) — `GetByIdAsync` → validate → validate `SaleCareEmployeeId` exists → `UpdateAsync`
 - [`UseCases/DeleteCustomerUseCase.cs`](../UseCases/DeleteCustomerUseCase.cs) — `GetByIdAsync` → `DeleteAsync`
 - [`UseCases/DuplicateCustomerUseCase.cs`](../UseCases/DuplicateCustomerUseCase.cs) — Clone entity, new code via `GetNextCodeAsync`
 - [`UseCases/GetNextCustomerCodeUseCase.cs`](../UseCases/GetNextCustomerCodeUseCase.cs) — Compute `KH{max+1:D5}`
 
 ### Infrastructure
-- [`Lamour.Infrastructure/Repositories/CustomerRepository.cs`](../../../../Lamour.Infrastructure/Repositories/CustomerRepository.cs) — EF Core impl, `GetNextCodeAsync` parses existing KH codes
+- [`Lamour.Infrastructure/Repositories/CustomerRepository.cs`](../../../../Lamour.Infrastructure/Repositories/CustomerRepository.cs) — EF Core impl, `GetAllAsync`/`GetByIdAsync` dùng `Include(c => c.SaleCareEmployee)`; `GetNextCodeAsync` parses existing KH codes
 - [`Lamour.Infrastructure/Persistence/Configurations/CustomerConfiguration.cs`](../../../../Lamour.Infrastructure/Persistence/Configurations/CustomerConfiguration.cs) — Table `customers`, unique index on `code`
 
 ---
@@ -133,7 +133,7 @@ graph TD
   "customer_group": "TP HỒ CHÍ MINH",
   "tax_code": "",
   "phone": "0932737477",
-  "sale_care": "Nguyễn Văn A"
+  "sale_care_employee_id": 2
 }
 ```
 
@@ -148,7 +148,8 @@ graph TD
   "customer_group": "TP HỒ CHÍ MINH",
   "tax_code": "",
   "phone": "0932737477",
-  "sale_care": "Nguyễn Văn A"
+  "sale_care_employee_id": 2,
+  "sale_care_employee_name": "Nguyễn Văn A"
 }
 ```
 
@@ -164,6 +165,7 @@ graph TD
 | Duplicate code (race condition) | PostgreSQL unique constraint → 500 (to improve) | ❌ |
 | `next-code` với DB trống | Trả `KH00001` (DefaultIfEmpty(0) + 1) | ✅ |
 | Code format không phải KHxxxxx | Bỏ qua khi tính max (Where filter) | ✅ |
+| `sale_care_employee_id` không tồn tại | `DomainException` → 400 | ✅ |
 
 ---
 
@@ -193,7 +195,17 @@ graph TD
 
 - `[Authorize]` tạm thời bị comment — TODO restore khi WPF auth flow hoàn thiện
 - Tất cả DateTime lưu `UtcNow` (hiện không có timestamp field trên Customer)
-- EF Migrations: `20260425052915_CustomersCreate`, `20260523100425_AddSaleCareToCustomers`
+- EF Migrations: `20260425052915_CustomersCreate`, `20260523100425_AddSaleCareToCustomers`, `ReplaceSaleCareWithEmployeeId` (2026-07-15)
+
+### SaleCare → SaleCareEmployeeId (2026-07-15)
+
+**Bug:** Form Chứng từ bán hàng chọn khách hàng nhưng không tự load NV bán hàng — root cause: `SaleCare` là free-text string so khớp với `Employee.Name` (case-insensitive), fragile — bất kỳ sai lệch nhỏ nào (dấu cách thừa, đổi tên nhân viên, nhân viên bị xóa) khiến match thất bại **âm thầm** (không có lỗi hiển thị).
+
+**Fix:** Đổi `Customer.SaleCare` (string) → `Customer.SaleCareEmployeeId` (int?, FK → `Employee`, `OnDelete: SetNull`). Response DTO thêm denormalized `sale_care_employee_name` để hiển thị mà không cần WPF tự join.
+- WPF `CustomerFormViewModel`: lưu/load bằng `SelectedEmployee.Id` trực tiếp, không match theo tên.
+- WPF `SalesOrderViewModel.OnSelectedCustomerChanged`: auto-select NV bán hàng bằng `Employees.FirstOrDefault(e => e.Id == c.SaleCareEmployeeId)` — 100% reliable, không còn phụ thuộc chính tả tên.
+- Excel import: cột "Tên nhân viên"/"Nhân viên" vẫn nhận text, nhưng `ImportExcelCustomersUseCase` resolve text → `Employee.Id` một lần (dictionary theo tên, case-insensitive) tại thời điểm import; nếu không tìm thấy nhân viên khớp tên → để `null` (không lỗi).
+- Không có fallback "auto-fill nhân viên đang đăng nhập" — nếu khách hàng chưa có `SaleCareEmployeeId`, trường NV bán hàng để trống, người dùng chọn tay (quyết định có chủ đích, WPF chưa có cơ chế map User đăng nhập → Employee).
 
 ### Import Excel (2026-05-29)
 
@@ -209,7 +221,7 @@ Import hàng loạt khách hàng từ file `.xlsx` qua `POST /api/v1/customers/i
 | Nhóm KH/NCC / Nhóm KH NCC / Nhóm KH | `customer_group` |
 | Mã số thuế / MST | `tax_code` |
 | Điện thoại / SĐT | `phone` |
-| Tên nhân viên / Nhân viên | `sale_care` |
+| Tên nhân viên / Nhân viên | `sale_care` (text) → resolved thành `sale_care_employee_id` bằng cách so tên (case-insensitive) với `Employee.Name`; không tìm thấy → `null` |
 
 **Behavior:**
 - `code` tự sinh `KH{D5}` từ max hiện tại — tính một lần, gán tuần tự trong memory

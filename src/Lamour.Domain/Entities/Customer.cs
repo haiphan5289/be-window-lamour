@@ -2,13 +2,14 @@ namespace Lamour.Domain.Entities;
 
 public class Customer
 {
-    public int    Id            { get; set; }
-    public string Code          { get; set; } = string.Empty;
-    public string Name          { get; set; } = string.Empty;
-    public string Address       { get; set; } = string.Empty;
-    public string Province      { get; set; } = string.Empty;
-    public string CustomerGroup { get; set; } = string.Empty;
-    public string TaxCode       { get; set; } = string.Empty;
-    public string Phone         { get; set; } = string.Empty;
-    public string SaleCare      { get; set; } = string.Empty;
+    public int    Id                 { get; set; }
+    public string Code               { get; set; } = string.Empty;
+    public string Name                { get; set; } = string.Empty;
+    public string Address             { get; set; } = string.Empty;
+    public string Province            { get; set; } = string.Empty;
+    public string CustomerGroup       { get; set; } = string.Empty;
+    public string TaxCode             { get; set; } = string.Empty;
+    public string Phone               { get; set; } = string.Empty;
+    public int?   SaleCareEmployeeId  { get; set; }
+    public Employee? SaleCareEmployee { get; set; }
 }
