@@ -2,6 +2,8 @@ using Lamour.Api.Hubs;
 using Lamour.Application.Abstractions;
 using Lamour.Application.Features.Customers.Dtos;
 using Lamour.Application.Features.Employees.Dtos;
+using Lamour.Application.Features.Products.Dtos;
+using Lamour.Application.Features.Suppliers.Dtos;
 using Microsoft.AspNetCore.SignalR;
 
 namespace Lamour.Api.Realtime;
@@ -35,4 +37,22 @@ public class SignalRNotificationBroadcaster : INotificationBroadcaster
 
     public Task EmployeeDeletedAsync(int employeeId, CancellationToken ct = default)
         => _hub.Clients.All.SendAsync("EmployeeDeleted", employeeId, ct);
+
+    public Task ProductCreatedAsync(ProductResponseDto product, CancellationToken ct = default)
+        => _hub.Clients.All.SendAsync("ProductCreated", product, ct);
+
+    public Task ProductUpdatedAsync(ProductResponseDto product, CancellationToken ct = default)
+        => _hub.Clients.All.SendAsync("ProductUpdated", product, ct);
+
+    public Task ProductDeletedAsync(int productId, CancellationToken ct = default)
+        => _hub.Clients.All.SendAsync("ProductDeleted", productId, ct);
+
+    public Task SupplierCreatedAsync(SupplierResponseDto supplier, CancellationToken ct = default)
+        => _hub.Clients.All.SendAsync("SupplierCreated", supplier, ct);
+
+    public Task SupplierUpdatedAsync(SupplierResponseDto supplier, CancellationToken ct = default)
+        => _hub.Clients.All.SendAsync("SupplierUpdated", supplier, ct);
+
+    public Task SupplierDeletedAsync(int supplierId, CancellationToken ct = default)
+        => _hub.Clients.All.SendAsync("SupplierDeleted", supplierId, ct);
 }

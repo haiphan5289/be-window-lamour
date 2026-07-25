@@ -1,3 +1,4 @@
+using Lamour.Application.Abstractions;
 using Lamour.Application.Features.Products.Dtos;
 using Lamour.Application.Features.Products.Repositories;
 using Lamour.Domain.Exceptions;
@@ -8,12 +9,14 @@ namespace Lamour.Application.Features.Products.UseCases;
 public class UpdateProductUseCase : IUpdateProductUseCase
 {
     private readonly IProductRepository          _repo;
+    private readonly INotificationBroadcaster    _broadcaster;
     private readonly ILogger<UpdateProductUseCase> _logger;
 
-    public UpdateProductUseCase(IProductRepository repo, ILogger<UpdateProductUseCase> logger)
+    public UpdateProductUseCase(IProductRepository repo, INotificationBroadcaster broadcaster, ILogger<UpdateProductUseCase> logger)
     {
-        _repo   = repo;
-        _logger = logger;
+        _repo        = repo;
+        _broadcaster = broadcaster;
+        _logger      = logger;
     }
 
     public async Task<ProductResponseDto> ExecuteAsync(int id, UpdateProductRequestDto request, CancellationToken ct = default)
@@ -50,6 +53,8 @@ public class UpdateProductUseCase : IUpdateProductUseCase
         var updated = await _repo.UpdateAsync(product, ct);
         _logger.LogInformation("Updated product {Id}", id);
 
-        return CreateProductUseCase.MapToDto(updated);
+        var dto = CreateProductUseCase.MapToDto(updated);
+        await _broadcaster.ProductUpdatedAsync(dto, ct);
+        return dto;
     }
 }

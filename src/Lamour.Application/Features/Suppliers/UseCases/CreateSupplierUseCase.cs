@@ -1,3 +1,4 @@
+using Lamour.Application.Abstractions;
 using Lamour.Application.Features.Suppliers.Dtos;
 using Lamour.Application.Features.Suppliers.Repositories;
 using Lamour.Domain.Entities;
@@ -9,12 +10,14 @@ namespace Lamour.Application.Features.Suppliers.UseCases;
 public class CreateSupplierUseCase : ICreateSupplierUseCase
 {
     private readonly ISupplierRepository _repo;
+    private readonly INotificationBroadcaster _broadcaster;
     private readonly ILogger<CreateSupplierUseCase> _logger;
 
-    public CreateSupplierUseCase(ISupplierRepository repo, ILogger<CreateSupplierUseCase> logger)
+    public CreateSupplierUseCase(ISupplierRepository repo, INotificationBroadcaster broadcaster, ILogger<CreateSupplierUseCase> logger)
     {
-        _repo   = repo;
-        _logger = logger;
+        _repo        = repo;
+        _broadcaster = broadcaster;
+        _logger      = logger;
     }
 
     public async Task<SupplierResponseDto> ExecuteAsync(CreateSupplierRequestDto request, CancellationToken ct = default)
@@ -41,7 +44,9 @@ public class CreateSupplierUseCase : ICreateSupplierUseCase
         var created = await _repo.AddAsync(supplier, ct);
         _logger.LogInformation("Created supplier {Id} with code {Code}", created.Id, created.Code);
 
-        return MapToDto(created);
+        var dto = MapToDto(created);
+        await _broadcaster.SupplierCreatedAsync(dto, ct);
+        return dto;
     }
 
     private static SupplierResponseDto MapToDto(Supplier s) => new()

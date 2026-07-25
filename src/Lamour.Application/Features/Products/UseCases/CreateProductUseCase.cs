@@ -1,3 +1,4 @@
+using Lamour.Application.Abstractions;
 using Lamour.Application.Features.Products.Dtos;
 using Lamour.Application.Features.Products.Repositories;
 using Lamour.Domain.Entities;
@@ -10,12 +11,14 @@ namespace Lamour.Application.Features.Products.UseCases;
 public class CreateProductUseCase : ICreateProductUseCase
 {
     private readonly IProductRepository          _repo;
+    private readonly INotificationBroadcaster    _broadcaster;
     private readonly ILogger<CreateProductUseCase> _logger;
 
-    public CreateProductUseCase(IProductRepository repo, ILogger<CreateProductUseCase> logger)
+    public CreateProductUseCase(IProductRepository repo, INotificationBroadcaster broadcaster, ILogger<CreateProductUseCase> logger)
     {
-        _repo   = repo;
-        _logger = logger;
+        _repo        = repo;
+        _broadcaster = broadcaster;
+        _logger      = logger;
     }
 
     public async Task<ProductResponseDto> ExecuteAsync(CreateProductRequestDto request, CancellationToken ct = default)
@@ -52,7 +55,9 @@ public class CreateProductUseCase : ICreateProductUseCase
         var created = await _repo.AddAsync(product, ct);
         _logger.LogInformation("Created product {Id} '{Name}'", created.Id, created.Name);
 
-        return MapToDto(created);
+        var dto = MapToDto(created);
+        await _broadcaster.ProductCreatedAsync(dto, ct);
+        return dto;
     }
 
     internal static VatRateType? ParseVatRate(string? value) =>

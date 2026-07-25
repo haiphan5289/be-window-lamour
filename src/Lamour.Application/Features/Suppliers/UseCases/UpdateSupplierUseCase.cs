@@ -1,3 +1,4 @@
+using Lamour.Application.Abstractions;
 using Lamour.Application.Features.Suppliers.Dtos;
 using Lamour.Application.Features.Suppliers.Repositories;
 using Lamour.Domain.Exceptions;
@@ -8,12 +9,14 @@ namespace Lamour.Application.Features.Suppliers.UseCases;
 public class UpdateSupplierUseCase : IUpdateSupplierUseCase
 {
     private readonly ISupplierRepository _repo;
+    private readonly INotificationBroadcaster _broadcaster;
     private readonly ILogger<UpdateSupplierUseCase> _logger;
 
-    public UpdateSupplierUseCase(ISupplierRepository repo, ILogger<UpdateSupplierUseCase> logger)
+    public UpdateSupplierUseCase(ISupplierRepository repo, INotificationBroadcaster broadcaster, ILogger<UpdateSupplierUseCase> logger)
     {
-        _repo   = repo;
-        _logger = logger;
+        _repo        = repo;
+        _broadcaster = broadcaster;
+        _logger      = logger;
     }
 
     public async Task<SupplierResponseDto> ExecuteAsync(int id, UpdateSupplierRequestDto request, CancellationToken ct = default)
@@ -40,7 +43,7 @@ public class UpdateSupplierUseCase : IUpdateSupplierUseCase
         var updated = await _repo.UpdateAsync(supplier, ct);
         _logger.LogInformation("Updated supplier {Id}", id);
 
-        return new SupplierResponseDto
+        var dto = new SupplierResponseDto
         {
             Id             = updated.Id,
             Code           = updated.Code,
@@ -51,5 +54,8 @@ public class UpdateSupplierUseCase : IUpdateSupplierUseCase
             Phone          = updated.Phone,
             IsStopTracking = updated.IsStopTracking,
         };
+
+        await _broadcaster.SupplierUpdatedAsync(dto, ct);
+        return dto;
     }
 }

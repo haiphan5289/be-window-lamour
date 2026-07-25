@@ -1,3 +1,4 @@
+using Lamour.Application.Abstractions;
 using Lamour.Application.Features.Suppliers.Repositories;
 using Lamour.Domain.Exceptions;
 using Microsoft.Extensions.Logging;
@@ -7,12 +8,14 @@ namespace Lamour.Application.Features.Suppliers.UseCases;
 public class DeleteSupplierUseCase : IDeleteSupplierUseCase
 {
     private readonly ISupplierRepository _repo;
+    private readonly INotificationBroadcaster _broadcaster;
     private readonly ILogger<DeleteSupplierUseCase> _logger;
 
-    public DeleteSupplierUseCase(ISupplierRepository repo, ILogger<DeleteSupplierUseCase> logger)
+    public DeleteSupplierUseCase(ISupplierRepository repo, INotificationBroadcaster broadcaster, ILogger<DeleteSupplierUseCase> logger)
     {
-        _repo   = repo;
-        _logger = logger;
+        _repo        = repo;
+        _broadcaster = broadcaster;
+        _logger      = logger;
     }
 
     public async Task ExecuteAsync(int id, CancellationToken ct = default)
@@ -22,5 +25,7 @@ public class DeleteSupplierUseCase : IDeleteSupplierUseCase
 
         await _repo.DeleteAsync(supplier, ct);
         _logger.LogInformation("Deleted supplier {Id}", id);
+
+        await _broadcaster.SupplierDeletedAsync(id, ct);
     }
 }

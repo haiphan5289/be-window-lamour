@@ -1,3 +1,4 @@
+using Lamour.Application.Abstractions;
 using Lamour.Application.Features.Suppliers.Dtos;
 using Lamour.Application.Features.Suppliers.Repositories;
 using Lamour.Domain.Entities;
@@ -9,12 +10,14 @@ namespace Lamour.Application.Features.Suppliers.UseCases;
 public class DuplicateSupplierUseCase : IDuplicateSupplierUseCase
 {
     private readonly ISupplierRepository _repo;
+    private readonly INotificationBroadcaster _broadcaster;
     private readonly ILogger<DuplicateSupplierUseCase> _logger;
 
-    public DuplicateSupplierUseCase(ISupplierRepository repo, ILogger<DuplicateSupplierUseCase> logger)
+    public DuplicateSupplierUseCase(ISupplierRepository repo, INotificationBroadcaster broadcaster, ILogger<DuplicateSupplierUseCase> logger)
     {
-        _repo   = repo;
-        _logger = logger;
+        _repo        = repo;
+        _broadcaster = broadcaster;
+        _logger      = logger;
     }
 
     public async Task<SupplierResponseDto> ExecuteAsync(int id, CancellationToken ct = default)
@@ -40,7 +43,7 @@ public class DuplicateSupplierUseCase : IDuplicateSupplierUseCase
         var created = await _repo.AddAsync(copy, ct);
         _logger.LogInformation("Duplicated supplier {SourceId} → {NewId}", id, created.Id);
 
-        return new SupplierResponseDto
+        var dto = new SupplierResponseDto
         {
             Id             = created.Id,
             Code           = created.Code,
@@ -51,5 +54,8 @@ public class DuplicateSupplierUseCase : IDuplicateSupplierUseCase
             Phone          = created.Phone,
             IsStopTracking = created.IsStopTracking,
         };
+
+        await _broadcaster.SupplierCreatedAsync(dto, ct);
+        return dto;
     }
 }

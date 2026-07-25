@@ -1,3 +1,4 @@
+using Lamour.Application.Abstractions;
 using Lamour.Application.Features.Products.Dtos;
 using Lamour.Application.Features.Products.Repositories;
 using Lamour.Domain.Entities;
@@ -9,12 +10,14 @@ namespace Lamour.Application.Features.Products.UseCases;
 public class DuplicateProductUseCase : IDuplicateProductUseCase
 {
     private readonly IProductRepository             _repo;
+    private readonly INotificationBroadcaster       _broadcaster;
     private readonly ILogger<DuplicateProductUseCase> _logger;
 
-    public DuplicateProductUseCase(IProductRepository repo, ILogger<DuplicateProductUseCase> logger)
+    public DuplicateProductUseCase(IProductRepository repo, INotificationBroadcaster broadcaster, ILogger<DuplicateProductUseCase> logger)
     {
-        _repo   = repo;
-        _logger = logger;
+        _repo        = repo;
+        _broadcaster = broadcaster;
+        _logger      = logger;
     }
 
     public async Task<ProductResponseDto> ExecuteAsync(int id, CancellationToken ct = default)
@@ -47,6 +50,8 @@ public class DuplicateProductUseCase : IDuplicateProductUseCase
         var created = await _repo.AddAsync(copy, ct);
         _logger.LogInformation("Duplicated product {SourceId} → {NewId}", id, created.Id);
 
-        return CreateProductUseCase.MapToDto(created);
+        var dto = CreateProductUseCase.MapToDto(created);
+        await _broadcaster.ProductCreatedAsync(dto, ct);
+        return dto;
     }
 }
