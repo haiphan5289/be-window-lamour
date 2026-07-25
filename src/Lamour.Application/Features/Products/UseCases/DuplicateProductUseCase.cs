@@ -34,7 +34,7 @@ public class DuplicateProductUseCase : IDuplicateProductUseCase
         {
             Code             = newCode,
             Name             = source.Name,
-            Category         = source.Category,
+            CategoryId       = source.CategoryId,
             Unit             = source.Unit,
             CostPrice        = source.CostPrice,
             SellingPrice     = source.SellingPrice,
@@ -48,6 +48,7 @@ public class DuplicateProductUseCase : IDuplicateProductUseCase
         };
 
         var created = await _repo.AddAsync(copy, ct);
+        created.Category = source.Category;
         _logger.LogInformation("Duplicated product {SourceId} → {NewId}", id, created.Id);
 
         var dto = CreateProductUseCase.MapToDto(created);

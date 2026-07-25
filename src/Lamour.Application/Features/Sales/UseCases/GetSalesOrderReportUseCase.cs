@@ -47,7 +47,7 @@ public class GetSalesOrderReportUseCase : IGetSalesOrderReportUseCase
             ProductCode    = l.ProductCode,
             ProductName    = l.ProductName,
             Unit           = l.Unit,
-            Category       = l.Product?.Category,
+            Category       = l.Product?.Category?.Name,
             Quantity       = l.Quantity,
             UnitPrice      = l.UnitPrice,
             DiscountRate   = l.DiscountRate,

@@ -9,6 +9,7 @@ public class AppDbContext : DbContext
 
     public DbSet<Supplier>              Suppliers              => Set<Supplier>();
     public DbSet<Product>               Products               => Set<Product>();
+    public DbSet<Category>              Categories             => Set<Category>();
     public DbSet<Customer>              Customers              => Set<Customer>();
     public DbSet<Employee>              Employees              => Set<Employee>();
     public DbSet<CashTransaction>       CashTransactions       => Set<CashTransaction>();

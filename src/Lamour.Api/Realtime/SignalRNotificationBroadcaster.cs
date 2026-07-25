@@ -1,5 +1,6 @@
 using Lamour.Api.Hubs;
 using Lamour.Application.Abstractions;
+using Lamour.Application.Features.Categories.Dtos;
 using Lamour.Application.Features.Customers.Dtos;
 using Lamour.Application.Features.Employees.Dtos;
 using Lamour.Application.Features.Products.Dtos;
@@ -55,4 +56,13 @@ public class SignalRNotificationBroadcaster : INotificationBroadcaster
 
     public Task SupplierDeletedAsync(int supplierId, CancellationToken ct = default)
         => _hub.Clients.All.SendAsync("SupplierDeleted", supplierId, ct);
+
+    public Task CategoryCreatedAsync(CategoryResponseDto category, CancellationToken ct = default)
+        => _hub.Clients.All.SendAsync("CategoryCreated", category, ct);
+
+    public Task CategoryUpdatedAsync(CategoryResponseDto category, CancellationToken ct = default)
+        => _hub.Clients.All.SendAsync("CategoryUpdated", category, ct);
+
+    public Task CategoryDeletedAsync(int categoryId, CancellationToken ct = default)
+        => _hub.Clients.All.SendAsync("CategoryDeleted", categoryId, ct);
 }

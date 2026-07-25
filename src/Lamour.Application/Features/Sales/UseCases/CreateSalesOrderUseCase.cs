@@ -47,9 +47,11 @@ public class CreateSalesOrderUseCase : ICreateSalesOrderUseCase
             if (!dto.IsPromotion && product.StockQuantity < dto.Quantity)
                 stockErrors.Add($"• {product.Name}: có {product.StockQuantity}, cần {dto.Quantity}");
 
-            var discountRate = Math.Max(0, Math.Min(100, dto.DiscountRate));
-            var amount       = dto.Quantity * dto.UnitPrice * (1 - discountRate / 100m);
-            var taxRate      = SalesOrderTaxCalculator.ToPercent(product.VatRate);
+            // Hàng khuyến mại: giá/CK/thuế luôn = 0, bất kể client gửi gì lên.
+            var unitPrice    = dto.IsPromotion ? 0m : dto.UnitPrice;
+            var discountRate = dto.IsPromotion ? 0m : Math.Max(0, Math.Min(100, dto.DiscountRate));
+            var amount       = dto.Quantity * unitPrice * (1 - discountRate / 100m);
+            var taxRate      = dto.IsPromotion ? 0m : SalesOrderTaxCalculator.ToPercent(product.VatRate);
             lines.Add(new SalesOrderLine
             {
                 ProductId         = dto.ProductId,
@@ -58,7 +60,7 @@ public class CreateSalesOrderUseCase : ICreateSalesOrderUseCase
                 IsPromotion       = dto.IsPromotion,
                 Unit              = string.IsNullOrWhiteSpace(dto.Unit) ? product.Unit : dto.Unit,
                 Quantity          = dto.Quantity,
-                UnitPrice         = dto.UnitPrice,
+                UnitPrice         = unitPrice,
                 DiscountRate      = discountRate,
                 Amount            = amount,
                 TaxRate           = taxRate,

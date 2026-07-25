@@ -71,7 +71,7 @@ public class SalesReturnRepository : ISalesReturnRepository
             .AsNoTracking()
             .Include(l => l.SalesReturn).ThenInclude(r => r.Customer)
             .Include(l => l.SalesReturn).ThenInclude(r => r.Employee)
-            .Include(l => l.Product)
+            .Include(l => l.Product).ThenInclude(p => p.Category)
             .AsQueryable();
 
         var productIdList = productIds?.ToList();
@@ -84,7 +84,7 @@ public class SalesReturnRepository : ISalesReturnRepository
         if (!string.IsNullOrWhiteSpace(unit))
             query = query.Where(l => l.Unit == unit);
         if (!string.IsNullOrWhiteSpace(category))
-            query = query.Where(l => l.Product.Category == category);
+            query = query.Where(l => l.Product.Category.Name == category);
         if (fromDate.HasValue)
         {
             var from = DateTime.SpecifyKind(fromDate.Value, DateTimeKind.Utc);

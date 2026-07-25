@@ -1,3 +1,4 @@
+using Lamour.Application.Features.Categories.Dtos;
 using Lamour.Application.Features.Customers.Dtos;
 using Lamour.Application.Features.Employees.Dtos;
 using Lamour.Application.Features.Products.Dtos;
@@ -23,4 +24,8 @@ public interface INotificationBroadcaster
     Task SupplierCreatedAsync(SupplierResponseDto supplier, CancellationToken ct = default);
     Task SupplierUpdatedAsync(SupplierResponseDto supplier, CancellationToken ct = default);
     Task SupplierDeletedAsync(int supplierId, CancellationToken ct = default);
+
+    Task CategoryCreatedAsync(CategoryResponseDto category, CancellationToken ct = default);
+    Task CategoryUpdatedAsync(CategoryResponseDto category, CancellationToken ct = default);
+    Task CategoryDeletedAsync(int categoryId, CancellationToken ct = default);
 }

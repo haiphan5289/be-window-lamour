@@ -14,7 +14,8 @@ public class ProductConfiguration : IEntityTypeConfiguration<Product>
         builder.Property(p => p.Id).HasColumnName("id").ValueGeneratedOnAdd();
         builder.Property(p => p.Code).HasColumnName("code").HasMaxLength(50);
         builder.Property(p => p.Name).HasColumnName("name").HasMaxLength(200).IsRequired();
-        builder.Property(p => p.Category).HasColumnName("category").HasMaxLength(100).IsRequired();
+        builder.Property(p => p.CategoryId).HasColumnName("category_id").IsRequired();
+        builder.HasOne(p => p.Category).WithMany().HasForeignKey(p => p.CategoryId).OnDelete(DeleteBehavior.Restrict);
         builder.Property(p => p.Unit).HasColumnName("unit").HasMaxLength(50);
         builder.Property(p => p.CostPrice).HasColumnName("cost_price").HasPrecision(18, 2).IsRequired();
         builder.Property(p => p.SellingPrice).HasColumnName("selling_price").HasPrecision(18, 2).IsRequired();

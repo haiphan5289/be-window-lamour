@@ -77,6 +77,18 @@ builder.Services.AddScoped<Lamour.Application.Features.Products.UseCases.IDelete
 builder.Services.AddScoped<Lamour.Application.Features.Products.UseCases.IDuplicateProductUseCase,
                            Lamour.Application.Features.Products.UseCases.DuplicateProductUseCase>();
 
+// ── Categories DI ─────────────────────────────────────────────────────────────
+builder.Services.AddScoped<Lamour.Application.Features.Categories.Repositories.ICategoryRepository,
+                           Lamour.Infrastructure.Repositories.CategoryRepository>();
+builder.Services.AddScoped<Lamour.Application.Features.Categories.UseCases.IGetCategoriesUseCase,
+                           Lamour.Application.Features.Categories.UseCases.GetCategoriesUseCase>();
+builder.Services.AddScoped<Lamour.Application.Features.Categories.UseCases.ICreateCategoryUseCase,
+                           Lamour.Application.Features.Categories.UseCases.CreateCategoryUseCase>();
+builder.Services.AddScoped<Lamour.Application.Features.Categories.UseCases.IUpdateCategoryUseCase,
+                           Lamour.Application.Features.Categories.UseCases.UpdateCategoryUseCase>();
+builder.Services.AddScoped<Lamour.Application.Features.Categories.UseCases.IDeleteCategoryUseCase,
+                           Lamour.Application.Features.Categories.UseCases.DeleteCategoryUseCase>();
+
 // ── Customers DI ──────────────────────────────────────────────────────────────
 builder.Services.AddScoped<Lamour.Application.Features.Customers.Repositories.ICustomerRepository,
                            Lamour.Infrastructure.Repositories.CustomerRepository>();

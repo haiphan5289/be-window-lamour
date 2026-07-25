@@ -1,6 +1,6 @@
 # Products — Feature Document (BE)
 
-> **Jira:** — | **Branch:** `dev` | **Generated:** 2026-04-25 | **Updated:** 2026-05-29
+> **Jira:** — | **Branch:** `dev` | **Generated:** 2026-04-25 | **Updated:** 2026-07-25 (Category thành master-data FK riêng — xem [`categories.md`](../../Categories/docs/categories.md); bỏ validate CostPrice/SellingPrice > 0)
 
 ---
 
@@ -26,9 +26,9 @@
 | Code unique | `code` unique case-insensitive — `DomainException` nếu trùng; để trống thì bỏ qua unique check |
 | Code optional | `code` không bắt buộc — DB index có filter `WHERE code <> ''` |
 | Name required | `name` không được trống — `DomainException` |
-| Category required | `category` không được trống — `DomainException` |
-| CostPrice > 0 | `cost_price` phải lớn hơn 0 — `DomainException` |
-| SellingPrice > 0 | `selling_price` phải lớn hơn 0 — `DomainException` |
+| Category là FK (2026-07-25) | `category_id` (int) phải trỏ tới 1 `Category` đã tồn tại — `CreateProductUseCase`/`UpdateProductUseCase` gọi `ICategoryRepository.GetByIdAsync` trước khi lưu, throw `DomainException` nếu không tìm thấy. Trước đây là string tự do bắt buộc không rỗng — xem [`categories.md`](../../Categories/docs/categories.md) cho chi tiết entity Category + migration backfill |
+| ~~CostPrice > 0~~ | ~~`cost_price` phải lớn hơn 0~~ — **Bỏ 2026-07-25** theo yêu cầu, giờ chấp nhận mọi giá trị kể cả 0 |
+| ~~SellingPrice > 0~~ | ~~`selling_price` phải lớn hơn 0~~ — **Bỏ 2026-07-25** theo yêu cầu, giờ chấp nhận mọi giá trị kể cả 0 |
 | Stock quantity | `stock_quantity` lưu tại DB, tăng/giảm qua import/export invoice |
 | Duplicate code | Khi nhân bản: code mới = `{original_code}_COPY`; lỗi nếu `_COPY` đã tồn tại |
 | is_active | Sản phẩm có thể ngừng kinh doanh (`is_active = false`) |
@@ -47,17 +47,17 @@
 | Layer | File | Role |
 |-------|------|------|
 | Controller | `Lamour.Api/Controllers/ProductsController.cs` | 5 HTTP actions, `[Authorize]` active |
-| UseCase | `UseCases/GetProductsUseCase.cs` | Fetch all + map to DTO |
-| UseCase | `UseCases/CreateProductUseCase.cs` | Validate → persist; `ParseVatRate`, `ParseTaxReductionStatus` |
-| UseCase | `UseCases/UpdateProductUseCase.cs` | Find → validate → update |
+| UseCase | `UseCases/GetProductsUseCase.cs` | Fetch all + map to DTO (`CategoryName` từ `p.Category.Name` navigation) |
+| UseCase | `UseCases/CreateProductUseCase.cs` | Validate `CategoryId` tồn tại (qua `ICategoryRepository`) → persist; `ParseVatRate`, `ParseTaxReductionStatus` |
+| UseCase | `UseCases/UpdateProductUseCase.cs` | Find → validate `CategoryId` → update |
 | UseCase | `UseCases/DeleteProductUseCase.cs` | Find → delete |
-| UseCase | `UseCases/DuplicateProductUseCase.cs` | Clone với `_COPY` code |
+| UseCase | `UseCases/DuplicateProductUseCase.cs` | Clone với `_COPY` code, giữ nguyên `CategoryId` |
 | Repository | `Repositories/IProductRepository.cs` | `GetAllAsync`, `GetByIdAsync`, `GetByIdTrackedAsync`, `CodeExistsAsync`, `AddAsync`, `UpdateAsync`, `DeleteAsync` |
-| Repository | `Lamour.Infrastructure/Repositories/ProductRepository.cs` | EF Core implementation |
-| Entity | `Lamour.Domain/Entities/Product.cs` | Domain model — 9 fields cơ bản + 5 tax fields |
+| Repository | `Lamour.Infrastructure/Repositories/ProductRepository.cs` | EF Core implementation — `GetAllAsync`/`GetByIdAsync` dùng `.Include(p => p.Category)` (2026-07-25, cần cho `CategoryName` ở response) |
+| Entity | `Lamour.Domain/Entities/Product.cs` | Domain model — `CategoryId` (int, FK) + `Category` navigation (2026-07-25, trước đây là `string Category`) + 8 field cơ bản khác + 5 tax fields |
 | Enum | `Lamour.Domain/Enums/VatRateType.cs` | `Zero`, `Five`, `Eight`, `Ten`, `KCT`, `KKKNT`, `KHAC` |
 | Enum | `Lamour.Domain/Enums/TaxReductionStatus.cs` | `CoGiamThue`, `ChuaGiamThue`, `ChuaXacDinh` |
-| Config | `Lamour.Infrastructure/Persistence/Configurations/ProductConfiguration.cs` | EF table mapping — tất cả 14 columns |
+| Config | `Lamour.Infrastructure/Persistence/Configurations/ProductConfiguration.cs` | EF table mapping — `CategoryId` FK (`OnDelete: Restrict`) tới `Categories`, còn lại 13 columns khác |
 
 ### Data Flow
 
@@ -95,24 +95,25 @@ graph TD
 ## Key Files & Symbols
 
 ### Domain
-- [`Lamour.Domain/Entities/Product.cs`](../../../../Lamour.Domain/Entities/Product.cs) — `Id`, `Code`, `Name`, `Category`, `Unit`, `CostPrice`, `SellingPrice`, `StockQuantity`, `IsActive`, `VatRate`, `TaxReductionType`, `ImportTaxRate`, `ExportTaxRate`, `ExciseTaxGroup`
+- [`Lamour.Domain/Entities/Product.cs`](../../../../Lamour.Domain/Entities/Product.cs) — `Id`, `Code`, `Name`, `CategoryId` + `Category` navigation (2026-07-25, trước là `string Category`), `Unit`, `CostPrice`, `SellingPrice`, `StockQuantity`, `IsActive`, `VatRate`, `TaxReductionType`, `ImportTaxRate`, `ExportTaxRate`, `ExciseTaxGroup`
 - [`Lamour.Domain/Enums/VatRateType.cs`](../../../../Lamour.Domain/Enums/VatRateType.cs) — enum cho `vat_rate`
 - [`Lamour.Domain/Enums/TaxReductionStatus.cs`](../../../../Lamour.Domain/Enums/TaxReductionStatus.cs) — enum cho `tax_reduction_type`
 
 ### Application — Repositories
 - [`Repositories/IProductRepository.cs`](../Repositories/IProductRepository.cs) — `GetAllAsync`, `GetByIdAsync`, `CodeExistsAsync`, `AddAsync`, `UpdateAsync`, `DeleteAsync`
+- [`../../Categories/Repositories/ICategoryRepository.cs`](../../Categories/Repositories/ICategoryRepository.cs) — injected vào `CreateProductUseCase`/`UpdateProductUseCase` để validate `CategoryId` tồn tại (2026-07-25)
 
 ### Application — DTOs
-- [`Dtos/ProductResponseDto.cs`](../Dtos/ProductResponseDto.cs) — `id`, `code`, `name`, `category`, `unit`, `cost_price`, `selling_price`, `stock_quantity`, `is_active`, `vat_rate`, `tax_reduction_type`, `import_tax_rate`, `export_tax_rate`, `excise_tax_group`
-- [`Dtos/CreateProductRequestDto.cs`](../Dtos/CreateProductRequestDto.cs) — Tất cả fields trên, `is_active` mặc định `true`, 5 tax fields nullable
+- [`Dtos/ProductResponseDto.cs`](../Dtos/ProductResponseDto.cs) — `id`, `code`, `name`, `category_id`, `category_name` (2026-07-25, thay cho `category` string), `unit`, `cost_price`, `selling_price`, `stock_quantity`, `is_active`, `vat_rate`, `tax_reduction_type`, `import_tax_rate`, `export_tax_rate`, `excise_tax_group`
+- [`Dtos/CreateProductRequestDto.cs`](../Dtos/CreateProductRequestDto.cs) — `category_id` (int) thay cho `category` (string); `is_active` mặc định `true`, 5 tax fields nullable
 - [`Dtos/UpdateProductRequestDto.cs`](../Dtos/UpdateProductRequestDto.cs) — Tương tự Create
 
 ### Application — UseCases
 - [`UseCases/GetProductsUseCase.cs`](../UseCases/GetProductsUseCase.cs) — `ExecuteAsync()` → `IEnumerable<ProductResponseDto>`
-- [`UseCases/CreateProductUseCase.cs`](../UseCases/CreateProductUseCase.cs) — Validate + `CodeExistsAsync` + `AddAsync`
-- [`UseCases/UpdateProductUseCase.cs`](../UseCases/UpdateProductUseCase.cs) — `GetByIdAsync` → validate → `UpdateAsync`
+- [`UseCases/CreateProductUseCase.cs`](../UseCases/CreateProductUseCase.cs) — Validate (Name required; `CategoryId` phải tồn tại) + `CodeExistsAsync` + `AddAsync`; `MapToDto` static dùng chung bởi Update/Duplicate/Get
+- [`UseCases/UpdateProductUseCase.cs`](../UseCases/UpdateProductUseCase.cs) — `GetByIdAsync` → validate `CategoryId` → `UpdateAsync`
 - [`UseCases/DeleteProductUseCase.cs`](../UseCases/DeleteProductUseCase.cs) — `GetByIdAsync` → `DeleteAsync`
-- [`UseCases/DuplicateProductUseCase.cs`](../UseCases/DuplicateProductUseCase.cs) — Clone + `{code}_COPY`
+- [`UseCases/DuplicateProductUseCase.cs`](../UseCases/DuplicateProductUseCase.cs) — Clone + `{code}_COPY`, giữ nguyên `CategoryId`
 
 ---
 
@@ -131,7 +132,7 @@ graph TD
 {
   "code": "SP001",
   "name": "Kem dưỡng trắng da",
-  "category": "Dưỡng da",
+  "category_id": 1,
   "unit": "Hộp",
   "cost_price": 150000,
   "selling_price": 220000,
@@ -146,8 +147,10 @@ graph TD
 ```
 
 > **Giá trị hợp lệ:**
+> - `category_id`: phải trỏ tới 1 `Category` đã tồn tại (xem [`categories.md`](../../Categories/docs/categories.md)) — 400 `DomainException` nếu không tìm thấy
 > - `vat_rate`: `"Zero"` | `"Five"` | `"Eight"` | `"Ten"` | `"KCT"` | `"KKKNT"` | `"KHAC"` | `null`
 > - `tax_reduction_type`: `"CoGiamThue"` | `"ChuaGiamThue"` | `"ChuaXacDinh"` | `null`
+> - `cost_price`/`selling_price`: **không còn validate > 0** (bỏ 2026-07-25) — chấp nhận mọi giá trị kể cả 0
 
 ### Response
 ```json
@@ -155,7 +158,8 @@ graph TD
   "id": 1,
   "code": "SP001",
   "name": "Kem dưỡng trắng da",
-  "category": "Dưỡng da",
+  "category_id": 1,
+  "category_name": "Dưỡng da",
   "unit": "Hộp",
   "cost_price": 150000.00,
   "selling_price": 220000.00,
@@ -177,9 +181,8 @@ graph TD
 |----------|------------------|----------|
 | `code` trống | Cho phép — empty code được (không unique check) | ✅ |
 | `name` trống | `DomainException` → 400 | ✅ |
-| `category` trống | `DomainException` → 400 | ✅ |
-| `cost_price` <= 0 | `DomainException` → 400 | ✅ |
-| `selling_price` <= 0 | `DomainException` → 400 | ✅ |
+| `category_id` không tồn tại (2026-07-25) | `DomainException` → 400 (`ICategoryRepository.GetByIdAsync` trả `null`) | ✅ |
+| ~~`cost_price` <= 0~~ / ~~`selling_price` <= 0~~ | ~~`DomainException` → 400~~ — **Bỏ 2026-07-25**, không còn validate | ✅ Removed |
 | `code` đã tồn tại (Create) | `DomainException` → 400 | ✅ |
 | `code` trùng khi Update (exclude self) | `DomainException` → 400 | ✅ |
 | `id` không tồn tại | `NotFoundException` → 404 | ✅ |
@@ -212,9 +215,11 @@ graph TD
 ## Notes
 
 - `[Authorize]` đã active — WPF gửi Bearer token khi call API
-- EF Migration: `20260425045914_ProductsCreate` (bao gồm cả 5 tax columns)
-- `StockQuantity` được quản lý bởi ImportInvoice / ExportInvoice (chưa implement)
+- EF Migration: `20260425045914_ProductsCreate` (bao gồm cả 5 tax columns); `20260725093244_CategoriesCreate` (2026-07-25) đổi `category` string → `category_id` FK, xem [`categories.md`](../../Categories/docs/categories.md) cho chi tiết migration + backfill
+- `StockQuantity` được quản lý bởi ImportInvoice / ExportInvoice (chưa implement) — **lưu ý:** Sales Order (`CreateSalesOrderUseCase`/`UpdateSalesOrderUseCase`) hiện đã tự trừ/hoàn `StockQuantity` khi ghi sổ/xóa đơn hàng bán, note "chưa implement" ở trên đã lỗi thời cho phần Sales
 - `TaxReductionType` dùng enum `TaxReductionStatus` riêng (không dùng `VatRateType`) — các giá trị: `CoGiamThue`, `ChuaGiamThue`, `ChuaXacDinh`
+- **Category là FK (2026-07-25)**: `ProductRepository.GetAllAsync`/`GetByIdAsync` phải `.Include(p => p.Category)` để `MapToDto` không NRE khi đọc `p.Category.Name`; `Create/UpdateProductUseCase` set thủ công `created.Category`/`updated.Category` sau khi gọi repo (không dựa vào EF tự nạp navigation sau `AddAsync`/`UpdateAsync`) để response trả đúng `category_name` ngay lập tức không cần round-trip DB thêm lần nữa
+- 2 nơi khác cũng đọc `Product.Category` cần đồng bộ khi sửa entity này: `SalesOrderRepository.GetReportLinesAsync`/`SalesReturnRepository.GetReportLinesAsync` (filter theo `category`, dùng cho báo cáo bán hàng) — đã đổi sang `l.Product.Category.Name`
 
 ### WPF Desktop Fix (2026-05-29)
 

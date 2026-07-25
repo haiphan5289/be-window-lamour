@@ -23,6 +23,9 @@ public class DeleteProductUseCase : IDeleteProductUseCase
         var product = await _repo.GetByIdAsync(id, ct)
             ?? throw new NotFoundException($"Product {id} not found.");
 
+        if (await _repo.IsInUseAsync(id, ct))
+            throw new DomainException($"Không thể xóa sản phẩm '{product.Name}' vì đang có trong đơn bán hàng, phiếu nhập kho hoặc hàng bán bị trả lại.");
+
         await _repo.DeleteAsync(product, ct);
         _logger.LogInformation("Deleted product {Id}", id);
 

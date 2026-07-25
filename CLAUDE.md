@@ -137,6 +137,8 @@ Each feature has a dedicated doc. **Always read the feature doc before implement
 |---------|----------|
 | Sales / Chứng từ bán hàng | `src/Lamour.Application/Features/Sales/docs/sales.md` |
 | SalesReturn / Chứng từ hàng bán bị trả lại | `src/Lamour.Application/Features/SalesReturn/docs/sales-return.md` |
+| Products / Sản phẩm | `src/Lamour.Application/Features/Products/docs/products.md` |
+| Categories / Danh mục | `src/Lamour.Application/Features/Categories/docs/categories.md` |
 
 > For any other feature, check `src/Lamour.Application/Features/[Feature]/docs/` first.
 
