@@ -1,3 +1,4 @@
+using Lamour.Application.Abstractions;
 using Lamour.Application.Features.Customers.Dtos;
 using Lamour.Application.Features.Customers.Repositories;
 using Lamour.Domain.Entities;
@@ -9,12 +10,14 @@ namespace Lamour.Application.Features.Customers.UseCases;
 public class DuplicateCustomerUseCase : IDuplicateCustomerUseCase
 {
     private readonly ICustomerRepository _repo;
+    private readonly INotificationBroadcaster _broadcaster;
     private readonly ILogger<DuplicateCustomerUseCase> _logger;
 
-    public DuplicateCustomerUseCase(ICustomerRepository repo, ILogger<DuplicateCustomerUseCase> logger)
+    public DuplicateCustomerUseCase(ICustomerRepository repo, INotificationBroadcaster broadcaster, ILogger<DuplicateCustomerUseCase> logger)
     {
-        _repo   = repo;
-        _logger = logger;
+        _repo        = repo;
+        _broadcaster = broadcaster;
+        _logger      = logger;
     }
 
     public async Task<CustomerResponseDto> ExecuteAsync(int id, CancellationToken ct = default)
@@ -38,7 +41,7 @@ public class DuplicateCustomerUseCase : IDuplicateCustomerUseCase
         var created = await _repo.AddAsync(copy, ct);
         _logger.LogInformation("Duplicated customer {SourceId} → {NewId}", id, created.Id);
 
-        return new CustomerResponseDto
+        var dto = new CustomerResponseDto
         {
             Id            = created.Id,
             Code          = created.Code,
@@ -49,5 +52,8 @@ public class DuplicateCustomerUseCase : IDuplicateCustomerUseCase
             TaxCode       = created.TaxCode,
             Phone         = created.Phone,
         };
+
+        await _broadcaster.CustomerCreatedAsync(dto, ct);
+        return dto;
     }
 }

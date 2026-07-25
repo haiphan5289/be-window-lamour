@@ -1,3 +1,4 @@
+using Lamour.Application.Abstractions;
 using Lamour.Application.Features.Customers.Repositories;
 using Lamour.Domain.Exceptions;
 using Microsoft.Extensions.Logging;
@@ -7,12 +8,14 @@ namespace Lamour.Application.Features.Customers.UseCases;
 public class DeleteCustomerUseCase : IDeleteCustomerUseCase
 {
     private readonly ICustomerRepository _repo;
+    private readonly INotificationBroadcaster _broadcaster;
     private readonly ILogger<DeleteCustomerUseCase> _logger;
 
-    public DeleteCustomerUseCase(ICustomerRepository repo, ILogger<DeleteCustomerUseCase> logger)
+    public DeleteCustomerUseCase(ICustomerRepository repo, INotificationBroadcaster broadcaster, ILogger<DeleteCustomerUseCase> logger)
     {
-        _repo   = repo;
-        _logger = logger;
+        _repo        = repo;
+        _broadcaster = broadcaster;
+        _logger      = logger;
     }
 
     public async Task ExecuteAsync(int id, CancellationToken ct = default)
@@ -22,5 +25,7 @@ public class DeleteCustomerUseCase : IDeleteCustomerUseCase
 
         await _repo.DeleteAsync(customer, ct);
         _logger.LogInformation("Deleted customer {Id}", id);
+
+        await _broadcaster.CustomerDeletedAsync(id, ct);
     }
 }

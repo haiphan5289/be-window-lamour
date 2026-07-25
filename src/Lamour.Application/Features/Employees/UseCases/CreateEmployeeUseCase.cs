@@ -1,5 +1,6 @@
 using System.Security.Cryptography;
 using System.Text;
+using Lamour.Application.Abstractions;
 using Lamour.Application.Features.Employees.Dtos;
 using Lamour.Application.Features.Employees.Repositories;
 using Lamour.Domain.Entities;
@@ -11,12 +12,14 @@ namespace Lamour.Application.Features.Employees.UseCases;
 public class CreateEmployeeUseCase : ICreateEmployeeUseCase
 {
     private readonly IEmployeeRepository _repo;
+    private readonly INotificationBroadcaster _broadcaster;
     private readonly ILogger<CreateEmployeeUseCase> _logger;
 
-    public CreateEmployeeUseCase(IEmployeeRepository repo, ILogger<CreateEmployeeUseCase> logger)
+    public CreateEmployeeUseCase(IEmployeeRepository repo, INotificationBroadcaster broadcaster, ILogger<CreateEmployeeUseCase> logger)
     {
-        _repo   = repo;
-        _logger = logger;
+        _repo        = repo;
+        _broadcaster = broadcaster;
+        _logger      = logger;
     }
 
     public async Task<EmployeeResponseDto> ExecuteAsync(CreateEmployeeRequestDto request, CancellationToken ct = default)
@@ -56,7 +59,9 @@ public class CreateEmployeeUseCase : ICreateEmployeeUseCase
         var created = await _repo.AddAsync(employee, ct);
         _logger.LogInformation("Created employee {Id} - {Name}", created.Id, created.Name);
 
-        return GetEmployeesUseCase.MapToDto(created);
+        var dto = GetEmployeesUseCase.MapToDto(created);
+        await _broadcaster.EmployeeCreatedAsync(dto, ct);
+        return dto;
     }
 
     internal static string HashPassword(string password)

@@ -1,3 +1,4 @@
+using Lamour.Application.Abstractions;
 using Lamour.Application.Features.Customers.Dtos;
 using Lamour.Application.Features.Customers.Repositories;
 using Lamour.Application.Features.Employees.Repositories;
@@ -11,12 +12,18 @@ public class CreateCustomerUseCase : ICreateCustomerUseCase
 {
     private readonly ICustomerRepository _repo;
     private readonly IEmployeeRepository _employeeRepo;
+    private readonly INotificationBroadcaster _broadcaster;
     private readonly ILogger<CreateCustomerUseCase> _logger;
 
-    public CreateCustomerUseCase(ICustomerRepository repo, IEmployeeRepository employeeRepo, ILogger<CreateCustomerUseCase> logger)
+    public CreateCustomerUseCase(
+        ICustomerRepository repo,
+        IEmployeeRepository employeeRepo,
+        INotificationBroadcaster broadcaster,
+        ILogger<CreateCustomerUseCase> logger)
     {
         _repo         = repo;
         _employeeRepo = employeeRepo;
+        _broadcaster  = broadcaster;
         _logger       = logger;
     }
 
@@ -49,7 +56,9 @@ public class CreateCustomerUseCase : ICreateCustomerUseCase
         var created = await _repo.AddAsync(customer, ct);
         _logger.LogInformation("Created customer {Id} with code {Code}", created.Id, created.Code);
 
-        return MapToDto(created, saleCareEmployee);
+        var dto = MapToDto(created, saleCareEmployee);
+        await _broadcaster.CustomerCreatedAsync(dto, ct);
+        return dto;
     }
 
     private static CustomerResponseDto MapToDto(Customer c, Employee? saleCareEmployee) => new()

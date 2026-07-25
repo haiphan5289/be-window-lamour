@@ -1,3 +1,4 @@
+using Lamour.Application.Abstractions;
 using Lamour.Application.Features.Employees.Dtos;
 using Lamour.Application.Features.Employees.Repositories;
 using Lamour.Domain.Entities;
@@ -9,12 +10,14 @@ namespace Lamour.Application.Features.Employees.UseCases;
 public class DuplicateEmployeeUseCase : IDuplicateEmployeeUseCase
 {
     private readonly IEmployeeRepository _repo;
+    private readonly INotificationBroadcaster _broadcaster;
     private readonly ILogger<DuplicateEmployeeUseCase> _logger;
 
-    public DuplicateEmployeeUseCase(IEmployeeRepository repo, ILogger<DuplicateEmployeeUseCase> logger)
+    public DuplicateEmployeeUseCase(IEmployeeRepository repo, INotificationBroadcaster broadcaster, ILogger<DuplicateEmployeeUseCase> logger)
     {
-        _repo   = repo;
-        _logger = logger;
+        _repo        = repo;
+        _broadcaster = broadcaster;
+        _logger      = logger;
     }
 
     public async Task<EmployeeResponseDto> ExecuteAsync(int id, CancellationToken ct = default)
@@ -34,6 +37,8 @@ public class DuplicateEmployeeUseCase : IDuplicateEmployeeUseCase
         var created = await _repo.AddAsync(copy, ct);
         _logger.LogInformation("Duplicated employee {SourceId} → {NewId}", id, created.Id);
 
-        return GetEmployeesUseCase.MapToDto(created);
+        var dto = GetEmployeesUseCase.MapToDto(created);
+        await _broadcaster.EmployeeCreatedAsync(dto, ct);
+        return dto;
     }
 }

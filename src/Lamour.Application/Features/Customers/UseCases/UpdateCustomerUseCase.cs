@@ -1,3 +1,4 @@
+using Lamour.Application.Abstractions;
 using Lamour.Application.Features.Customers.Dtos;
 using Lamour.Application.Features.Customers.Repositories;
 using Lamour.Application.Features.Employees.Repositories;
@@ -10,12 +11,18 @@ public class UpdateCustomerUseCase : IUpdateCustomerUseCase
 {
     private readonly ICustomerRepository _repo;
     private readonly IEmployeeRepository _employeeRepo;
+    private readonly INotificationBroadcaster _broadcaster;
     private readonly ILogger<UpdateCustomerUseCase> _logger;
 
-    public UpdateCustomerUseCase(ICustomerRepository repo, IEmployeeRepository employeeRepo, ILogger<UpdateCustomerUseCase> logger)
+    public UpdateCustomerUseCase(
+        ICustomerRepository repo,
+        IEmployeeRepository employeeRepo,
+        INotificationBroadcaster broadcaster,
+        ILogger<UpdateCustomerUseCase> logger)
     {
         _repo         = repo;
         _employeeRepo = employeeRepo;
+        _broadcaster  = broadcaster;
         _logger       = logger;
     }
 
@@ -45,7 +52,7 @@ public class UpdateCustomerUseCase : IUpdateCustomerUseCase
         var updated = await _repo.UpdateAsync(customer, ct);
         _logger.LogInformation("Updated customer {Id}", id);
 
-        return new CustomerResponseDto
+        var dto = new CustomerResponseDto
         {
             Id                   = updated.Id,
             Code                 = updated.Code,
@@ -58,5 +65,8 @@ public class UpdateCustomerUseCase : IUpdateCustomerUseCase
             SaleCareEmployeeId   = updated.SaleCareEmployeeId,
             SaleCareEmployeeName = saleCareEmployee?.Name,
         };
+
+        await _broadcaster.CustomerUpdatedAsync(dto, ct);
+        return dto;
     }
 }

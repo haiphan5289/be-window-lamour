@@ -1,4 +1,6 @@
+using Lamour.Api.Hubs;
 using Lamour.Api.Middleware;
+using Lamour.Api.Realtime;
 using Lamour.Infrastructure.Persistence;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
@@ -10,6 +12,7 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddControllers();
 builder.Services.AddExceptionHandler<GlobalExceptionHandler>();
 builder.Services.AddProblemDetails();
+builder.Services.AddSignalR();
 
 // EF Core + PostgreSQL
 builder.Services.AddDbContext<AppDbContext>(options =>
@@ -26,6 +29,21 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
             IssuerSigningKey         = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtKey)),
             ValidateIssuer           = false,
             ValidateAudience         = false,
+        };
+        // SignalR WebSocket connections can't set an Authorization header, so the
+        // WPF client passes the JWT via ?access_token= query string instead.
+        options.Events = new JwtBearerEvents
+        {
+            OnMessageReceived = context =>
+            {
+                var accessToken = context.Request.Query["access_token"];
+                if (!string.IsNullOrEmpty(accessToken) &&
+                    context.HttpContext.Request.Path.StartsWithSegments("/hubs"))
+                {
+                    context.Token = accessToken;
+                }
+                return Task.CompletedTask;
+            }
         };
     });
 
@@ -189,12 +207,17 @@ builder.Services.AddScoped<Lamour.Application.Features.SalesReturn.UseCases.IDel
 builder.Services.AddScoped<Lamour.Application.Features.Auth.UseCases.ILoginUseCase,
                            Lamour.Application.Features.Auth.UseCases.LoginUseCase>();
 
+// ── Realtime DI ──────────────────────────────────────────────────────────────
+builder.Services.AddSingleton<Lamour.Application.Abstractions.INotificationBroadcaster,
+                              SignalRNotificationBroadcaster>();
+
 var app = builder.Build();
 
 app.UseExceptionHandler();
 app.UseAuthentication();
 app.UseAuthorization();
 app.MapControllers();
+app.MapHub<DataSyncHub>("/hubs/data-sync");
 
 // Auto-migrate on startup (Docker / production)
 using (var scope = app.Services.CreateScope())

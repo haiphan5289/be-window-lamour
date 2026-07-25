@@ -1,3 +1,4 @@
+using Lamour.Application.Abstractions;
 using Lamour.Application.Features.Employees.Dtos;
 using Lamour.Application.Features.Employees.Repositories;
 using Lamour.Domain.Entities;
@@ -9,12 +10,14 @@ namespace Lamour.Application.Features.Employees.UseCases;
 public class UpdateEmployeeUseCase : IUpdateEmployeeUseCase
 {
     private readonly IEmployeeRepository _repo;
+    private readonly INotificationBroadcaster _broadcaster;
     private readonly ILogger<UpdateEmployeeUseCase> _logger;
 
-    public UpdateEmployeeUseCase(IEmployeeRepository repo, ILogger<UpdateEmployeeUseCase> logger)
+    public UpdateEmployeeUseCase(IEmployeeRepository repo, INotificationBroadcaster broadcaster, ILogger<UpdateEmployeeUseCase> logger)
     {
-        _repo   = repo;
-        _logger = logger;
+        _repo        = repo;
+        _broadcaster = broadcaster;
+        _logger      = logger;
     }
 
     public async Task<EmployeeResponseDto> ExecuteAsync(int id, UpdateEmployeeRequestDto request, CancellationToken ct = default)
@@ -51,6 +54,8 @@ public class UpdateEmployeeUseCase : IUpdateEmployeeUseCase
         var updated = await _repo.UpdateAsync(employee, ct);
         _logger.LogInformation("Updated employee {Id}", id);
 
-        return GetEmployeesUseCase.MapToDto(updated);
+        var dto = GetEmployeesUseCase.MapToDto(updated);
+        await _broadcaster.EmployeeUpdatedAsync(dto, ct);
+        return dto;
     }
 }

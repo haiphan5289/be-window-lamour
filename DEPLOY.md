@@ -134,9 +134,15 @@ dotnet publish src\DesktopLamour -r win-x64 --self-contained true -c Release -o 
 
 **Bước 3 — Zip WPF từ UTM ra Mac (UTM PowerShell):**
 ```powershell
-Compress-Archive -Path "C:\projects\desktop-lamour\publish\desktop-win\*" `
-  -DestinationPath "Z:\publish\desktop-win-new.zip" -Force
+Compress-Archive -Path "C:\projects\desktop-lamour\publish\desktop-win\*" -DestinationPath "Z:\publish\desktop-win-new.zip" -Force
 ```
+
+> **Lưu ý:** Nếu báo lỗi `The path 'Z:\publish' either does not exist...`, thư mục `publish` trong ổ `Z:\` chưa tồn tại (Compress-Archive không tự tạo thư mục cha). Tạo trước:
+> ```powershell
+> dir Z:\                      # kiểm tra ổ Z có mount không
+> mkdir Z:\publish -Force      # tạo thư mục publish nếu chưa có
+> ```
+> rồi chạy lại lệnh Compress-Archive.
 
 **Bước 4 — Dừng app trên máy đích:**
 ```powershell
@@ -167,6 +173,10 @@ Stop-Process -Name "DesktopLamour" -Force -ErrorAction SilentlyContinue
   "ServerUrl": "http://localhost:5282"
 }
 ```
+
+> **⚠️ QUAN TRỌNG:** Mỗi lần `dotnet publish src/Lamour.Api` từ Mac, file `appsettings.Production.json` trong output LUÔN chứa `Password=CHANGE_ME` (giá trị placeholder trong source code, không phải mật khẩu thật). Publish mới **KHÔNG** giữ lại giá trị `lamour123` đã sửa lần trước.
+>
+> → Copy `publish/api-win/` sang máy đích **KHÔNG đè** file `appsettings.Production.json`, hoặc copy đè xong thì **sửa lại ngay** `Password=CHANGE_ME` → `Password=lamour123` trước khi chạy `start-lamour.bat`. Nếu quên bước này, `Lamour.Api` sẽ không connect được DB (không thấy process trong Task Manager hoặc WPF báo "Login failed" chung chung).
 
 **Bước 7 — Chạy lại:**
 ```

@@ -1,4 +1,5 @@
 using ClosedXML.Excel;
+using Lamour.Application.Abstractions;
 using Lamour.Application.Features.Customers.Dtos;
 using Lamour.Application.Features.Customers.Repositories;
 using Lamour.Application.Features.Customers.UseCases;
@@ -12,6 +13,7 @@ public class ImportExcelCustomersUseCase : IImportExcelCustomersUseCase
 {
     private readonly ICustomerRepository _repo;
     private readonly IEmployeeRepository _employeeRepo;
+    private readonly INotificationBroadcaster _broadcaster;
     private readonly ILogger<ImportExcelCustomersUseCase> _logger;
 
     private static readonly Dictionary<string, string> HeaderAliases = new(StringComparer.OrdinalIgnoreCase)
@@ -33,10 +35,15 @@ public class ImportExcelCustomersUseCase : IImportExcelCustomersUseCase
         ["nhân viên"]      = "sale_care",
     };
 
-    public ImportExcelCustomersUseCase(ICustomerRepository repo, IEmployeeRepository employeeRepo, ILogger<ImportExcelCustomersUseCase> logger)
+    public ImportExcelCustomersUseCase(
+        ICustomerRepository repo,
+        IEmployeeRepository employeeRepo,
+        INotificationBroadcaster broadcaster,
+        ILogger<ImportExcelCustomersUseCase> logger)
     {
         _repo         = repo;
         _employeeRepo = employeeRepo;
+        _broadcaster  = broadcaster;
         _logger       = logger;
     }
 
@@ -92,6 +99,7 @@ public class ImportExcelCustomersUseCase : IImportExcelCustomersUseCase
         {
             await _repo.AddRangeAsync(validCustomers, ct);
             _logger.LogInformation("Imported {Count}/{Total} customers from Excel", validCustomers.Count, dataRows.Count);
+            await _broadcaster.CustomersBulkChangedAsync(ct);
         }
 
         return new ImportCustomerResultDto
