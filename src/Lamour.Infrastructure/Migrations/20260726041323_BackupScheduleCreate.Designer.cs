@@ -3,6 +3,7 @@ using System;
 using Lamour.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
@@ -11,9 +12,11 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace Lamour.Infrastructure.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260726041323_BackupScheduleCreate")]
+    partial class BackupScheduleCreate
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -30,16 +33,6 @@ namespace Lamour.Infrastructure.Migrations
                         .HasColumnName("id");
 
                     NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
-
-                    b.Property<string>("Directory")
-                        .IsRequired()
-                        .HasMaxLength(500)
-                        .HasColumnType("character varying(500)")
-                        .HasColumnName("directory");
-
-                    b.Property<int>("IntervalDays")
-                        .HasColumnType("integer")
-                        .HasColumnName("interval_days");
 
                     b.Property<bool>("IsEnabled")
                         .HasColumnType("boolean")
@@ -65,8 +58,6 @@ namespace Lamour.Infrastructure.Migrations
                         new
                         {
                             Id = 1,
-                            Directory = "/Users/haiphan/Desktop/haiphan/be-window-lamour/backups",
-                            IntervalDays = 1,
                             IsEnabled = false,
                             RetentionDays = 30,
                             TimeOfDay = new TimeOnly(2, 0, 0)

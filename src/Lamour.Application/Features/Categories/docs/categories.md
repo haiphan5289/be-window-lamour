@@ -236,9 +236,10 @@ Cấu trúc giống hệt pattern Supplier/Product (Data/Services, Data/Cache, D
 - `ProductListView.xaml`: cột "Danh mục" đổi binding sang `CategoryName`
 - `SalesOrderReportFilterViewModel.cs`: dropdown lọc báo cáo theo Category đổi từ derive `p.Category` sang `p.CategoryName` (không đổi cơ chế — vẫn là distinct-value client-side, không gọi API Category riêng cho filter này)
 
-### Màn hình quản lý Danh mục (từ "Bán hàng")
+### Màn hình quản lý Danh mục (từ "Sản phẩm")
 
-- `SalesView.xaml` có thêm tile thứ 4 "🏷️ Danh mục" (cùng style `Border`/`WrapPanel` với "Chứng từ bán hàng"/"Hàng bán bị trả lại"/"Báo cáo") → `SalesViewModel.NavigateToCategoriesCommand` → `NavigationService.NavigateTo(NavigationRoutes.Categories.List)`
+- Ban đầu wire vào tile trong `SalesView` ("Bán hàng"), sau đó **move sang `ProductListView`** cho hợp lý về mặt nghiệp vụ (Danh mục là master-data của Sản phẩm, không liên quan Bán hàng)
+- `ProductListView.xaml` toolbar có thêm nút "🏷️ Danh mục" (style `Tertiary.Medium`, đặt cuối toolbar sau "🗑️ Xóa") → `ProductListViewModel.NavigateToCategoriesCommand` → `NavigationService.NavigateTo(NavigationRoutes.Categories.List)`
 - `NavigationRoutes.Categories.List = "CategoryListView"` + case tương ứng trong `NavigationService.ResolveView`
 - `CategoryListView`: DataGrid 1 cột "Tên danh mục" + toolbar "➕ Thêm" / "✏️ Sửa" / "🗑️ Xóa" (không có "📋 Nhân bản")
 - Xóa danh mục đang có sản phẩm dùng: BE trả 400 với message rõ ràng, WPF hiện đúng message đó qua `MessageBox.Show(ex.Message, "Xóa thất bại", ...)` — không có confirm-dialog phụ, chỉ confirm "Bạn có chắc muốn xóa?" trước khi gọi API (giống Product/Supplier)

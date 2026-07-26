@@ -215,6 +215,25 @@ builder.Services.AddScoped<Lamour.Application.Features.SalesReturn.UseCases.IUpd
 builder.Services.AddScoped<Lamour.Application.Features.SalesReturn.UseCases.IDeleteSalesReturnUseCase,
                            Lamour.Application.Features.SalesReturn.UseCases.DeleteSalesReturnUseCase>();
 
+// ── Backups DI ────────────────────────────────────────────────────────────────
+builder.Services.AddScoped<Lamour.Application.Features.Backups.Repositories.IBackupRepository,
+                           Lamour.Infrastructure.Repositories.BackupRepository>();
+builder.Services.AddScoped<Lamour.Application.Features.Backups.UseCases.IGetBackupsUseCase,
+                           Lamour.Application.Features.Backups.UseCases.GetBackupsUseCase>();
+builder.Services.AddScoped<Lamour.Application.Features.Backups.UseCases.ICreateBackupUseCase,
+                           Lamour.Application.Features.Backups.UseCases.CreateBackupUseCase>();
+builder.Services.AddScoped<Lamour.Application.Features.Backups.UseCases.IDeleteBackupUseCase,
+                           Lamour.Application.Features.Backups.UseCases.DeleteBackupUseCase>();
+builder.Services.AddScoped<Lamour.Application.Features.Backups.UseCases.IRestoreBackupUseCase,
+                           Lamour.Application.Features.Backups.UseCases.RestoreBackupUseCase>();
+builder.Services.AddScoped<Lamour.Application.Features.Backups.Repositories.IBackupScheduleRepository,
+                           Lamour.Infrastructure.Repositories.BackupScheduleRepository>();
+builder.Services.AddScoped<Lamour.Application.Features.Backups.UseCases.IGetBackupScheduleUseCase,
+                           Lamour.Application.Features.Backups.UseCases.GetBackupScheduleUseCase>();
+builder.Services.AddScoped<Lamour.Application.Features.Backups.UseCases.IUpdateBackupScheduleUseCase,
+                           Lamour.Application.Features.Backups.UseCases.UpdateBackupScheduleUseCase>();
+builder.Services.AddHostedService<Lamour.Api.Realtime.BackupSchedulerHostedService>();
+
 // ── Auth DI ───────────────────────────────────────────────────────────────────
 builder.Services.AddScoped<Lamour.Application.Features.Auth.UseCases.ILoginUseCase,
                            Lamour.Application.Features.Auth.UseCases.LoginUseCase>();
