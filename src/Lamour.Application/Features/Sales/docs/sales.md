@@ -1,6 +1,6 @@
 # Sales Orders — Feature Document (BE)
 
-> **Jira:** — | **Branch:** `dev` | **Generated:** 2026-05-01 | **Last updated:** 2026-07-18 (summary-report: tổng hợp theo mặt hàng/khách hàng/nhân viên + trả lại)
+> **Jira:** — | **Branch:** `dev` | **Generated:** 2026-05-01 | **Last updated:** 2026-07-31 (WPF hồi sinh `GET /report` cho tính năng drill-down — không đổi code BE, chỉ đính chính ghi chú "không còn dùng")
 
 ---
 
@@ -37,7 +37,9 @@
 | Hoàn tồn kho khi xóa | Khi xóa: hoàn toàn bộ tồn kho từ các line không phải khuyến mại |
 | Line khuyến mại | `IsPromotion = true` → không trừ/hoàn tồn kho |
 | Tỷ lệ chiết khấu | `DiscountRate` (0–100%) per line — BE clamp `Math.Max(0, Math.Min(100, dto.DiscountRate))` |
-| Tính Thành tiền | `Amount = Quantity × UnitPrice × (1 − DiscountRate / 100)` — BE tính server-side, bỏ qua `amount` từ client |
+| Tính Thành tiền | `Amount = Quantity × UnitPrice × (1 − DiscountRate / 100)` — BE tính server-side, bỏ qua `amount` từ client, **trừ khi** `is_amount_manual = true` (xem rule "Thành tiền thủ công" bên dưới) |
+| Thành tiền thủ công (2026-08-04) | `SalesOrderLineDto.IsAmountManual` (bool) — nếu `true` và dòng không phải khuyến mại: BE dùng thẳng `dto.Amount` do client gửi thay vì tự tính từ `Quantity × UnitPrice × (1 − DiscountRate/100)`; validate `Amount >= 0` (`DomainException` nếu âm). `UnitPrice`/`DiscountRate` vẫn được lưu như bình thường (chỉ dùng để hiển thị/tham khảo, không dùng để tính `Amount` khi ở chế độ thủ công). `TaxAmount = Amount × TaxRate / 100` vẫn tính như cũ dựa trên `Amount` cuối cùng (dù thủ công hay auto-calc) |
+| Thành tiền thủ công + khuyến mại | `IsPromotion = true` luôn thắng: `Amount` bị ép về `0` và `IsAmountManual` bị ép về `false`, bất kể client gửi gì lên (nhất quán với rule "Line khuyến mại" hiện có) |
 | Tính thuế (2026-07-15) | `TaxRate` lấy từ `Product.VatRate` tại thời điểm ghi sổ (không tin client): `Five→5`, `Eight→8`, `Ten→10`, còn lại (`Zero`/`KCT`/`KKKNT`/`KHAC`/null) → `0`. `TaxAmount = Amount × TaxRate / 100` — xem `SalesOrderTaxCalculator.ToPercent()` |
 | Denormalize | `ProductCode`, `ProductName`, `TaxRate` được copy vào line tại thời điểm tạo — không phụ thuộc sản phẩm/thuế suất sản phẩm thay đổi sau này |
 | DateTime UTC | Lưu `DateTime.UtcNow`, WPF convert sang local time khi hiển thị |
@@ -133,7 +135,7 @@ graph TD
 
 ### Domain
 - [`Lamour.Domain/Entities/SalesOrder.cs`](../../../../Lamour.Domain/Entities/SalesOrder.cs) — Entity header + `SalesOrderStatus` enum (`Normal=0`, `Held=1`) + `Status` property (default `Normal`)
-- [`Lamour.Domain/Entities/SalesOrderLine.cs`](../../../../Lamour.Domain/Entities/SalesOrder.cs) — Line (nested in same file): `ProductId`, `ProductCode`, `ProductName`, `IsPromotion`, `Unit`, `Quantity`, `UnitPrice`, `DiscountRate`, `Amount`, `ReceivableAccount`, `RevenueAccount`
+- [`Lamour.Domain/Entities/SalesOrderLine.cs`](../../../../Lamour.Domain/Entities/SalesOrder.cs) — Line (nested in same file): `ProductId`, `ProductCode`, `ProductName`, `IsPromotion`, `Unit`, `Quantity`, `UnitPrice`, `DiscountRate`, `Amount`, `IsAmountManual` (2026-08-04), `ReceivableAccount`, `RevenueAccount`
 
 ### Application — Abstractions
 - [`Lamour.Application/Abstractions/IUnitOfWork.cs`](../../../Abstractions/IUnitOfWork.cs) — `BeginAsync`, `CommitAsync`, `RollbackAsync` (CancellationToken ct = default)
@@ -148,7 +150,7 @@ graph TD
 - [`Dtos/SalesOrderResponseDto.cs`](../Dtos/SalesOrderResponseDto.cs) — Response: 21 fields snake_case + `lines[]` + `status` (int); thêm `total_tax_amount`, `grand_total` (2026-07-15)
 - [`Dtos/CreateSalesOrderRequestDto.cs`](../Dtos/CreateSalesOrderRequestDto.cs) — Create: 14 header fields + `lines[]`
 - [`Dtos/UpdateSalesOrderRequestDto.cs`](../Dtos/UpdateSalesOrderRequestDto.cs) — Update: same shape as Create
-- [`Dtos/SalesOrderLineDto.cs`](../Dtos/SalesOrderLineDto.cs) — Line: 14 fields (shared cho cả request và response); `discount_rate` (decimal, default 0); thêm `tax_rate`, `tax_amount` (2026-07-15) — BE luôn tự tính từ `Product.VatRate`, bỏ qua giá trị client gửi lên (giống `amount`)
+- [`Dtos/SalesOrderLineDto.cs`](../Dtos/SalesOrderLineDto.cs) — Line: 15 fields (shared cho cả request và response); `discount_rate` (decimal, default 0); thêm `tax_rate`, `tax_amount` (2026-07-15) — BE luôn tự tính từ `Product.VatRate`, bỏ qua giá trị client gửi lên (giống `amount`); thêm `is_amount_manual` (bool, 2026-08-04) — khi `true` (và không phải khuyến mại), BE dùng thẳng `amount` client gửi thay vì tự tính
 - [`Dtos/SalesOrderReportLineDto.cs`](../Dtos/SalesOrderReportLineDto.cs) — Báo cáo (2026-07-16, +2 fields 2026-07-18): 18 fields snake_case — 1 dòng chi tiết kèm thông tin chứng từ cha (`order_id`, `document_number`, `accounting_date`, `customer_id`, `customer_name`, `employee_id`, `employee_name`) + thông tin dòng (`product_id`, `product_code`, `product_name`, `unit`, `category`, `quantity`, `unit_price`, `discount_rate`, `amount`, `tax_rate`, `tax_amount`) — `category` lấy từ `Product.Category` (không denormalize trên line, có thể null nếu sản phẩm bị xóa)
 - [`Dtos/SalesOrderSummaryLineDto.cs`](../Dtos/SalesOrderSummaryLineDto.cs) (2026-07-18) — Báo cáo TỔNG HỢP: 1 dòng = 1 triple `(product, customer, employee)` đã cộng dồn cả kỳ — `product_id/code/name`, `unit`, `customer_id/code/name`, `employee_id/code/name` (nullable) + `quantity_sold`, `sales_amount` (gross), `discount_amount`, `return_quantity`, `return_value` (net), `net_revenue`
 
@@ -180,7 +182,7 @@ graph TD
 | `PUT` | `/api/v1/sales-orders/{id}` | `UpdateSalesOrderRequestDto` | `SalesOrderResponseDto` (200) |
 | `DELETE` | `/api/v1/sales-orders/{id}` | — | 204 No Content |
 | `PUT` | `/api/v1/sales-orders/{id}/hold` | — | `SalesOrderResponseDto` (200) |
-| `GET` | `/api/v1/sales-orders/report?product_ids=&employee_id=&customer_id=&unit=&category=&from_date=&to_date=` | — (query only) | `SalesOrderReportLineDto[]` (200) — báo cáo cấp DÒNG chi tiết, không còn dùng bởi WPF (2026-07-18) nhưng vẫn giữ nguyên endpoint |
+| `GET` | `/api/v1/sales-orders/report?product_ids=&employee_id=&customer_id=&unit=&category=&from_date=&to_date=` | — (query only) | `SalesOrderReportLineDto[]` (200) — báo cáo cấp DÒNG chi tiết; không còn dùng bởi trang báo cáo tổng hợp từ 2026-07-18, nhưng **dùng lại bởi màn "Sổ chi tiết bán hàng" (drill-down) từ 2026-07-31** — xem `desktop-lamour/.../Sales/docs/sales.md` |
 | `GET` | `/api/v1/sales-orders/summary-report?product_ids=&employee_id=&customer_id=&unit=&category=&from_date=&to_date=` | — (query only) | `SalesOrderSummaryLineDto[]` (200) — báo cáo TỔNG HỢP theo (product, customer, employee) triple, gộp cả dữ liệu bán hàng và hàng bán bị trả lại (2026-07-18) |
 
 ### Request — Create / Update
@@ -351,6 +353,8 @@ catch
 | Report: không truyền filter nào | Trả về toàn bộ dòng của mọi chứng từ | ✅ |
 | Report: không có dòng nào khớp | Trả về mảng rỗng `[]` (200) | ✅ |
 | Report: `employee_id`/`customer_id` không tồn tại | Trả về mảng rỗng (không throw 404) | ✅ |
+| `is_amount_manual = true` với `amount < 0` | `DomainException` → 400 | ✅ |
+| `is_amount_manual = true` trên dòng khuyến mại | Bị ép về `false`/`Amount = 0` (khuyến mại luôn thắng) | ✅ |
 
 ---
 
@@ -437,6 +441,17 @@ Columns added:
 
 Fix cho bug: sản phẩm có `VatRate` (8%/5%/10%) nhưng đơn hàng bỏ qua hoàn toàn, không tính thuế. Đơn hàng cũ (trước migration) có `tax_rate`/`tax_amount`/`total_tax_amount`/`grand_total` = 0 — không backfill vì tại thời điểm ghi sổ cũ, thuế suất sản phẩm chưa được biết/denormalize.
 
+**Migration 6 — `AddIsAmountManualToSalesOrderLines` (2026-08-04):**
+```bash
+dotnet ef migrations add AddIsAmountManualToSalesOrderLines \
+  --project src/Lamour.Infrastructure \
+  --startup-project src/Lamour.Api
+dotnet ef database update \
+  --project src/Lamour.Infrastructure \
+  --startup-project src/Lamour.Api
+```
+Column added: `sales_order_lines.is_amount_manual boolean NOT NULL DEFAULT FALSE`.
+
 ---
 
 ## Test Coverage Notes
@@ -444,12 +459,16 @@ Fix cho bug: sản phẩm có `VatRate` (8%/5%/10%) nhưng đơn hàng bỏ qua 
 | Component | Test File | Coverage |
 |-----------|-----------|----------|
 | `GetSalesOrdersUseCase` | — | ❌ Missing |
-| `CreateSalesOrderUseCase` | — | ❌ Missing |
-| `UpdateSalesOrderUseCase` | — | ❌ Missing |
+| `CreateSalesOrderUseCase` (Amount thủ công / khuyến mại) | [`tests/Lamour.Application.Tests/Features/Sales/UseCases/SalesOrderAmountManualTests.cs`](../../../../../tests/Lamour.Application.Tests/Features/Sales/UseCases/SalesOrderAmountManualTests.cs) | ✅ 4 cases |
+| `UpdateSalesOrderUseCase` (Amount thủ công) | cùng file trên | ✅ 2 cases |
+| `CreateSalesOrderUseCase` (các nhánh khác: stock guard, ...) | — | ❌ Missing |
+| `UpdateSalesOrderUseCase` (các nhánh khác) | — | ❌ Missing |
 | `DeleteSalesOrderUseCase` | — | ❌ Missing |
 | `HoldSalesOrderUseCase` | — | ❌ Missing |
 | `GetSalesOrderReportUseCase` | — | ❌ Missing |
 | `SalesOrderRepository` | — | ❌ Missing |
+
+> Test project mới `tests/Lamour.Application.Tests` (xUnit + Moq, tạo lần đầu 2026-08-04 — trước đó repo chưa có test project nào). Chạy: `dotnet test tests/Lamour.Application.Tests`.
 
 **Suggested test cases:**
 - [ ] Create: `lines` rỗng → `DomainException`
@@ -488,3 +507,5 @@ Fix cho bug: sản phẩm có `VatRate` (8%/5%/10%) nhưng đơn hàng bỏ qua 
 *Updated 2026-07-16 (Báo cáo bán hàng): thêm `GET /api/v1/sales-orders/report` — báo cáo cấp DÒNG chi tiết (không phải cấp chứng từ) vì lọc theo mặt hàng là field ở `SalesOrderLine`; filter optional `product_id`/`employee_id`/`customer_id`/`from_date`/`to_date` (kết hợp AND, lọc theo `AccountingDate`); thêm `SalesOrderReportLineDto`, `ISalesOrderRepository.GetReportLinesAsync` (join `SalesOrderLine` → `SalesOrder`/`Customer`/`Employee`, `AsNoTracking`), `GetSalesOrderReportUseCase`/`IGetSalesOrderReportUseCase`; đăng ký DI trong `Program.cs`. Không cần migration EF (chỉ thêm 1 query mới, không đổi schema). WPF: thêm nút "📊 Báo cáo" trên `SalesOrderListView` mở popup filter, sau đó điều hướng sang trang báo cáo riêng với DataGrid + xuất Excel/in — xem `desktop-lamour/.../Sales/docs/sales.md` để biết chi tiết phía client*
 *Updated 2026-07-18 (mở rộng bộ lọc báo cáo theo thiết kế popup mới): `product_id` (single) → `product_ids` (`int[]?`, ASP.NET Core bind nhiều key lặp lại `product_ids=1&product_ids=2`, OR nội bộ qua `.Contains()`); thêm 2 filter mới `unit` (so khớp `SalesOrderLine.Unit` — đã denormalize sẵn) và `category` (so khớp `Product.Category` — KHÔNG có trên `SalesOrderLine`, phải thêm `.Include(l => l.Product)` vào `GetReportLinesAsync`); `SalesOrderReportLineDto` thêm 2 field `unit`/`category`. Đổi signature `ISalesOrderRepository.GetReportLinesAsync`, `IGetSalesOrderReportUseCase.ExecuteAsync`, `SalesOrdersController.GetReport`. Không cần migration EF (Category đọc qua join, Unit đã có sẵn trên line từ trước). WPF: redesign `SalesOrderReportFilterWindow` để khớp UI tham chiếu — thêm "Kỳ báo cáo" (period presets), "Đơn vị tính"/"Nhóm VTHH" dropdown (derive distinct values từ Products đã load, không cần API mới), đổi ô "Mặt hàng" từ single-select sang checklist multi-select — xem `desktop-lamour/.../Sales/docs/sales.md` để biết chi tiết phía client*
 *Updated 2026-07-18 (summary-report — thay thế màn hình báo cáo bằng bảng tổng hợp kiểu MISA): thêm `GET /api/v1/sales-orders/summary-report` — báo cáo TỔNG HỢP theo `(product, customer, employee)` triple, cộng dồn cả kỳ lọc, gộp CẢ dữ liệu bán hàng (`ISalesOrderRepository.GetReportLinesAsync`) VÀ hàng bán bị trả lại (`ISalesReturnRepository.GetReportLinesAsync`, method mới thêm — mirror pattern của Sales, filter giống hệt: productIds/employeeId/customerId/unit/category/fromDate/toDate lọc theo `SalesReturn.AccountingDate`). Merge 2 nguồn trong C# (không phải SQL) theo key `(ProductId, CustomerId, EmployeeId)` vào `Dictionary` — tránh viết 1 query LINQ union 2 bảng khác nhau. Công thức: `SalesAmount` = Σ(Qty×UnitPrice) gross; `DiscountAmount` = Σ(Qty×UnitPrice×DiscountRate/100); `ReturnValue` = Σ(SalesReturnLine.Amount − DiscountAmount) net; `NetRevenue` = SalesAmount − DiscountAmount − ReturnValue. Thêm mới: `Dtos/SalesOrderSummaryLineDto.cs`, `UseCases/GetSalesOrderSummaryReportUseCase.cs`, `AppDbContext.SalesReturnLines` DbSet (trước đây chưa expose), `ISalesReturnRepository.GetReportLinesAsync`. Route mới `GET summary-report` trên `SalesOrdersController`; DI trong `Program.cs`. Không cần EF migration (không đổi schema, chỉ thêm query). "Giá trị giảm giá" (price-reduction riêng biệt với chiết khấu) KHÔNG được model trong domain — cột này ở WPF luôn = 0. Summary-report chỉ trả về triple có ít nhất 1 hoạt động (bán hoặc trả) trong kỳ — sản phẩm/KH/NV không hoạt động sẽ không xuất hiện (khác ảnh tham chiếu MISA vốn liệt kê cả SL=0). WPF: `SalesOrderReportView` đổi hẳn từ bảng chi tiết-per-dòng-chứng-từ sang bảng tổng hợp-per-nhóm (endpoint `/report` cũ vẫn giữ nguyên, không xóa, nhưng WPF không còn gọi tới) — xem `desktop-lamour/.../Sales/docs/sales.md`*
+*Updated 2026-07-31 (WPF hồi sinh `GET /report` cho drill-down — không đổi code BE): endpoint cấp DÒNG `GET /api/v1/sales-orders/report` (bị bỏ rơi từ 2026-07-18 khi WPF chuyển hẳn sang `/summary-report`) giờ được gọi lại bởi màn "Sổ chi tiết bán hàng" mới (`SalesOrderReportDetailView`/`ViewModel`) — double-click 1 dòng trong báo cáo tổng hợp sẽ gọi `GET /report` với `product_id`/`customer_id`/`employee_id` narrow theo đúng dòng đó (kế thừa `unit`/`category`/`from_date`/`to_date` từ filter gốc). Route, DTO, UseCase, Repository method đều KHÔNG đổi gì (đã đúng sẵn từ 2026-07-18) — chỉ cập nhật lại ghi chú "không còn dùng bởi WPF" ở API Contracts cho khớp thực tế. Known gap: `/report` chỉ trả `SalesOrderLine`, không gộp `SalesReturnLine` như `/summary-report` — nếu cần sổ chi tiết khớp tuyệt đối với "Doanh thu thuần" (đã gộp trả lại), cần thêm bước merge tương tự `GetSalesOrderSummaryReportUseCase` — chưa làm, ngoài phạm vi lần này. Xem `desktop-lamour/.../Sales/docs/sales.md` để biết chi tiết phía client (ID plumbing trên `ReportDisplayRow`, `DrillDownCommand`, navigation route mới).*
+*Updated 2026-08-04 (popup "Chứng từ bán hàng" — cho phép gõ tay Thành tiền): thêm `SalesOrderLine.IsAmountManual` (bool, default false) + `SalesOrderLineDto.is_amount_manual` — khi `true` (và dòng không phải khuyến mại), `CreateSalesOrderUseCase`/`UpdateSalesOrderUseCase` dùng thẳng `amount` client gửi thay vì tự tính `Quantity × UnitPrice × (1 − DiscountRate/100)`; validate `Amount >= 0` (`DomainException` nếu âm); dòng khuyến mại luôn ép `Amount = 0`/`IsAmountManual = false` bất kể client gửi gì. `TaxAmount` vẫn tính từ `Amount` cuối cùng như cũ. Migration 6 `AddIsAmountManualToSalesOrderLines`. Không đổi route/contract shape khác — chỉ thêm 1 field trên `SalesOrderLineDto` (dùng chung request/response). Tạo mới test project `tests/Lamour.Application.Tests` (repo trước đó chưa có test project nào) với 6 test case cho Create/Update ở chế độ thủ công. WPF: `SalesOrderWindow.xaml` cột "Thành tiền" đổi từ read-only sang editable, tự bật `IsAmountManual` khi user gõ tay, tự tắt khi user sửa lại Đơn giá/SL/CK% của dòng đó — xem `desktop-lamour/.../Sales/docs/sales.md` để biết chi tiết phía client.*

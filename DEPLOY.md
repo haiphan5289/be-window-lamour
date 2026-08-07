@@ -117,6 +117,7 @@ start "Lamour API" /min /d "D:\app-lamour\LamourApi\api-win" "D:\app-lamour\Lamo
 | `password authentication failed for user "lamour"` | `appsettings.Production.json` có `Password=CHANGE_ME` chưa đổi | Sửa `D:\app-lamour\LamourApi\api-win\appsettings.Production.json` |
 | Login failed trên WPF | ServerUrl sai IP | Sửa `D:\app-lamour\LamourDesktop\desktop-win\appsettings.json` thành `localhost` nếu cùng máy |
 | WPF hiện build cũ | Copy nhầm file cũ từ Mac | Lấy file từ UTM `C:\projects\desktop-lamour\publish\desktop-win\` |
+| WPF hiện code cũ dù publish trên UTM | Chạy `Compress-Archive` ngay sau `sync.ps1`, quên chạy `dotnet publish` ở giữa | Luôn theo đúng thứ tự: `sync.ps1` → `dotnet publish` → `Compress-Archive` |
 
 ### Quy trình update build chuẩn
 
@@ -126,11 +127,15 @@ cd /Users/hai.phan/Desktop/haiphan/be-window-lamour
 dotnet publish src/Lamour.Api -r win-x64 --self-contained true -c Release -o publish/api-win
 ```
 
-**Bước 2 — Publish WPF (UTM PowerShell):**
+**Bước 2 — Sync + Publish WPF (UTM PowerShell):**
 ```powershell
 cd C:\projects\desktop-lamour
+.\sync.ps1
+
 dotnet publish src\DesktopLamour -r win-x64 --self-contained true -c Release -o publish\desktop-win
 ```
+
+> **⚠️ QUAN TRỌNG:** Phải chạy `.\sync.ps1` **trước** `dotnet publish`, và **không được bỏ qua bước publish**. `sync.ps1` chỉ copy source code (`src\`) từ Mac sang UTM — nó không tự build. Nếu zip/copy output ngay sau khi sync mà quên chạy `dotnet publish`, `Compress-Archive` sẽ nén **build cũ** còn nằm sẵn trong `publish\desktop-win\` từ lần trước, code mới vừa sync sẽ không được đưa vào exe. Thứ tự bắt buộc: **sync → publish → zip**.
 
 **Bước 3 — Zip WPF từ UTM ra Mac (UTM PowerShell):**
 ```powershell

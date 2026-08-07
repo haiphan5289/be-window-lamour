@@ -48,9 +48,14 @@ public class CreateSalesOrderUseCase : ICreateSalesOrderUseCase
                 stockErrors.Add($"• {product.Name}: có {product.StockQuantity}, cần {dto.Quantity}");
 
             // Hàng khuyến mại: giá/CK/thuế luôn = 0, bất kể client gửi gì lên.
-            var unitPrice    = dto.IsPromotion ? 0m : dto.UnitPrice;
-            var discountRate = dto.IsPromotion ? 0m : Math.Max(0, Math.Min(100, dto.DiscountRate));
-            var amount       = dto.Quantity * unitPrice * (1 - discountRate / 100m);
+            var unitPrice      = dto.IsPromotion ? 0m : dto.UnitPrice;
+            var discountRate   = dto.IsPromotion ? 0m : Math.Max(0, Math.Min(100, dto.DiscountRate));
+            var isAmountManual = !dto.IsPromotion && dto.IsAmountManual;
+            if (isAmountManual && dto.Amount < 0)
+                throw new DomainException($"Thành tiền dòng '{product.Name}' không được âm.");
+            var amount = dto.IsPromotion
+                ? 0m
+                : isAmountManual ? dto.Amount : dto.Quantity * unitPrice * (1 - discountRate / 100m);
             var taxRate      = dto.IsPromotion ? 0m : SalesOrderTaxCalculator.ToPercent(product.VatRate);
             lines.Add(new SalesOrderLine
             {
@@ -63,6 +68,7 @@ public class CreateSalesOrderUseCase : ICreateSalesOrderUseCase
                 UnitPrice         = unitPrice,
                 DiscountRate      = discountRate,
                 Amount            = amount,
+                IsAmountManual    = isAmountManual,
                 TaxRate           = taxRate,
                 TaxAmount         = amount * taxRate / 100m,
                 ReceivableAccount = string.IsNullOrWhiteSpace(dto.ReceivableAccount) ? "131" : dto.ReceivableAccount,

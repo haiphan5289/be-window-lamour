@@ -57,6 +57,7 @@ public class GetSalesOrdersUseCase : IGetSalesOrdersUseCase
             UnitPrice         = l.UnitPrice,
             DiscountRate      = l.DiscountRate,
             Amount            = l.Amount,
+            IsAmountManual    = l.IsAmountManual,
             TaxRate           = l.TaxRate,
             TaxAmount         = l.TaxAmount,
             ReceivableAccount = l.ReceivableAccount,

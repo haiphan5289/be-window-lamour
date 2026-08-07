@@ -67,6 +67,7 @@ public class SalesOrderLineConfiguration : IEntityTypeConfiguration<SalesOrderLi
         builder.Property(x => x.UnitPrice).HasColumnName("unit_price").HasPrecision(18, 2).IsRequired();
         builder.Property(x => x.DiscountRate).HasColumnName("discount_rate").HasPrecision(5, 2).IsRequired().HasDefaultValue(0m);
         builder.Property(x => x.Amount).HasColumnName("amount").HasPrecision(18, 2).IsRequired();
+        builder.Property(x => x.IsAmountManual).HasColumnName("is_amount_manual").IsRequired().HasDefaultValue(false);
         builder.Property(x => x.TaxRate).HasColumnName("tax_rate").HasPrecision(5, 2).IsRequired().HasDefaultValue(0m);
         builder.Property(x => x.TaxAmount).HasColumnName("tax_amount").HasPrecision(18, 2).IsRequired().HasDefaultValue(0m);
         builder.Property(x => x.ReceivableAccount).HasColumnName("receivable_account").HasMaxLength(20).IsRequired();

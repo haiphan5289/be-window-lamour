@@ -60,6 +60,7 @@ public class SalesOrderLine
     public decimal UnitPrice    { get; set; }              // Đơn giá
     public decimal DiscountRate { get; set; }              // Tỷ lệ CK (%)
     public decimal Amount       { get; set; }              // Thành tiền (net, chưa thuế)
+    public bool    IsAmountManual { get; set; }             // true = Amount do user gõ tay, bỏ qua công thức Qty×UnitPrice×(1-CK%)
 
     public decimal TaxRate      { get; set; }              // Thuế suất (%) — denormalized từ Product.VatRate tại thời điểm ghi sổ
     public decimal TaxAmount    { get; set; }              // Tiền thuế = Amount * TaxRate / 100
