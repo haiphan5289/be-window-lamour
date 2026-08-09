@@ -1,56 +1,72 @@
 ---
 name: pa-preview-guard
-description: Tự động phát hiện, sửa, và ngăn chặn TẤT CẢ lỗi build liên quan đến
+description: Tự động phát hiện, sửa, và ngăn chặn lỗi build (C#/.NET) phát sinh sau khi generate/scaffold code cho BE (be-window-lamour, ASP.NET Core + EF Core) và WPF (desktop-lamour, MVVM + XAML)
 model: sonnet
 effort: high
 ---
 
-# Build Doctor — iOS App
+# Build Doctor — BE (Lamour API) + WPF (DesktopLamour)
 
-**Post-generation auto-fixer** - Tự động phát hiện và sửa TẤT CẢ lỗi build sau khi generate code thành công. Không cần fix từng case thủ công nữa.
+**Post-generation auto-fixer** — Tự động phát hiện và sửa lỗi build sau khi generate code (thêm field, entity mới, UseCase mới, wire feature mới xuyên 2 project). Không cần fix từng case thủ công nữa.
+
+Áp dụng cho 2 project trong hệ sinh thái Lamour:
+
+| Project | Path | Stack |
+|---|---|---|
+| **BE** | `be-window-lamour` | .NET 10, ASP.NET Core Web API, EF Core + PostgreSQL, Clean Architecture (Domain/Application/Infrastructure/Api) |
+| **WPF** | `desktop-lamour` | .NET (net8.0-windows), WPF, MVVM (CommunityToolkit.Mvvm), XAML |
 
 ## Vấn đề giải quyết
 
-Sau khi generate code (add field, new screen, new UseCase), thường gặp các lỗi:
-- ❌ Missing argument in call (preview, test, factory)
-- ❌ Type mismatch (parameter type thay đổi)
-- ❌ Missing imports (Foundation, Combine, SwiftUI)
-- ❌ Undefined symbols (typo, wrong class name)
-- ❌ Protocol conformance errors
-- ❌ Property wrapper misuse (@Published, @State)
-- ❌ Async/await context errors
+Sau khi generate code (thêm entity/field mới, scaffold UseCase, wire feature mới theo `/ct-be-to-desktop`, redesign popup lớn kiểu "Sửa Vật tư hàng hoá, dịch vụ"), thường gặp lỗi build lặp lại — phần lớn đã từng xảy ra thật trong repo này:
+
+- ❌ Namespace/type trùng tên khi 2 feature cùng dùng 1 danh từ nghiệp vụ (ví dụ: feature `Warehouse` cũ và `Warehouses` mới) → `CS0118`
+- ❌ Định nghĩa trùng lặp khi 1 Configuration/class đã tồn tại ở file khác không ngờ tới (ví dụ `WarehouseConfiguration` nằm lẫn trong `WarehouseReceiptConfiguration.cs`) → `CS0101`/`CS0111`
+- ❌ Thiếu implement interface member khi thêm field mới vào model implement `ISearchableItem` → `CS0535`
+- ❌ Ambiguous reference khi 1 file `using` cả 2 namespace có type trùng tên (`IWarehouseRepository` ở 2 feature khác nhau) → `CS0104`
+- ❌ Thiếu argument bắt buộc sau khi đổi record sang `required` property hoặc thêm field mới vào constructor/DTO → `CS7036`/`CS1729`
+- ❌ Type mismatch sau khi đổi kiểu field (`string` → `int?` FK, positional record → init-property record) → `CS0029`/`CS1503`
+- ❌ Thiếu `using`/assembly reference khi cross-feature wiring (WPF ViewModel mới inject UseCase từ feature khác) → `CS0246`/`CS0103`
+- ❌ DI resolve fail lúc runtime vì quên đăng ký UseCase/Repository/Service mới trong `Program.cs` (BE) hoặc `HomeServiceCollectionExtensions.cs` (WPF)
+- ❌ EF Core migration seed data (`HasData`) đụng Id đã tồn tại sẵn trong DB (data cũ chèn tay, không qua migration) → Postgres `23505 duplicate key`
+- ❌ XAML `StaticResource`/converter chưa đăng ký → `XamlParseException: Cannot find resource named 'X'`
 
 ## Giải pháp
 
-Skill này chạy **sau mỗi lần generate code** để:
-1. **Scan** tất cả build errors từ Xcode
-2. **Classify** errors theo pattern (missing param, type error, import, etc.)
-3. **Auto-fix** mỗi loại error với strategy phù hợp
-4. **Re-validate** cho đến khi build clean
-5. **Report** kết quả: files fixed, errors resolved
+Skill này chạy **sau mỗi lần generate/scaffold code** ở BE và/hoặc WPF để:
+1. **Build** — chạy `dotnet build` (BE) và/hoặc `dotnet build -p:EnableWindowsTargeting=true` (WPF, build trên Mac làm proxy compile-check) để lấy lỗi thật
+2. **Classify** — match lỗi với pattern trong `ERROR_PATTERNS.md` (namespace collision, duplicate definition, missing interface member, missing argument, type mismatch, missing using, DI resolution, EF seed collision, XAML resource)
+3. **Auto-fix** — áp dụng chiến lược tương ứng trong `FIX_STRATEGIES.md`
+4. **Re-build** — lặp lại cho đến khi build sạch hoặc hết `MAX_ITERATIONS`
+5. **Report** — files đã sửa, lỗi còn lại cần tay
 
 ## Files
 
 | File | Purpose |
 |---|---|
-| [spec/PROMPT.md](spec/PROMPT.md) | Step-by-step execution workflow |
-| [spec/INPUT_SCHEMA.md](spec/INPUT_SCHEMA.md) | Input parameters |
-| [spec/ERROR_PATTERNS.md](spec/ERROR_PATTERNS.md) | Error classification & fix strategies |
+| [spec/PROMPT.md](spec/PROMPT.md) | Step-by-step execution workflow (build → classify → fix → rebuild) |
+| [spec/INPUT_SCHEMA.md](spec/INPUT_SCHEMA.md) | Input parameters (MODE, PROJECT, ERROR_TYPES, MAX_ITERATIONS) |
+| [spec/ERROR_PATTERNS.md](spec/ERROR_PATTERNS.md) | Error classification (CS-code patterns, EF/DI/XAML-specific) |
 | [spec/FIX_STRATEGIES.md](spec/FIX_STRATEGIES.md) | Per-error-type auto-fix logic |
-| [spec/EXAMPLES.md](spec/EXAMPLES.md) | Worked examples |
-| [spec/GUARDRAILS.md](spec/GUARDRAILS.md) | Safety rules |
+| [spec/EXAMPLES.md](spec/EXAMPLES.md) | Worked examples — lấy từ incident thật trong repo này |
+| [spec/GUARDRAILS.md](spec/GUARDRAILS.md) | Safety rules (Clean Architecture, migration đã apply, git safety) |
 
 ## Quick Start
 
 ```
-# Mode 1: Auto-scan và fix tất cả errors
+# Mode 1: Auto-scan và fix tất cả lỗi, cả 2 project
 MODE: auto
+PROJECT: both
 
-# Mode 2: Fix specific error types only
+# Mode 2: Chỉ build/fix 1 project
+MODE: auto
+PROJECT: be        # hoặc: wpf
+
+# Mode 3: Fix loại lỗi cụ thể
 MODE: targeted
-ERROR_TYPES: missing_argument,type_mismatch
+ERROR_TYPES: namespace_type_collision,missing_interface_member
 
-# Mode 3: Dry-run (report only, không fix)
+# Mode 4: Dry-run (chỉ báo cáo, không sửa)
 MODE: dry-run
 ```
 
@@ -59,15 +75,18 @@ MODE: dry-run
 ```
 ✅ Build Doctor Report
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-📊 Errors scanned: 12
-🔧 Errors fixed: 11
+📊 Project: BE + WPF
+📊 Errors scanned: 9
+🔧 Errors fixed: 8
 ❌ Errors remaining: 1 (manual intervention needed)
 
 Fixed breakdown:
-  ✅ Missing arguments: 5 files
-  ✅ Type mismatches: 3 files
-  ✅ Missing imports: 3 files
+  ✅ Namespace/type collision (CS0118): 3 files (BE)
+  ✅ Duplicate definition (CS0101): 1 file (BE)
+  ✅ Missing interface member (CS0535): 1 file (WPF)
+  ✅ Missing using (CS0246): 2 files (WPF)
+  ✅ XAML resource not found: 1 file (WPF)
 
 Manual fixes needed:
-  ❌ ViewModel.swift:45 - Complex async/await refactor
+  ❌ ProductConfiguration.cs:45 — cần quyết định OnDelete behavior cho FK mới (Restrict vs SetNull), không tự suy ra được
 ```

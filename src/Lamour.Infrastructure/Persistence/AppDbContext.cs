@@ -25,6 +25,10 @@ public class AppDbContext : DbContext
     public DbSet<SalesReturn>           SalesReturns           => Set<SalesReturn>();
     public DbSet<SalesReturnLine>       SalesReturnLines       => Set<SalesReturnLine>();
     public DbSet<BackupSchedule>        BackupSchedules        => Set<BackupSchedule>();
+    public DbSet<Deposit>               Deposits               => Set<Deposit>();
+    public DbSet<DepositDeduction>      DepositDeductions      => Set<DepositDeduction>();
+    public DbSet<ProductUnit>           ProductUnits           => Set<ProductUnit>();
+    public DbSet<AccountSetting>        AccountSettings        => Set<AccountSetting>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

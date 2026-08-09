@@ -22,6 +22,271 @@ namespace Lamour.Infrastructure.Migrations
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
 
+            modelBuilder.Entity("Lamour.Domain.Entities.AccountSetting", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasColumnName("id");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("Code")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("code");
+
+                    b.Property<string>("Description")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)")
+                        .HasColumnName("description");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Code")
+                        .IsUnique();
+
+                    b.ToTable("account_settings", (string)null);
+
+                    b.HasData(
+                        new
+                        {
+                            Id = 1,
+                            Code = "151",
+                            Description = "Hàng mua đang đi đường"
+                        },
+                        new
+                        {
+                            Id = 2,
+                            Code = "152",
+                            Description = "Nguyên liệu, vật liệu"
+                        },
+                        new
+                        {
+                            Id = 3,
+                            Code = "1531",
+                            Description = "Công cụ, dụng cụ"
+                        },
+                        new
+                        {
+                            Id = 4,
+                            Code = "1532",
+                            Description = "Bao bì luân chuyển"
+                        },
+                        new
+                        {
+                            Id = 5,
+                            Code = "1533",
+                            Description = "Đồ dùng cho thuê"
+                        },
+                        new
+                        {
+                            Id = 6,
+                            Code = "1534",
+                            Description = "Thiết bị, phụ tùng thay thế"
+                        },
+                        new
+                        {
+                            Id = 7,
+                            Code = "1551",
+                            Description = "Thành phẩm nhập kho"
+                        },
+                        new
+                        {
+                            Id = 8,
+                            Code = "1557",
+                            Description = "Thành phẩm bất động sản"
+                        },
+                        new
+                        {
+                            Id = 9,
+                            Code = "1561",
+                            Description = "Giá mua hàng hóa"
+                        },
+                        new
+                        {
+                            Id = 10,
+                            Code = "1562",
+                            Description = "Chi phí thu mua hàng hóa"
+                        },
+                        new
+                        {
+                            Id = 11,
+                            Code = "1567",
+                            Description = "Hàng hóa bất động sản"
+                        },
+                        new
+                        {
+                            Id = 12,
+                            Code = "157",
+                            Description = "Hàng gửi đi bán"
+                        },
+                        new
+                        {
+                            Id = 13,
+                            Code = "158",
+                            Description = "Hàng hóa kho bảo thuế"
+                        },
+                        new
+                        {
+                            Id = 14,
+                            Code = "3339",
+                            Description = "Phí, lệ phí và các khoản phải nộp khác"
+                        },
+                        new
+                        {
+                            Id = 15,
+                            Code = "5111",
+                            Description = "Doanh thu bán hàng hóa"
+                        },
+                        new
+                        {
+                            Id = 16,
+                            Code = "5112",
+                            Description = "Doanh thu bán các thành phẩm"
+                        },
+                        new
+                        {
+                            Id = 17,
+                            Code = "5113",
+                            Description = "Doanh thu cung cấp dịch vụ"
+                        },
+                        new
+                        {
+                            Id = 18,
+                            Code = "5114",
+                            Description = "Doanh thu trợ cấp, trợ giá"
+                        },
+                        new
+                        {
+                            Id = 19,
+                            Code = "5117",
+                            Description = "Doanh thu kinh doanh bất động sản đầu tư"
+                        },
+                        new
+                        {
+                            Id = 20,
+                            Code = "5118",
+                            Description = "Doanh thu khác"
+                        },
+                        new
+                        {
+                            Id = 21,
+                            Code = "711",
+                            Description = "Thu nhập khác"
+                        },
+                        new
+                        {
+                            Id = 22,
+                            Code = "154",
+                            Description = "Chi phí sản xuất, kinh doanh dở dang"
+                        },
+                        new
+                        {
+                            Id = 23,
+                            Code = "2411",
+                            Description = "Mua sắm TSCĐ"
+                        },
+                        new
+                        {
+                            Id = 24,
+                            Code = "2412",
+                            Description = "Xây dựng cơ bản"
+                        },
+                        new
+                        {
+                            Id = 25,
+                            Code = "2413",
+                            Description = "Sửa chữa lớn TSCĐ"
+                        },
+                        new
+                        {
+                            Id = 26,
+                            Code = "242",
+                            Description = "Chi phí trả trước"
+                        },
+                        new
+                        {
+                            Id = 27,
+                            Code = "6111",
+                            Description = "Mua nguyên liệu, vật liệu"
+                        },
+                        new
+                        {
+                            Id = 28,
+                            Code = "6112",
+                            Description = "Mua hàng hóa"
+                        },
+                        new
+                        {
+                            Id = 29,
+                            Code = "632",
+                            Description = "Giá vốn hàng bán"
+                        },
+                        new
+                        {
+                            Id = 30,
+                            Code = "6232",
+                            Description = "Chi phí vật liệu"
+                        },
+                        new
+                        {
+                            Id = 31,
+                            Code = "6412",
+                            Description = "Chi phí vật liệu, bao bì"
+                        },
+                        new
+                        {
+                            Id = 32,
+                            Code = "6413",
+                            Description = "Chi phí dụng cụ, đồ dùng"
+                        },
+                        new
+                        {
+                            Id = 33,
+                            Code = "6417",
+                            Description = "Chi phí dịch vụ mua ngoài"
+                        },
+                        new
+                        {
+                            Id = 34,
+                            Code = "6422",
+                            Description = "Chi phí vật liệu quản lý"
+                        },
+                        new
+                        {
+                            Id = 35,
+                            Code = "6423",
+                            Description = "Chi phí đồ dùng văn phòng"
+                        },
+                        new
+                        {
+                            Id = 36,
+                            Code = "811",
+                            Description = "Chi phí khác"
+                        },
+                        new
+                        {
+                            Id = 37,
+                            Code = "5211",
+                            Description = "Chiết khấu thương mại"
+                        },
+                        new
+                        {
+                            Id = 38,
+                            Code = "5212",
+                            Description = "Hàng bán bị trả lại"
+                        },
+                        new
+                        {
+                            Id = 39,
+                            Code = "5213",
+                            Description = "Giảm giá hàng bán"
+                        });
+                });
+
             modelBuilder.Entity("Lamour.Domain.Entities.BackupSchedule", b =>
                 {
                     b.Property<int>("Id")
@@ -416,6 +681,140 @@ namespace Lamour.Infrastructure.Migrations
                     b.ToTable("customers", (string)null);
                 });
 
+            modelBuilder.Entity("Lamour.Domain.Entities.Deposit", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasColumnName("id");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTime>("AccountingDate")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("accounting_date");
+
+                    b.Property<decimal>("Amount")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)")
+                        .HasColumnName("amount");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<int>("CustomerId")
+                        .HasColumnType("integer")
+                        .HasColumnName("customer_id");
+
+                    b.Property<string>("Description")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)")
+                        .HasColumnName("description");
+
+                    b.Property<DateTime>("DocumentDate")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("document_date");
+
+                    b.Property<string>("DocumentNumber")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
+                        .HasColumnName("document_number");
+
+                    b.Property<int?>("EmployeeId")
+                        .HasColumnType("integer")
+                        .HasColumnName("employee_id");
+
+                    b.Property<string>("Reference")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)")
+                        .HasColumnName("reference");
+
+                    b.Property<decimal>("RemainingBalance")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)")
+                        .HasColumnName("remaining_balance");
+
+                    b.Property<int>("Status")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasDefaultValue(0)
+                        .HasColumnName("status");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("AccountingDate");
+
+                    b.HasIndex("CustomerId");
+
+                    b.HasIndex("DocumentNumber")
+                        .IsUnique();
+
+                    b.HasIndex("EmployeeId");
+
+                    b.ToTable("deposits", (string)null);
+                });
+
+            modelBuilder.Entity("Lamour.Domain.Entities.DepositDeduction", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasColumnName("id");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTime>("AccountingDate")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("accounting_date");
+
+                    b.Property<decimal>("Amount")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)")
+                        .HasColumnName("amount");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<int>("DepositId")
+                        .HasColumnType("integer")
+                        .HasColumnName("deposit_id");
+
+                    b.Property<string>("Description")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)")
+                        .HasColumnName("description");
+
+                    b.Property<DateTime>("DocumentDate")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("document_date");
+
+                    b.Property<string>("DocumentNumber")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
+                        .HasColumnName("document_number");
+
+                    b.Property<int>("SalesOrderId")
+                        .HasColumnType("integer")
+                        .HasColumnName("sales_order_id");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("AccountingDate");
+
+                    b.HasIndex("DepositId");
+
+                    b.HasIndex("DocumentNumber")
+                        .IsUnique();
+
+                    b.HasIndex("SalesOrderId");
+
+                    b.ToTable("deposit_deductions", (string)null);
+                });
+
             modelBuilder.Entity("Lamour.Domain.Entities.Employee", b =>
                 {
                     b.Property<int>("Id")
@@ -620,10 +1019,26 @@ namespace Lamour.Infrastructure.Migrations
                         .HasColumnType("character varying(50)")
                         .HasColumnName("code");
 
+                    b.Property<int?>("CostAccountId")
+                        .HasColumnType("integer")
+                        .HasColumnName("cost_account_id");
+
                     b.Property<decimal>("CostPrice")
                         .HasPrecision(18, 2)
                         .HasColumnType("numeric(18,2)")
                         .HasColumnName("cost_price");
+
+                    b.Property<int?>("DefaultWarehouseId")
+                        .HasColumnType("integer")
+                        .HasColumnName("default_warehouse_id");
+
+                    b.Property<string>("Description")
+                        .HasColumnType("text")
+                        .HasColumnName("description");
+
+                    b.Property<int?>("DiscountAccountId")
+                        .HasColumnType("integer")
+                        .HasColumnName("discount_account_id");
 
                     b.Property<string>("ExciseTaxGroup")
                         .HasMaxLength(100)
@@ -646,16 +1061,81 @@ namespace Lamour.Infrastructure.Migrations
                         .HasDefaultValue(true)
                         .HasColumnName("is_active");
 
+                    b.Property<bool>("IsPromotionalGood")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(false)
+                        .HasColumnName("is_promotional_good");
+
+                    b.Property<decimal>("LatestPurchasePrice")
+                        .ValueGeneratedOnAdd()
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)")
+                        .HasDefaultValue(0m)
+                        .HasColumnName("latest_purchase_price");
+
+                    b.Property<int>("MinStockQuantity")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasDefaultValue(0)
+                        .HasColumnName("min_stock_quantity");
+
                     b.Property<string>("Name")
                         .IsRequired()
                         .HasMaxLength(200)
                         .HasColumnType("character varying(200)")
                         .HasColumnName("name");
 
+                    b.Property<string>("Nature")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasDefaultValue("VatTuHangHoa")
+                        .HasColumnName("nature");
+
+                    b.Property<string>("Origin")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)")
+                        .HasColumnName("origin");
+
+                    b.Property<int?>("PriceReductionAccountId")
+                        .HasColumnType("integer")
+                        .HasColumnName("price_reduction_account_id");
+
+                    b.Property<int?>("ProductUnitId")
+                        .HasColumnType("integer")
+                        .HasColumnName("product_unit_id");
+
+                    b.Property<string>("PurchaseDescription")
+                        .HasColumnType("text")
+                        .HasColumnName("purchase_description");
+
+                    b.Property<int?>("ReturnAccountId")
+                        .HasColumnType("integer")
+                        .HasColumnName("return_account_id");
+
+                    b.Property<int?>("RevenueAccountId")
+                        .HasColumnType("integer")
+                        .HasColumnName("revenue_account_id");
+
+                    b.Property<string>("SaleDescription")
+                        .HasColumnType("text")
+                        .HasColumnName("sale_description");
+
                     b.Property<decimal>("SellingPrice")
                         .HasPrecision(18, 2)
                         .HasColumnType("numeric(18,2)")
                         .HasColumnName("selling_price");
+
+                    b.Property<string>("SpecialGoodsType")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("special_goods_type");
+
+                    b.Property<int?>("StockAccountId")
+                        .HasColumnType("integer")
+                        .HasColumnName("stock_account_id");
 
                     b.Property<int>("StockQuantity")
                         .ValueGeneratedOnAdd()
@@ -668,6 +1148,13 @@ namespace Lamour.Infrastructure.Migrations
                         .HasColumnType("character varying(20)")
                         .HasColumnName("tax_reduction_type");
 
+                    b.Property<decimal>("TradeDiscountRate")
+                        .ValueGeneratedOnAdd()
+                        .HasPrecision(9, 2)
+                        .HasColumnType("numeric(9,2)")
+                        .HasDefaultValue(0m)
+                        .HasColumnName("trade_discount_rate");
+
                     b.Property<string>("Unit")
                         .IsRequired()
                         .HasMaxLength(50)
@@ -679,6 +1166,11 @@ namespace Lamour.Infrastructure.Migrations
                         .HasColumnType("character varying(20)")
                         .HasColumnName("vat_rate");
 
+                    b.Property<string>("WarrantyPeriod")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("warranty_period");
+
                     b.HasKey("Id");
 
                     b.HasIndex("CategoryId");
@@ -687,7 +1179,98 @@ namespace Lamour.Infrastructure.Migrations
                         .IsUnique()
                         .HasFilter("code <> ''");
 
+                    b.HasIndex("CostAccountId");
+
+                    b.HasIndex("DefaultWarehouseId");
+
+                    b.HasIndex("DiscountAccountId");
+
+                    b.HasIndex("PriceReductionAccountId");
+
+                    b.HasIndex("ProductUnitId");
+
+                    b.HasIndex("ReturnAccountId");
+
+                    b.HasIndex("RevenueAccountId");
+
+                    b.HasIndex("StockAccountId");
+
                     b.ToTable("products", (string)null);
+                });
+
+            modelBuilder.Entity("Lamour.Domain.Entities.ProductUnit", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasColumnName("id");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
+                        .HasColumnName("name");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Name")
+                        .IsUnique();
+
+                    b.ToTable("product_units", (string)null);
+
+                    b.HasData(
+                        new
+                        {
+                            Id = 1,
+                            Name = "Cái"
+                        },
+                        new
+                        {
+                            Id = 2,
+                            Name = "Hộp"
+                        },
+                        new
+                        {
+                            Id = 3,
+                            Name = "Chai"
+                        },
+                        new
+                        {
+                            Id = 4,
+                            Name = "Tuýp"
+                        },
+                        new
+                        {
+                            Id = 5,
+                            Name = "Cuốn"
+                        },
+                        new
+                        {
+                            Id = 6,
+                            Name = "Bộ"
+                        },
+                        new
+                        {
+                            Id = 7,
+                            Name = "Set"
+                        },
+                        new
+                        {
+                            Id = 8,
+                            Name = "Thùng"
+                        },
+                        new
+                        {
+                            Id = 9,
+                            Name = "Gói"
+                        },
+                        new
+                        {
+                            Id = 10,
+                            Name = "Lọ"
+                        });
                 });
 
             modelBuilder.Entity("Lamour.Domain.Entities.Receipt", b =>
@@ -1284,6 +1867,20 @@ namespace Lamour.Infrastructure.Migrations
                             Code = "KHO01",
                             IsActive = true,
                             Name = "Kho chính"
+                        },
+                        new
+                        {
+                            Id = 4,
+                            Code = "HH",
+                            IsActive = true,
+                            Name = "Hàng hoá"
+                        },
+                        new
+                        {
+                            Id = 5,
+                            Code = "TB",
+                            IsActive = true,
+                            Name = "Trưng bày"
                         });
                 });
 
@@ -1435,6 +2032,43 @@ namespace Lamour.Infrastructure.Migrations
                     b.Navigation("SaleCareEmployee");
                 });
 
+            modelBuilder.Entity("Lamour.Domain.Entities.Deposit", b =>
+                {
+                    b.HasOne("Lamour.Domain.Entities.Customer", "Customer")
+                        .WithMany()
+                        .HasForeignKey("CustomerId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("Lamour.Domain.Entities.Employee", "Employee")
+                        .WithMany()
+                        .HasForeignKey("EmployeeId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.Navigation("Customer");
+
+                    b.Navigation("Employee");
+                });
+
+            modelBuilder.Entity("Lamour.Domain.Entities.DepositDeduction", b =>
+                {
+                    b.HasOne("Lamour.Domain.Entities.Deposit", "Deposit")
+                        .WithMany("Deductions")
+                        .HasForeignKey("DepositId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("Lamour.Domain.Entities.SalesOrder", "SalesOrder")
+                        .WithMany()
+                        .HasForeignKey("SalesOrderId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Deposit");
+
+                    b.Navigation("SalesOrder");
+                });
+
             modelBuilder.Entity("Lamour.Domain.Entities.Payment", b =>
                 {
                     b.HasOne("Lamour.Domain.Entities.Employee", "PaymentEmployee")
@@ -1472,7 +2106,63 @@ namespace Lamour.Infrastructure.Migrations
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
+                    b.HasOne("Lamour.Domain.Entities.AccountSetting", "CostAccount")
+                        .WithMany()
+                        .HasForeignKey("CostAccountId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.HasOne("Lamour.Domain.Entities.Warehouse", "DefaultWarehouse")
+                        .WithMany()
+                        .HasForeignKey("DefaultWarehouseId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.HasOne("Lamour.Domain.Entities.AccountSetting", "DiscountAccount")
+                        .WithMany()
+                        .HasForeignKey("DiscountAccountId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.HasOne("Lamour.Domain.Entities.AccountSetting", "PriceReductionAccount")
+                        .WithMany()
+                        .HasForeignKey("PriceReductionAccountId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.HasOne("Lamour.Domain.Entities.ProductUnit", "ProductUnit")
+                        .WithMany()
+                        .HasForeignKey("ProductUnitId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.HasOne("Lamour.Domain.Entities.AccountSetting", "ReturnAccount")
+                        .WithMany()
+                        .HasForeignKey("ReturnAccountId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.HasOne("Lamour.Domain.Entities.AccountSetting", "RevenueAccount")
+                        .WithMany()
+                        .HasForeignKey("RevenueAccountId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.HasOne("Lamour.Domain.Entities.AccountSetting", "StockAccount")
+                        .WithMany()
+                        .HasForeignKey("StockAccountId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
                     b.Navigation("Category");
+
+                    b.Navigation("CostAccount");
+
+                    b.Navigation("DefaultWarehouse");
+
+                    b.Navigation("DiscountAccount");
+
+                    b.Navigation("PriceReductionAccount");
+
+                    b.Navigation("ProductUnit");
+
+                    b.Navigation("ReturnAccount");
+
+                    b.Navigation("RevenueAccount");
+
+                    b.Navigation("StockAccount");
                 });
 
             modelBuilder.Entity("Lamour.Domain.Entities.Receipt", b =>
@@ -1620,6 +2310,11 @@ namespace Lamour.Infrastructure.Migrations
                     b.Navigation("Warehouse");
 
                     b.Navigation("WarehouseReceipt");
+                });
+
+            modelBuilder.Entity("Lamour.Domain.Entities.Deposit", b =>
+                {
+                    b.Navigation("Deductions");
                 });
 
             modelBuilder.Entity("Lamour.Domain.Entities.Payment", b =>

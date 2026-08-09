@@ -1,429 +1,273 @@
-# Guardrails — Build Doctor
+# Guardrails — Build Doctor (BE + WPF)
 
-Safety rules để tránh làm hỏng code khi auto-fix.
-
----
-
-## Rule 1: Never Delete User Code
-
-```
-❌ PROHIBITED
-Xóa bất kỳ logic nào của user.
-
-✅ ALLOWED
-Chỉ ADD hoặc MODIFY để fix errors.
-```
-
-**Example:**
-
-```swift
-// BAD: Deleting entire function
-func loadData() {
-    // Delete this broken code ❌
-}
-
-// GOOD: Fixing the error within
-func loadData() {
-    Task {
-        await fetchData()  // ✅ Added Task wrapper
-    }
-}
-```
+Safety rules để tránh làm hỏng code hoặc DB khi auto-fix trong `be-window-lamour`/`desktop-lamour`.
 
 ---
 
-## Rule 2: Preserve Formatting & Style
+## Rule 1: Never Delete Without Reading Both Sides First
 
 ```
 ❌ PROHIBITED
-Reformat entire file, change indentation style, add/remove blank lines.
+Xoá file/class ngay khi thấy CS0101 (duplicate definition) mà chưa đọc
+nội dung CẢ HAI định nghĩa.
 
 ✅ ALLOWED
-Match existing indentation when inserting code.
+grep tìm bản còn lại → đọc cả 2 → xác nhận bản nào đầy đủ/đúng hơn →
+giữ 1, xoá/gộp bản kia.
 ```
 
-**Example:**
-
-```swift
-// Existing code uses 4 spaces
-#Preview {
-    CustomerRowView(customer: Customer(
-        id: "1",
-        name: "Test"
-        // ← Insert here with 8 spaces (2 levels of 4)
-    ))
-}
-
-// GOOD: Match indentation
-        amount: 500000,  // ✅ 8 spaces
-
-// BAD: Wrong indentation
-  amount: 500000,  // ❌ 2 spaces
-```
+**Ví dụ thật:** `WarehouseConfiguration` mới tạo bị trùng bản đã có sẵn trong `WarehouseReceiptConfiguration.cs`. Nếu xoá nhầm bản CŨ (đang có seed `KHO01` đã chạy migration từ trước) thay vì bản MỚI → mất seed data đang production-relevant.
 
 ---
 
-## Rule 3: Verify Before Insert
+## Rule 2: Preserve Clean Architecture / MVVM Boundaries
 
 ```
 ❌ PROHIBITED
-Insert code without checking if it already exists.
+Fix lỗi build bằng cách nhét logic sai layer — vd gọi trực tiếp
+AppDbContext từ Controller (BE) để né lỗi thiếu UseCase, hoặc gọi
+HttpClient trực tiếp từ View code-behind (WPF) để né lỗi DI.
 
 ✅ ALLOWED
-Check if import/parameter already present before adding.
+Fix đúng layer đang lỗi. Nếu thiếu registration DI → thêm DI, không
+bypass toàn bộ layer.
 ```
 
-**Check logic:**
+**BE layer order:** `Api` → `Application` (UseCase/DTO) → `Domain` (Entity, zero deps) → `Infrastructure` (EF Core, Repository). DTO không bao giờ leak ra khỏi `Application`; Controller không gọi thẳng `Infrastructure`.
 
-```python
-# Before adding import
-if "import Combine" not in file_content:
-    add_import("import Combine")
-else:
-    skip  # Already imported
+**WPF layer order:** `Views` (XAML) → `ViewModels` → `Domain/UseCases` → `Data/Repositories` → `Data/Services` (HttpClient) → BE API. ViewModel không gọi thẳng `HttpClient`; View code-behind không chứa business logic.
 
-# Before adding parameter
-if "amount:" not in initializer_context:
-    add_parameter("amount: 500000")
-else:
-    skip  # Already has amount
+---
+
+## Rule 3: Migration Đã Apply Thành Công — Không Xoá Lại
+
+```
+❌ PROHIBITED
+`dotnet ef migrations remove` một migration ĐÃ có dòng trong
+"__EFMigrationsHistory" (đã `dotnet ef database update` thành công).
+
+✅ ALLOWED
+- Nếu migration fail GIỮA CHỪNG (transaction rollback, không có dòng
+  trong __EFMigrationsHistory) → an toàn để remove + tạo lại.
+- Nếu migration đã apply thành công rồi mới phát hiện vấn đề khác →
+  tạo MIGRATION MỚI để sửa tiếp, không remove migration cũ.
+```
+
+**Check trước khi remove:**
+```bash
+psql -h localhost -U hai.phan -d lamour_db \
+  -c "SELECT \"MigrationId\" FROM \"__EFMigrationsHistory\" ORDER BY \"MigrationId\" DESC LIMIT 5;"
+```
+Nếu migration đang định xoá xuất hiện trong list → **KHÔNG xoá**, tạo migration mới thay thế.
+
+---
+
+## Rule 4: Verify DB State Trước Khi Seed Id Cố Định
+
+```
+❌ PROHIBITED
+Viết `HasData(new X { Id = 2 }, new X { Id = 3 })` cho 1 bảng đã có data
+mà không kiểm tra Id nào đang trống trong DB thật.
+
+✅ ALLOWED
+Luôn `SELECT id FROM <table> ORDER BY id;` trước khi hardcode Id trong
+HasData, đặc biệt với bảng có thể đã bị insert tay ngoài migration
+(đã gặp thật: bảng `warehouses` có row `KHO02` không rõ nguồn gốc, không
+qua HasData nào).
 ```
 
 ---
 
-## Rule 4: Confidence Threshold
+## Rule 5: Backup Before Multi-File Rename
 
 ```
 ❌ PROHIBITED
-Auto-fix errors with confidence < 70%
+Đổi tên type xuyên nhiều file (Strategy 1B — namespace collision) mà
+không track được đã sửa file nào, dễ bỏ sót gây lỗi cascade mới.
 
 ✅ ALLOWED
-Auto-fix only when confidence ≥ 70%
+grep liệt kê TOÀN BỘ file bị ảnh hưởng trước khi bắt đầu đổi tên:
+grep -rln "\bOldName\b" Features/FeatureName/
+→ sửa từng file, rebuild sau mỗi vài file để bắt lỗi sớm thay vì đổi
+hết 15 file rồi mới build 1 lần (khó debug lỗi nào gây ra bởi file nào).
 ```
 
-**Confidence scoring:**
+---
+
+## Rule 6: Confidence Threshold
+
+```
+❌ PROHIBITED
+Auto-fix khi confidence < 70% (đặc biệt: giá trị mặc định nghiệp vụ,
+quyết định OnDelete behavior cho FK mới, chọn field nào đóng vai trò
+ISearchableItem.Name khi không có field nào rõ ràng tương đương).
+
+✅ ALLOWED
+Auto-fix chỉ khi confidence ≥ 70%. Dưới ngưỡng → suggest + hỏi user,
+không tự áp dụng.
+```
 
 | Confidence | Action |
 |---|---|
-| 90-100% | Auto-fix immediately |
-| 70-89% | Auto-fix + log warning |
-| 50-69% | Suggest fix, DON'T apply |
-| < 50% | Skip, report for manual |
+| 90-100% | Auto-fix ngay |
+| 70-89% | Auto-fix + log rõ lý do |
+| 50-69% | Đề xuất, chờ xác nhận |
+| < 50% | Bỏ qua, báo cáo cần tay |
 
-**Example:**
+---
 
-```python
-if error.confidence >= 70:
-    apply_fix(error)
-else:
-    report_for_manual_fix(error)
+## Rule 7: Max Iterations Limit
+
+```
+❌ PROHIBITED
+Lặp vô hạn build → fix → build khi lỗi không giảm hoặc lỗi mới xuất
+hiện liên tục.
+
+✅ ALLOWED
+Max 3 iterations (mặc định, configurable qua MAX_ITERATIONS). Nếu sau
+1 iteration mà error count KHÔNG giảm hoặc TĂNG → dừng ngay, không chờ
+hết số iteration còn lại.
 ```
 
 ---
 
-## Rule 5: Max Iterations Limit
+## Rule 8: Type-Safe, Domain-Aware Default Values
 
 ```
 ❌ PROHIBITED
-Infinite loop fixing → re-validating → fixing same errors
+Bịa giá trị mặc định nghiệp vụ khi fix "missing required argument"
+(vd tự set `SellingPrice = 500000` cho có).
 
 ✅ ALLOWED
-Max 3 iterations (configurable) then stop
-```
-
-**Safety mechanism:**
-
-```python
-for iteration in range(MAX_ITERATIONS):
-    errors = scan_errors()
-    if len(errors) == 0:
-        break  # Success
-    
-    apply_fixes(errors)
-    new_errors = scan_errors()
-    
-    if new_errors == errors:  # Stuck - same errors
-        break  # Stop, report manual intervention needed
+- Kiểu giá trị (`string`→`""`, `int`→`0`, `bool`→`false`, `decimal`→`0m`,
+  nullable→`null`) → an toàn để auto-fix
+- Giá trị NGHIỆP VỤ cụ thể (giá bán, mã tài khoản mặc định, kho mặc
+  định) → CHỈ auto-fix khi có nguồn xác nhận rõ ràng (vd user đã cung
+  cấp ảnh/spec — như trường hợp default TK kế toán 1561/5111/5211/...
+  lấy từ ảnh mẫu MISA user gửi), không tự đoán khi không có căn cứ
 ```
 
 ---
 
-## Rule 6: Backup Original Content
+## Rule 9: Validate After Each Batch, Not All-At-Once
 
 ```
 ❌ PROHIBITED
-Modify file without backup
+Áp dụng tất cả fix cho mọi category cùng lúc rồi mới build 1 lần.
 
 ✅ ALLOWED
-Store original content before any modification
-```
-
-**Implementation:**
-
-```python
-# Before fixing
-original_content = read_file(file_path)
-backup[file_path] = original_content
-
-try:
-    apply_fixes(file_path)
-    validate()
-except Exception as e:
-    # Rollback if anything goes wrong
-    write_file(file_path, original_content)
-    raise e
+Fix theo priority order trong ERROR_PATTERNS.md/FIX_STRATEGIES.md,
+rebuild sau mỗi category để xác nhận không phát sinh lỗi mới trước khi
+qua category tiếp theo.
 ```
 
 ---
 
-## Rule 7: Type-Safe Default Values
+## Rule 10: Respect Existing Code Style & Naming Convention
 
 ```
 ❌ PROHIBITED
-Generate invalid default values
+"Tiện tay" đổi format, đổi convention đặt tên khi đang fix lỗi khác
+(vd đang fix CS0246 lại tiện tay reorder using, đổi 4-space thành tab).
 
 ✅ ALLOWED
-Use type-appropriate and domain-aware defaults
-```
-
-**Type safety table:**
-
-| Type | Default | Why |
-|---|---|---|
-| `String` | `""` | Empty is safe |
-| `String` (name) | `"Test Name"` | Better for previews |
-| `String?` | `nil` | Optional → nil is correct |
-| `Int` | `0` | Numeric safe default |
-| `Double` | `0.0` | Numeric safe default |
-| `Double` (amount) | `500000` | Domain-aware (Laundry Dashboard) |
-| `Bool` | `false` | Boolean safe default |
-| `Date` | `Date()` | Current date |
-| `UUID` | `UUID().uuidString` | Generate valid UUID |
-| `[T]` | `[]` | Empty array |
-| `Custom` | ❌ SKIP | Cannot infer, report manual |
-
----
-
-## Rule 8: Preserve Imports Order
-
-```
-❌ PROHIBITED
-Add import at random position
-
-✅ ALLOWED
-Follow SwiftUI conventions: Foundation → Combine → SwiftUI → custom
-```
-
-**Correct order:**
-
-```swift
-import Foundation   // 1. Standard library
-import Combine      // 2. Apple frameworks
-import SwiftUI      // 3. UI framework
-                    // 4. Blank line
-import CustomPkg    // 5. Third-party (if any)
-```
-
-**Insertion logic:**
-
-```python
-def insert_import(file, new_import):
-    imports = extract_imports(file)
-    order = ["Foundation", "Combine", "SwiftUI"]
-    
-    # Find correct position
-    if new_import in order:
-        idx = order.index(new_import)
-        insert_after = find_last_import_before(imports, order[:idx+1])
-    
-    insert_at_line(file, insert_after + 1, f"import {new_import}")
+Chỉ sửa đúng phần gây lỗi. Giữ nguyên style file (BE: PascalCase field
+alignment kiểu cột thẳng hàng đã thấy trong DTOs; WPF: XAML indentation
+2-space, `<controls:AppXxx>` custom control thay vì raw WPF control).
 ```
 
 ---
 
-## Rule 9: Validate After Each Fix
+## Rule 11: File Paths Must Be Within The 2 Known Repos
 
 ```
 ❌ PROHIBITED
-Apply all fixes blindly then validate once
+Sửa file ngoài `be-window-lamour/` hoặc `desktop-lamour/`.
 
 ✅ ALLOWED
-Apply batch → validate → apply next batch
-```
-
-**Iterative approach:**
-
-```python
-# GOOD: Validate after each priority level
-fix_missing_imports()
-validate()  # Check if import fixes resolved cascading errors
-
-fix_missing_arguments()
-validate()
-
-fix_type_mismatches()
-validate()
-
-# If any step introduces new errors, stop and report
+Chỉ động vào 2 workspace:
+  /Users/hai.phan/Desktop/haiphan/be-window-lamour/
+  /Users/hai.phan/Desktop/haiphan/desktop-lamour/
 ```
 
 ---
 
-## Rule 10: Respect User's Code Context
+## Rule 12: Never Skip Runtime-Only Checks Just Because Build Is Green
 
 ```
 ❌ PROHIBITED
-Change variable names, refactor logic, "improve" code style
+Báo "hoàn thành, build 0 lỗi" và dừng lại, trong khi 2 loại lỗi KHÔNG
+lộ qua `dotnet build`:
+  - DI resolution failure (chỉ crash lúc chạy app)
+  - XAML resource not found (chỉ crash lúc load Window/UserControl)
 
 ✅ ALLOWED
-Only fix the specific error - don't touch anything else
-```
-
-**Example:**
-
-```swift
-// User's code (maybe not perfect, but it's theirs)
-let c = Customer(id: "1", name: "Test")  // ← Missing amount
-
-// BAD: Over-fixing
-let customer = Customer(  // ❌ Changed variable name
-    id: UUID().uuidString,  // ❌ Changed id value
-    name: "Nguyen Van An",  // ❌ Changed name
-    amount: 500000
-)
-
-// GOOD: Minimal fix
-let c = Customer(id: "1", name: "Test", amount: 500000)  // ✅ Only added amount
+Sau khi build xanh, luôn chạy thêm 2 bước check thủ công:
+  1. grep mọi interface mới trong constructor UseCase/ViewModel/Controller
+     → xác nhận có dòng đăng ký DI tương ứng
+  2. grep mọi StaticResource key mới dùng trong .xaml vừa sửa/tạo →
+     đối chiếu key thật có trong Shared/Styles/*.xaml, AppConverters.xaml
 ```
 
 ---
 
-## Rule 11: Skip Complex Refactors
+## Rule 13: Report All Actions With Before/After Context
 
 ```
 ❌ PROHIBITED
-Auto-fix protocol conformance, complex async/await refactors, architecture changes
+Sửa file lặng lẽ không giải thích.
 
 ✅ ALLOWED
-Only fix mechanical/syntactic errors
-```
+Log rõ mỗi thay đổi:
 
-**Complexity levels:**
-
-| Error Type | Complexity | Auto-fix? |
-|---|---|---|
-| Missing argument | Low | ✅ Yes |
-| Type mismatch (simple cast) | Low | ✅ Yes |
-| Missing import | Low | ✅ Yes |
-| Typo in symbol | Low | ✅ Yes |
-| Missing `await` | Medium | ✅ Yes |
-| Protocol conformance | High | ❌ No |
-| Complex async refactor | High | ❌ No |
-| Architecture violation | High | ❌ No |
-
-**When to skip:**
-
-```python
-if error.category in ["protocol_conformance", "architecture_violation"]:
-    report_manual_fix_needed(error)
-    skip()
+✅ Domain/Models/AccountSetting.cs
+   Trước: (không có property Name)
+   Sau:   public string Name => Description;
+   Lý do: CS0535 — ISearchableItem yêu cầu Name, Description là field
+          gần nghĩa nhất đóng vai trò tên hiển thị.
 ```
 
 ---
 
-## Rule 12: File Paths Must Be Valid
+## Rule 14: Never Modify Business Logic While Fixing Build Errors
 
 ```
 ❌ PROHIBITED
-Modify files outside the workspace
+Đổi validation rule, đổi công thức tính toán, đổi business rule trong
+lúc chỉ đang fix lỗi compile.
 
 ✅ ALLOWED
-Only modify files within laundry-dashboard/ directory
+Chỉ sửa phần syntactic/mechanical để code build được. Nếu phát hiện
+business logic có vấn đề trong lúc fix — báo riêng cho user, không tự
+sửa gộp vào cùng lúc.
 ```
 
-**Path validation:**
+**Ví dụ:**
+```csharp
+// Lỗi: CategoryId type mismatch
+var product = new Product(categoryId: category);  // category là object, cần int
 
-```python
-def is_valid_file(file_path):
-    workspace = "/Users/.../laundry-dashboard/"
-    return file_path.startswith(workspace) and file_path.endswith(".swift")
+// ĐÚNG — chỉ fix type
+var product = new Product(categoryId: category.Id);
 
-if not is_valid_file(error.file):
-    skip()  # Don't touch external files
+// SAI — tiện tay "cải thiện" thêm validation không liên quan
+var product = new Product(categoryId: category.Id);
+if (category.Id <= 0) throw new Exception("Invalid category");  // ❌ không được yêu cầu
 ```
 
 ---
 
-## Rule 13: Report All Actions
+## Rule 15: Fail Safe — Rollback Nếu Fix Không Thành Công
 
 ```
 ❌ PROHIBITED
-Silently modify files
+Để code ở trạng thái half-fixed nếu 1 fix trong batch làm hỏng thêm.
 
 ✅ ALLOWED
-Log every file modification with before/after context
-```
-
-**Logging format:**
-
-```
-✅ CustomerDetailScreen.swift:208
-   Before: Customer(id: "1", name: "Test")
-   After:  Customer(id: "1", name: "Test", amount: 500000)
-   Reason: Missing argument 'amount' (Double)
-```
-
----
-
-## Rule 14: Never Modify Domain Logic
-
-```
-❌ PROHIBITED
-Change business logic, validation rules, calculations
-
-✅ ALLOWED
-Only syntactic fixes to make code compile
-```
-
-**Example:**
-
-```swift
-// User's validation logic
-guard amount > 0 else { return }  // ← Don't touch
-
-// Error: amount is String, needs Double
-let customer = Customer(amount: amount)  // ← Fix this line only
-
-// GOOD: Fix type error, preserve logic
-let customer = Customer(amount: Double(amount) ?? 0)
-
-// BAD: Changing logic
-guard amount >= 100 else { return }  // ❌ Changed validation threshold
-```
-
----
-
-## Rule 15: Fail Safe
-
-```
-❌ PROHIBITED
-Leave code in broken state if fix fails
-
-✅ ALLOWED
-If anything goes wrong, rollback to original state
-```
-
-**Error handling:**
-
-```python
-try:
-    apply_fixes()
-    if not validate_success():
-        raise FixFailedException()
-except Exception:
-    rollback_all_changes()
-    report_error_to_user()
-    # Code is back to original (albeit with errors)
+Nếu 1 fix khiến error count TĂNG so với trước → revert đúng file đó
+(dùng `git diff`/`git checkout -- <file>` nếu chưa commit, hoặc khôi
+phục nội dung đã đọc trước khi sửa), rebuild lại để xác nhận về trạng
+thái trước fix, rồi báo cáo thay vì tiếp tục đè thêm fix khác lên.
 ```
 
 ---
@@ -432,38 +276,33 @@ except Exception:
 
 | Never | Why |
 |---|---|
-| Delete user code | Data loss |
-| Reformat entire files | Unwanted changes |
-| Modify business logic | Domain corruption |
-| Fix with confidence < 70% | Risk of wrong fix |
-| Exceed MAX_ITERATIONS | Infinite loops |
-| Touch files outside workspace | Security |
-| Auto-fix protocol conformance | Too complex |
-| Change variable names | Unexpected refactor |
-| Skip validation | Compound errors |
-| Operate without backup | No rollback path |
+| Xoá định nghĩa mà chưa đọc cả 2 bản (CS0101) | Có thể mất seed data / logic đang dùng |
+| `migrations remove` một migration đã apply thành công | Làm lệch `__EFMigrationsHistory` với schema thật |
+| Seed `HasData` Id cố định không check DB trước | Gây `23505 duplicate key` lúc `database update` |
+| Bịa giá trị mặc định nghiệp vụ không có căn cứ | Sai dữ liệu nghiệp vụ âm thầm, khó phát hiện |
+| Đổi tên type xuyên file mà không grep hết trước | Bỏ sót → lỗi cascade mới, khó truy nguồn |
+| Coi build xanh = xong (bỏ qua DI/XAML runtime check) | 2 lớp lỗi phổ biến nhất không lộ qua `dotnet build` |
+| Vượt MAX_ITERATIONS | Lặp vô ích, có thể là dấu hiệu lỗi gốc chưa hiểu đúng |
+| Sửa file ngoài 2 repo đã biết | Ngoài phạm vi, rủi ro không kiểm soát được |
+| Trộn fix build với đổi business logic | Khó review, dễ lẫn lỗi domain vào lỗi compile |
+| Để code half-fixed khi 1 fix gây thêm lỗi | Khó debug hơn trạng thái ban đầu |
 
 ---
 
-## Red Flags - Stop Immediately
-
-If any of these occur, **STOP** and report for manual intervention:
+## Red Flags — Stop Immediately
 
 ```
-🚨 Same errors persist after 2 iterations
-🚨 Error count increases after fix
-🚨 New file appears in error list (wasn't there initially)
-🚨 Cannot parse error message format
-🚨 Fix would delete >10 lines of code
-🚨 Fix would modify >20 files at once
-🚨 Confidence score < 50% for >50% of errors
+🚨 Cùng 1 lỗi vẫn còn sau 2 iteration liên tiếp
+🚨 Error count TĂNG sau 1 batch fix
+🚨 File mới xuất hiện trong danh sách lỗi (không có ở lần scan đầu)
+🚨 Không parse được format lỗi (`dotnet build` đổi output format /
+   SDK version khác)
+🚨 Fix cần xoá > 10 dòng code không phải do chính tay vừa thêm
+🚨 Fix ảnh hưởng > 15 file cùng lúc (namespace rename lớn) — dừng lại
+   hỏi user xác nhận hướng đi trước khi làm tiếp, đừng tự chạy hết
+🚨 Đang định `dotnet ef migrations remove` một migration đã có trong
+   __EFMigrationsHistory
+🚨 Confidence < 50% cho > 50% số lỗi còn lại trong 1 batch
 ```
 
-**Action:**
-
-```python
-if red_flag_detected():
-    rollback_all_changes()
-    generate_manual_fix_report()
-    exit_gracefully()
-```
+**Action khi gặp red flag:** dừng, không tiếp tục fix hàng loạt, báo cáo rõ tình huống và hỏi hướng xử lý thay vì tự quyết.

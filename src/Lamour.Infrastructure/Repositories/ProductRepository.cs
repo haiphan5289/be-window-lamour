@@ -11,11 +11,22 @@ public class ProductRepository : IProductRepository
 
     public ProductRepository(AppDbContext db) => _db = db;
 
+    private static IQueryable<Product> IncludeAll(IQueryable<Product> query) => query
+        .Include(p => p.Category)
+        .Include(p => p.ProductUnit)
+        .Include(p => p.DefaultWarehouse)
+        .Include(p => p.StockAccount)
+        .Include(p => p.RevenueAccount)
+        .Include(p => p.DiscountAccount)
+        .Include(p => p.PriceReductionAccount)
+        .Include(p => p.ReturnAccount)
+        .Include(p => p.CostAccount);
+
     public async Task<IEnumerable<Product>> GetAllAsync(CancellationToken ct = default)
-        => await _db.Products.AsNoTracking().Include(p => p.Category).ToListAsync(ct);
+        => await IncludeAll(_db.Products.AsNoTracking()).ToListAsync(ct);
 
     public async Task<Product?> GetByIdAsync(int id, CancellationToken ct = default)
-        => await _db.Products.AsNoTracking().Include(p => p.Category).FirstOrDefaultAsync(p => p.Id == id, ct);
+        => await IncludeAll(_db.Products.AsNoTracking()).FirstOrDefaultAsync(p => p.Id == id, ct);
 
     public async Task<Product?> GetByIdTrackedAsync(int id, CancellationToken ct = default)
         => await _db.Products.FirstOrDefaultAsync(p => p.Id == id, ct);

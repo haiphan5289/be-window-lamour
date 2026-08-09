@@ -45,13 +45,34 @@ public class DuplicateProductUseCase : IDuplicateProductUseCase
             ImportTaxRate    = source.ImportTaxRate,
             ExportTaxRate    = source.ExportTaxRate,
             ExciseTaxGroup   = source.ExciseTaxGroup,
+
+            Nature              = source.Nature,
+            Description         = source.Description,
+            ProductUnitId       = source.ProductUnitId,
+            WarrantyPeriod      = source.WarrantyPeriod,
+            MinStockQuantity    = source.MinStockQuantity,
+            Origin              = source.Origin,
+            PurchaseDescription = source.PurchaseDescription,
+            SaleDescription     = source.SaleDescription,
+
+            DefaultWarehouseId      = source.DefaultWarehouseId,
+            StockAccountId          = source.StockAccountId,
+            RevenueAccountId        = source.RevenueAccountId,
+            DiscountAccountId       = source.DiscountAccountId,
+            PriceReductionAccountId = source.PriceReductionAccountId,
+            ReturnAccountId         = source.ReturnAccountId,
+            CostAccountId           = source.CostAccountId,
+            TradeDiscountRate       = source.TradeDiscountRate,
+            SpecialGoodsType        = source.SpecialGoodsType,
+            LatestPurchasePrice     = source.LatestPurchasePrice,
+            IsPromotionalGood       = source.IsPromotionalGood,
         };
 
         var created = await _repo.AddAsync(copy, ct);
-        created.Category = source.Category;
         _logger.LogInformation("Duplicated product {SourceId} → {NewId}", id, created.Id);
 
-        var dto = CreateProductUseCase.MapToDto(created);
+        var reloaded = await _repo.GetByIdAsync(created.Id, ct) ?? created;
+        var dto = CreateProductUseCase.MapToDto(reloaded);
         await _broadcaster.ProductCreatedAsync(dto, ct);
         return dto;
     }

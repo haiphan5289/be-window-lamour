@@ -22,4 +22,37 @@ public class Product
     public decimal?     ImportTaxRate     { get; set; }
     public decimal?     ExportTaxRate     { get; set; }
     public string?      ExciseTaxGroup    { get; set; }
+
+    // Header fields — "Sửa Vật tư, hàng hoá, dịch vụ" popup (2026-08-09)
+    public ProductNature Nature              { get; set; } = ProductNature.VatTuHangHoa;
+    public string?        Description         { get; set; }
+    // ĐVT chính — FK bổ sung; Unit (string) phía trên vẫn giữ nguyên để không phá vỡ
+    // Sales/SalesReturn/WarehouseReceipt đang đọc trực tiếp product.Unit làm giá trị mặc định.
+    public int?            ProductUnitId       { get; set; }
+    public ProductUnit?    ProductUnit         { get; set; }
+    public string?         WarrantyPeriod      { get; set; }
+    public int             MinStockQuantity    { get; set; }
+    public string?         Origin              { get; set; }
+    public string?         PurchaseDescription { get; set; }
+    public string?         SaleDescription     { get; set; }
+
+    // Tab "Ngầm định"
+    public int?            DefaultWarehouseId      { get; set; }
+    public Warehouse?      DefaultWarehouse        { get; set; }
+    public int?            StockAccountId          { get; set; }
+    public AccountSetting? StockAccount            { get; set; }
+    public int?            RevenueAccountId        { get; set; }
+    public AccountSetting? RevenueAccount          { get; set; }
+    public int?            DiscountAccountId       { get; set; }
+    public AccountSetting? DiscountAccount         { get; set; }
+    public int?            PriceReductionAccountId { get; set; }
+    public AccountSetting? PriceReductionAccount   { get; set; }
+    public int?            ReturnAccountId         { get; set; }
+    public AccountSetting? ReturnAccount           { get; set; }
+    public int?            CostAccountId           { get; set; }
+    public AccountSetting? CostAccount             { get; set; }
+    public decimal         TradeDiscountRate       { get; set; }
+    public string?         SpecialGoodsType        { get; set; }
+    public decimal         LatestPurchasePrice     { get; set; }
+    public bool            IsPromotionalGood       { get; set; }
 }

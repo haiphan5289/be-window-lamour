@@ -1,489 +1,413 @@
-# Fix Strategies — Build Doctor
+# Fix Strategies — Build Doctor (BE + WPF)
 
-Detailed strategies for auto-fixing each error category.
+Chi tiết chiến lược auto-fix cho mỗi category, viết cho C#/.NET (BE ASP.NET Core + WPF MVVM), không phải Swift.
 
 ---
 
-## Strategy 1: Missing Argument Fix
+## Strategy 1: Namespace/Type Collision & Ambiguous Reference (CS0118 / CS0104)
 
 ### Input
 
 ```yaml
-category: missing_argument
-file: CustomerDetailScreen.swift
-line: 208
-param_name: amount
-context: Customer( initialization
+category: namespace_type_collision
+file: Features/Warehouses/Repositories/IWarehouseRepository.cs
+name: Warehouse
+colliding_namespace: Lamour.Application.Features.Warehouse   # namespace lồng đã tồn tại
 ```
 
 ### Execution Steps
 
-```python
-# Step 1: Locate the model definition
-model_name = extract_type_from_line(file, line)  # → "Customer"
-model_file = find_file_by_pattern(f"**/*{model_name}.swift")
+```
+1. Xác nhận nguồn collision:
+   grep -rn "^namespace" --include=*.cs | grep -i "\.Warehouse\b"
+   → tìm mọi namespace kết thúc đúng bằng tên đang bị nhầm
 
-# Step 2: Read model to get parameter type
-model_content = read_file(model_file)
-param_type = extract_param_type(model_content, param_name)  # → "Double"
+2. Quyết định hướng fix — 2 lựa chọn, ưu tiên theo tình huống:
 
-# Step 3: Generate default value by type
-default_value = generate_default(param_type)
-# String → ""
-# Int → 0
-# Double → 0.0 (or sensible default like 500000 for amount)
-# Bool → false
-# Date → Date()
-# Optional<T> → nil
-# Custom type → Requires factory or .preview()
+   (A) Type alias tại chỗ (nhanh, ít file, dùng khi type đó CHỈ bị
+       reference ở vài file):
+       using WarehouseEntity = Lamour.Domain.Entities.Warehouse;
+       → thay mọi "Warehouse" bare trong file đó thành "WarehouseEntity"
+       Đã dùng thật cho: IWarehouseRepository.cs, GetWarehousesUseCase.cs,
+       CreateWarehouseUseCase.cs (BE) — chỉ 3 file bị ảnh hưởng trực tiếp.
 
-# Step 4: Read the initialization context
-context_lines = read_file(file, line - 2, line + 10)
-# Example:
-#     CustomerDetailScreen(customer: Customer(
-#         id: "1",
-#         name: "Nguyen Van An",
-#         phone: "0901234567",
-#         email: "an@example.com",
-#         ...
-#     ))
+   (B) Đổi tên type ở feature MỚI (triệt để hơn, dùng khi type đó sẽ
+       được dùng lặp lại xuyên nhiều layer — Model/DTO/Repository/UseCase/
+       ViewModel/View — vì alias local phải lặp lại ở MỌI file, dễ quên):
+       Đã dùng thật cho: WPF model Warehouse → WarehouseSetting
+       (kèm IWarehouseRepository → IWarehouseSettingRepository,
+       WarehouseService → WarehouseSettingService, ...) vì namespace
+       Warehouse (singular, feature cũ) ĐÃ có sẵn IWarehouseRepository/
+       WarehouseRepository/IWarehouseService/WarehouseService — alias
+       không đủ, phải đổi tên type để tránh CS0104 ambiguous ở
+       HomeServiceCollectionExtensions.cs (file using cả 2 namespace).
 
-# Step 5: Find insertion point (alphabetical or last parameter)
-insertion_point = find_insertion_point(context_lines, param_name)
+3. Nếu chọn (B): đổi tên nhất quán ở TẤT CẢ file trong feature mới —
+   Domain Model, DTOs (không bắt buộc, DTO field JSON không cần đổi),
+   Repository interface+impl, UseCase interface+impl x4, ViewModel x2,
+   View x2, DI registration, Navigation route nếu có. Dùng grep để
+   không bỏ sót:
+   grep -rln "\bWarehouse\b" Features/Warehouses/
 
-# Step 6: Insert parameter with proper indentation
-new_line = f"        {param_name}: {default_value},"
-insert_at_line(file, insertion_point, new_line)
+4. Rebuild, verify hết CS0118/CS0104
 ```
 
-### Default Value Heuristics
+### Quyết định nhanh: (A) hay (B)?
 
-For common Laundry Dashboard domain:
-
-| Parameter Name | Type | Smart Default |
-|---|---|---|
-| `amount` | `Double` | `500000` (typical laundry amount) |
-| `customerId` | `String` | `"c1"` or `UUID().uuidString` |
-| `uid` | `String` | `"u1"` or `UUID().uuidString` |
-| `createdAt` | `Date` | `Date()` |
-| `id` | `String` | `UUID().uuidString` |
-| `name` | `String` | `"Test Name"` |
-| `phone` | `String` | `"0901234567"` |
-| `email` | `String?` | `nil` or `"test@example.com"` |
-
-### Example Fix
-
-**Before:**
-
-```swift
-#Preview {
-    CustomerDetailScreen(customer: Customer(
-        id: "1",
-        name: "Nguyen Van An",
-        phone: "0901234567",
-        email: "an@example.com",
-        createdAt: Date()
-    ))
-}
-```
-
-**After:**
-
-```swift
-#Preview {
-    CustomerDetailScreen(customer: Customer(
-        id: "1",
-        name: "Nguyen Van An",
-        phone: "0901234567",
-        amount: 500000,  // ← Added
-        email: "an@example.com",
-        createdAt: Date()
-    ))
-}
-```
+| Điều kiện | Chọn |
+|---|---|
+| Type chỉ bị reference ở ≤ 3 file, không lan sang layer khác | (A) alias |
+| Type sẽ là Model/Entity chính của 1 feature mới, dùng ở Repository+UseCase+ViewModel+View | (B) đổi tên |
+| Namespace cũ đã có SẴN type CÙNG TÊN với chức năng tương tự (không chỉ namespace lồng) | (B) đổi tên — alias không giải quyết được ambiguous reference |
 
 ---
 
-## Strategy 2: Type Conversion Fix
+## Strategy 2: Type Mismatch & Conversion (CS0029 / CS1503)
 
 ### Input
 
 ```yaml
 category: type_mismatch
-file: CustomerFormViewModel.swift
-line: 58
-actual_type: String
-expected_type: Double
+actual_type: string
+expected_type: int?
+context: FK mới thêm song song field string cũ
 ```
 
-### Execution Steps
+### Conversion Table (C#)
 
-```python
-# Step 1: Read the problematic line
-line_content = read_file(file, line)
-# Example: "amount: amount,"  (where amount is String but expects Double)
-
-# Step 2: Determine conversion function
-conversion = get_conversion(actual_type, expected_type)
-# String → Double: "Double(value) ?? 0"
-# Int → Double: "Double(value)"
-# String → Int: "Int(value) ?? 0"
-# Double → String: "String(value)"
-# etc.
-
-# Step 3: Wrap the variable with conversion
-old_str = f"amount: amount,"
-new_str = f"amount: Double(amount) ?? 0,"
-replace_in_file(file, old_str, new_str)
-```
-
-### Conversion Table
-
-| From | To | Conversion Code |
+| From | To | Code |
 |---|---|---|
-| `String` | `Double` | `Double(value) ?? 0` |
-| `String` | `Int` | `Int(value) ?? 0` |
-| `Int` | `Double` | `Double(value)` |
-| `Double` | `Int` | `Int(value)` |
-| `T` | `String` | `String(value)` or `"\(value)"` |
-| `T` | `Optional<T>` | Just wrap: `value` → `Optional(value)` |
-| `Optional<T>` | `T` | `value ?? defaultValue` |
+| `string` | `int` | `int.Parse(value)` hoặc `int.TryParse(value, out var n) ? n : 0` |
+| `string` | `int?` | `int.TryParse(value, out var n) ? n : (int?)null` |
+| `string` | `decimal` | `decimal.TryParse(value, out var d) ? d : 0m` |
+| `int` | `string` | `value.ToString()` |
+| Model object | `int` (FK Id) | `model.Id` — KHÔNG gán cả object vào field int |
+| `enum` | `string` | `value.ToString()` |
+| `string` | `enum` | `Enum.TryParse<TEnum>(value, out var result) ? result : default` |
+| `T` | `T?` | Gán trực tiếp, tự box được |
+| `T?` | `T` | `value ?? default` hoặc `value!` nếu chắc chắn not-null |
 
-### Example Fix
+### Pattern hay gặp trong repo này: nâng cấp free-text field lên FK
 
-**Before:**
+Khi 1 field string tự do (vd `Product.Unit`, `Product.Category` cũ) được nâng lên thành FK có bảng master-data riêng (`ProductUnit`, `Category`):
 
-```swift
-let customer = Customer(
-    id: id,
-    name: name,
-    phone: phone,
-    amount: amount,  // ← amount is String, expects Double
-    email: email,
-    createdAt: Date()
-)
+```csharp
+// KHÔNG xoá field string cũ nếu nơi khác đang đọc trực tiếp (check trước
+// bằng grep):
+grep -rln "\.Unit\b" --include=*.cs | grep -v ProductUnit
+
+// Thêm FK mới song song, đồng bộ 1 chiều lúc save (UseCase):
+Unit = productUnit?.Name ?? request.Unit,   // ĐVT chính nếu chọn thì override,
+                                              // không thì giữ giá trị cũ
+ProductUnitId = request.ProductUnitId,
 ```
 
-**After:**
-
-```swift
-let customer = Customer(
-    id: id,
-    name: name,
-    phone: phone,
-    amount: Double(amount) ?? 0,  // ← Converted
-    email: email,
-    createdAt: Date()
-)
-```
+Đây là chiến lược đã áp dụng thật cho `Product.Unit` (giữ) + `Product.ProductUnitId` (thêm mới) — tránh phải sửa toàn bộ `Sales`/`SalesReturn`/`WarehouseReceipt` đang đọc `product.Unit` string trực tiếp.
 
 ---
 
-## Strategy 3: Add Import Fix
+## Strategy 3: Missing Interface Member (CS0535)
 
 ### Input
 
 ```yaml
-category: missing_import
-file: CustomerViewModel.swift
-line: 4
-symbol: Published
-required_import: Combine
+category: missing_interface_member
+type: AccountSetting
+interface: ISearchableItem
+member: Name
+```
+
+### `ISearchableItem` full contract (WPF)
+
+```csharp
+// Shared/Controls/ISearchableItem.cs
+public interface ISearchableItem
+{
+    int     Id          { get; }
+    string  Code        { get; }
+    string  Name        { get; }
+    string  DisplayText { get; }
+    string? Phone => null;                    // default, không bắt buộc override
+    string  DropdownText => ...;               // default, không bắt buộc override
+}
 ```
 
 ### Execution Steps
 
-```python
-# Step 1: Read file header
-header = read_file(file, 1, 20)
-
-# Step 2: Check if import already exists
-if "import Combine" in header:
-    return  # Already imported
-
-# Step 3: Find insertion point (after existing imports)
-last_import_line = find_last_import_line(header)
-
-# Step 4: Insert import
-insert_at_line(file, last_import_line + 1, "import Combine")
+```
+1. Đọc ISearchableItem.cs → list member KHÔNG có default implementation
+   (Id, Code, Name, DisplayText — 4 member bắt buộc)
+2. Đọc class đang lỗi → đối chiếu member nào chưa có
+3. Với member thiếu, tìm field ngữ nghĩa gần nhất đã có trong class:
+   - AccountSetting có Code + Description, không có "Name" riêng
+     → Name nên trả field đóng vai trò tên hiển thị:
+       public string Name => Description;
+4. Nếu KHÔNG có field tương đương nào hợp lý — hỏi user field nào nên
+   đóng vai trò đó, đừng tự bịa (vd trả string.Empty sẽ làm dropdown
+   hiển thị rỗng, che mất lỗi thật)
 ```
 
-### Import Order Convention
+### Ví dụ thật đã fix
 
-Follow SwiftUI standard:
-
-```swift
-import Foundation   // 1. Standard library
-import Combine      // 2. Apple frameworks
-import SwiftUI      // 3. UI framework
-// blank line
-import CustomPkg    // 4. Third-party (if any)
-```
-
-### Example Fix
-
-**Before:**
-
-```swift
-import Foundation
-
-@MainActor
-final class CustomerViewModel: ObservableObject {
-    @Published var customers: [Customer] = []  // ← Error: Cannot find 'Published'
+```csharp
+// Trước (lỗi CS0535)
+public class AccountSetting : ISearchableItem
+{
+    public int    Id          { get; set; }
+    public string Code        { get; set; } = string.Empty;
+    public string Description { get; set; } = string.Empty;
+    public string DisplayText => $"{Code} — {Description}";
 }
-```
 
-**After:**
+// Sau
+public class AccountSetting : ISearchableItem
+{
+    public int    Id          { get; set; }
+    public string Code        { get; set; } = string.Empty;
+    public string Description { get; set; } = string.Empty;
 
-```swift
-import Foundation
-import Combine  // ← Added
-
-@MainActor
-final class CustomerViewModel: ObservableObject {
-    @Published var customers: [Customer] = []
+    public string Name        => Description;   // ← thêm, thoả ISearchableItem
+    public string DisplayText => $"{Code} — {Description}";
 }
 ```
 
 ---
 
-## Strategy 4: Symbol Correction (Typo Fix)
+## Strategy 4: Missing Required Argument (CS7036 / CS1729 / CS9035)
 
 ### Input
 
 ```yaml
-category: undefined_symbol
-file: CustomerScreen.swift
-line: 42
-symbol: Custmer
-suggested_correction: Customer
-similarity_score: 95%
+category: missing_required_argument
+type: CreateProductInput
+missing_member: Code
+call_site: ProductFormViewModel.cs SaveAsync()
 ```
 
 ### Execution Steps
 
-```python
-# Step 1: Search for similar symbols
-candidates = fuzzy_search_symbols(workspace, symbol)
-# Use Levenshtein distance, case-insensitive
-
-# Step 2: Rank candidates by similarity
-ranked = rank_by_similarity(symbol, candidates)
-# 'Custmer' → 'Customer' (score: 95%)
-
-# Step 3: If top match > 80% confident
-if ranked[0].score >= 80:
-    auto_fix = true
-    correction = ranked[0].symbol
-else:
-    auto_fix = false
-    return  # Report for manual fix
-
-# Step 4: Replace symbol
-line_content = read_file(file, line)
-new_content = line_content.replace(symbol, correction)
-replace_line(file, line, new_content)
 ```
+1. Đọc definition record/class đang lỗi → list toàn bộ member 'required'
+   hoặc positional-constructor param
+2. Đọc call site → so khớp member nào đã set, member nào thiếu
+3. Với record dùng object-initializer (`new X { A = ..., B = ... }`):
+   thêm dòng thiếu, set giá trị đúng từ context (biến ViewModel tương ứng,
+   KHÔNG bịa giá trị)
+4. Nếu constructor positional bị thêm quá nhiều param theo thời gian
+   (repo này: CreateProductInput đi từ 13 → nếu thêm > ~15 param nữa sẽ
+   rất khó đọc/dễ nhầm thứ tự) — ĐỀ XUẤT cho user chuyển sang init-property
+   record:
 
-### Common Typos in Laundry Dashboard
+   // Trước — positional, dễ nhầm thứ tự khi > 8 param
+   public record CreateProductInput(string Code, string Name, int CategoryId, ...);
 
-| Typo | Correct | Pattern |
-|---|---|---|
-| `Custmer` | `Customer` | Missing 'o' |
-| `Trasaction` | `Transaction` | Swapped letters |
-| `Dashbord` | `Dashboard` | Missing 'a' |
-| `Repositry` | `Repository` | Missing 'o' |
-| `ViewMdoel` | `ViewModel` | Swapped letters |
+   // Sau — mỗi field explicit tên, thêm field mới không ảnh hưởng call site cũ
+   // (miễn field mới có default hoặc optional)
+   public sealed record CreateProductInput
+   {
+       public required string Code { get; init; }
+       public required string Name { get; init; }
+       ...
+       public string? NewOptionalField { get; init; }   // field mới, optional
+   }
 
-### Example Fix
-
-**Before:**
-
-```swift
-let customer: Custmer = ...  // ← Typo
-```
-
-**After:**
-
-```swift
-let customer: Customer = ...  // ← Corrected
+   Refactor này ĐÃ làm thật cho CreateProductInput/UpdateProductInput khi
+   field tăng từ 13 → 33. English rule of thumb: > 8 constructor param
+   positional → cân nhắc init-property. Nhưng đây là refactor có blast
+   radius (đổi mọi call site) — LUÔN hỏi user trước khi tự quyết đổi kiểu
+   record, đừng tự làm ngầm trong lúc "chỉ fix lỗi build".
 ```
 
 ---
 
-## Strategy 5: Async Context Fix
+## Strategy 5: Missing Using / Typo (CS0246 / CS0103)
 
 ### Input
 
 ```yaml
-category: async_context
-file: DashboardViewModel.swift
-line: 25
-error_type: missing_await
-function_context: async_function
+category: missing_using_or_typo
+file: ProductFormViewModel.cs
+symbol: IGetWarehouseSettingsUseCase
 ```
 
 ### Execution Steps
 
-```python
-# Case A: Missing 'await' in async function
-if function_is_async(file, line):
-    line_content = read_file(file, line)
-    # Add 'await' before async call
-    new_content = line_content.replace("fetchData()", "await fetchData()")
-    replace_line(file, line, new_content)
+```
+1. grep tìm định nghĩa thật của symbol:
+   grep -rn "interface IGetWarehouseSettingsUseCase\|class IGetWarehouseSettingsUseCase" --include=*.cs
 
-# Case B: Async call in sync function
-else:
-    # Wrap in Task
-    line_content = read_file(file, line)
-    indentation = get_indentation(line_content)
-    new_content = f"{indentation}Task {{\n{indentation}    await {line_content.strip()}\n{indentation}}}"
-    replace_line(file, line, new_content)
+2. Nếu tìm thấy đúng 1 nơi → lấy namespace khai báo, thêm using:
+   using DesktopLamour.Features.HomePage.Warehouses.Domain.UseCases;
+
+3. Nếu tìm thấy 0 kết quả:
+   → symbol chưa từng được tạo. KHÔNG cố "fix" bằng cách thêm using tới
+     namespace gần giống — quay lại kiểm tra bước generate code trước đó,
+     có thể quên tạo file interface/class.
+
+4. Nếu tìm thấy > 1 kết quả (trùng tên ở 2 feature khác nhau — chính là
+   dấu hiệu Strategy 1 namespace collision, không phải thiếu using đơn
+   thuần) → chuyển sang xử lý theo Strategy 1.
+
+5. Nếu là typo (Levenshtein ≤ 2 với 1 symbol có thật, không tìm thấy
+   symbol y hệt) → sửa tên gọi thay vì thêm using. Chỉ auto-fix nếu
+   similarity ≥ 80%.
 ```
 
-### Example Fix A: Add await
+### Import order convention (C#)
 
-**Before:**
-
-```swift
-func loadCustomers() async {
-    let data = fetchCustomers()  // ← Missing await
-}
-```
-
-**After:**
-
-```swift
-func loadCustomers() async {
-    let data = await fetchCustomers()  // ← Added await
-}
-```
-
-### Example Fix B: Wrap in Task
-
-**Before:**
-
-```swift
-func onAppear() {
-    fetchCustomers()  // ← Async call in sync context
-}
-```
-
-**After:**
-
-```swift
-func onAppear() {
-    Task {
-        await fetchCustomers()  // ← Wrapped in Task
-    }
-}
-```
+Không có convention cứng như Swift (Foundation → Combine → SwiftUI). Repo này thường theo thứ tự: BCL (`System.*`) → third-party (`Microsoft.*`, `CommunityToolkit.*`) → project namespace, nhưng **không** bắt buộc — chỉ cần build được, đừng tốn công sắp xếp lại import order khi mục tiêu là fix lỗi build.
 
 ---
 
-## Strategy 6: Property Wrapper Fix
+## Strategy 6: DI Resolution Failure (Runtime)
 
 ### Input
 
 ```yaml
-category: property_wrapper_misuse
-file: CustomerViewModel.swift
-line: 5
-wrapper: StateObject
-issue: applied_to_struct
+category: di_resolution_failure
+interface: IGetWarehouseSettingsUseCase
+project: wpf
 ```
 
 ### Execution Steps
 
-```python
-# Check if class or struct
-type_kind = get_type_declaration(file)
-
-if type_kind == "struct":
-    # Change @StateObject → @ObservedObject
-    replace_in_file(file, "@StateObject", "@ObservedObject")
-elif type_kind == "class":
-    # Keep @StateObject (correct usage)
-    pass
 ```
+1. Xác định file đăng ký DI đúng theo project:
+   - BE: src/Lamour.Api/Program.cs
+   - WPF (feature UseCase/Service/Repository/ViewModel/Window):
+     Features/HomePage/HomeServiceCollectionExtensions.cs
+   - WPF (cache store dùng cho realtime sync):
+     Features/Realtime/RealtimeServiceCollectionExtensions.cs +
+     PostLoginSyncService.cs (nhớ cả 2 — cache store phải xuất hiện ở cả
+     RealtimeSyncService constructor VÀ PostLoginSyncService warmup list)
 
-### Wrapper Rules for SwiftUI
+2. grep xem đã đăng ký chưa:
+   grep -n "IGetWarehouseSettingsUseCase" HomeServiceCollectionExtensions.cs
 
-| Wrapper | Valid On | Purpose |
-|---|---|---|
-| `@StateObject` | `class` (view owner) | Create & own ObservableObject |
-| `@ObservedObject` | `class` (passed in) | Observe external ObservableObject |
-| `@State` | `struct` | Local view state |
-| `@Binding` | `struct` | Two-way binding |
-| `@Published` | `class` property | Publish changes |
+3. Nếu chưa có, thêm đúng pattern của UseCase cùng feature đã có
+   (copy 1 dòng AddTransient/AddScoped cùng feature, đổi tên type):
 
-### Example Fix
+   BE pattern:
+     builder.Services.AddScoped<IXxxUseCase, XxxUseCase>();
 
-**Before:**
+   WPF pattern (ViewModel/UseCase/Repository — Transient;
+   CacheStore — Singleton; Service — AddHttpClient):
+     services.AddTransient<IXxxUseCase, XxxUseCase>();
+     services.AddSingleton<IXxxCacheStore, XxxCacheStore>();
+     services.AddHttpClient<IXxxService, XxxService>(client => { ... });
 
-```swift
-struct CustomerScreen: View {
-    @StateObject var viewModel: CustomerViewModel  // ← Error: struct can't use @StateObject
-}
-```
-
-**After:**
-
-```swift
-struct CustomerScreen: View {
-    @ObservedObject var viewModel: CustomerViewModel  // ← Changed to @ObservedObject
-}
+4. Đây là lỗi RUNTIME, không lộ qua `dotnet build`. Sau khi build xanh,
+   luôn tự grep-check: với MỌI interface mới xuất hiện trong constructor
+   của 1 UseCase/ViewModel/Controller mới, xác nhận có đúng 1 dòng đăng ký
+   DI tương ứng — coi đây là bước bắt buộc riêng, không gộp vào "build
+   thành công là xong".
 ```
 
 ---
 
-## Strategy 7: Protocol Conformance (Report Only)
+## Strategy 7: EF Migration Seed Collision
 
 ### Input
 
 ```yaml
-category: protocol_conformance
-file: Customer.swift
-line: 3
-type: Customer
-protocol: Decodable
+category: ef_migration_seed_collision
+table: warehouses
+colliding_id: 3
 ```
 
-### Action
-
-**Cannot auto-fix** — too complex. Report with suggestions:
+### Execution Steps
 
 ```
-❌ Manual fix needed: Customer.swift:3
-   Error: Type 'Customer' does not conform to protocol 'Decodable'
-   
-   Suggestions:
-   1. Add 'Codable' to struct declaration if all properties are Codable
-   2. Implement custom 'init(from decoder: Decoder)' if needed
-   3. Check if all properties conform to Decodable
+1. Query DB thật để biết Id nào đang trống:
+   psql -h localhost -U hai.phan -d lamour_db \
+     -c "SELECT id, code, name FROM warehouses ORDER BY id;"
+
+2. Sửa lại HasData trong Configuration.cs, chọn Id không đụng:
+   new Warehouse { Id = 4, Code = "HH", ... },
+   new Warehouse { Id = 5, Code = "TB", ... }
+
+3. Migration BỊ LỖI GIỮA CHỪNG thì transaction đã tự rollback — KHÔNG có
+   gì apply thành công, an toàn để xoá migration file vừa tạo và tạo lại
+   (không cần sửa tay Snapshot/Designer, dễ lệch):
+
+   export PATH="$PATH:$HOME/.dotnet/tools"
+   dotnet ef migrations remove --project src/Lamour.Infrastructure --startup-project src/Lamour.Api
+   dotnet ef migrations add <TênMigrationCũ> --project src/Lamour.Infrastructure --startup-project src/Lamour.Api
+   dotnet ef database update --project src/Lamour.Infrastructure --startup-project src/Lamour.Api
+
+4. Verify:
+   psql -h localhost -U hai.phan -d lamour_db \
+     -c "SELECT id, code FROM warehouses WHERE code IN ('HH','TB');"
+```
+
+### Quan trọng — phân biệt với migration ĐÃ apply thành công
+
+Nếu migration đã `dotnet ef database update` thành công (không lỗi) rồi mới phát hiện vấn đề khác (không phải seed collision) — **KHÔNG** `migrations remove` nữa, vì đã có dòng trong `__EFMigrationsHistory` và schema thật đã đổi. Thay vào đó tạo **migration mới** để sửa tiếp. `migrations remove` chỉ an toàn khi migration đó CHƯA từng apply thành công lần nào.
+
+---
+
+## Strategy 8: XAML Resource Not Found
+
+### Input
+
+```yaml
+category: xaml_resource_not_found
+file: ProductFormWindow.xaml
+key: AppButton.Secondary.Large
+```
+
+### Execution Steps
+
+```
+1. grep toàn bộ key thật có trong file style/converter tương ứng:
+   grep -n "x:Key=\"AppButton" Shared/Styles/AppButtonStyles.xaml
+   grep -n "x:Key=" Shared/AppConverters.xaml
+
+2. So khớp key đang dùng trong XAML lỗi với list key thật:
+   - Nếu có key gần giống (chỉ khác size/variant, vd .Large vs .Medium)
+     → đổi XAML về key đúng đang tồn tại
+   - Nếu không có key nào gần giống và đây là 1 CONVERTER mới tự viết
+     (.cs file mới) → kiểm tra đã đăng ký trong AppConverters.xaml chưa,
+     thêm dòng đăng ký nếu thiếu:
+     <converters:XxxDisplayConverter x:Key="XxxDisplayConverter"/>
+
+3. Nếu user THỰC SỰ cần 1 style/variant mới chưa tồn tại (vd cần
+   AppButton.Secondary.Large thật) — đây không phải lỗi cần "fix" mà là
+   thiếu 1 style cần thêm mới vào AppButtonStyles.xaml. Hỏi user trước
+   khi tự thêm style mới vào design system chung (ảnh hưởng toàn app).
+
+4. Vì lỗi này KHÔNG lộ qua `dotnet build`, sau khi build xanh vẫn phải
+   tự grep chéo mọi StaticResource key mới dùng trong .xaml vừa sửa/tạo.
 ```
 
 ---
 
 ## Fix Priority & Dependencies
 
-Some fixes enable others. Fix in this order:
-
 ```
-1. Missing imports          (enables symbol resolution)
+1. Duplicate definition (CS0101/CS0111)      — xác nhận bản giữ trước khi đụng gì khác
    ↓
-2. Undefined symbols        (fixes typos)
+2. Namespace/type collision + ambiguous ref  — fix cùng lúc, cùng gốc
+   (CS0118 + CS0104)
    ↓
-3. Missing arguments        (most common after model change)
+3. Missing using / typo (CS0246/CS0103)      — enables symbol resolution, có thể tự
+                                                 giải quyết CS0103 dây chuyền
    ↓
-4. Type mismatches          (conversions)
+4. Missing interface member (CS0535)
    ↓
-5. Async context            (wrapping/await)
+5. Missing required argument                  — thường xuất hiện SAU khi model/DTO
+   (CS7036/CS1729/CS9035)                       đổi field — fix ở call site, không
+                                                 đổi lại model
    ↓
-6. Property wrapper misuse  (quick syntax fixes)
+6. Type mismatch (CS0029/CS1503)
    ↓
-7. Protocol conformance     (manual - report only)
-```
+7. Missing member (CS1061)                    — đọc kỹ, có thể là code sinh thiếu
+   ↓
+[song song, không lệ thuộc build]
+8. DI resolution failure                      — check riêng bằng grep, không chờ build
+9. EF migration seed collision                — check riêng khi chạy `dotnet ef database update`
+10. XAML resource not found                   — check riêng bằng grep chéo StaticResource
 
-After each batch of fixes, re-run `get_errors()` to see if cascading errors resolved.
+Sau mỗi batch fix, rebuild để xem cascade errors đã hết chưa trước khi
+qua batch tiếp theo.
+```

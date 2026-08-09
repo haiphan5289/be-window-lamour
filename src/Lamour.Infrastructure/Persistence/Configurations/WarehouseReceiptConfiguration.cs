@@ -16,7 +16,11 @@ public class WarehouseConfiguration : IEntityTypeConfiguration<Warehouse>
         builder.Property(w => w.Name).HasColumnName("name").IsRequired().HasMaxLength(100);
         builder.Property(w => w.IsActive).HasColumnName("is_active").HasDefaultValue(true);
 
-        builder.HasData(new Warehouse { Id = 1, Code = "KHO01", Name = "Kho chính", IsActive = true });
+        builder.HasData(
+            new Warehouse { Id = 1, Code = "KHO01", Name = "Kho chính", IsActive = true },
+            new Warehouse { Id = 4, Code = "HH",     Name = "Hàng hoá",  IsActive = true },
+            new Warehouse { Id = 5, Code = "TB",     Name = "Trưng bày", IsActive = true }
+        );
     }
 }
 

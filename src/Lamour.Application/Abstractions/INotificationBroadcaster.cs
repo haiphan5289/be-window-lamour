@@ -1,8 +1,11 @@
+using Lamour.Application.Features.AccountSettings.Dtos;
 using Lamour.Application.Features.Categories.Dtos;
 using Lamour.Application.Features.Customers.Dtos;
 using Lamour.Application.Features.Employees.Dtos;
 using Lamour.Application.Features.Products.Dtos;
+using Lamour.Application.Features.ProductUnits.Dtos;
 using Lamour.Application.Features.Suppliers.Dtos;
+using Lamour.Application.Features.Warehouses.Dtos;
 
 namespace Lamour.Application.Abstractions;
 
@@ -28,4 +31,16 @@ public interface INotificationBroadcaster
     Task CategoryCreatedAsync(CategoryResponseDto category, CancellationToken ct = default);
     Task CategoryUpdatedAsync(CategoryResponseDto category, CancellationToken ct = default);
     Task CategoryDeletedAsync(int categoryId, CancellationToken ct = default);
+
+    Task ProductUnitCreatedAsync(ProductUnitResponseDto unit, CancellationToken ct = default);
+    Task ProductUnitUpdatedAsync(ProductUnitResponseDto unit, CancellationToken ct = default);
+    Task ProductUnitDeletedAsync(int unitId, CancellationToken ct = default);
+
+    Task AccountSettingCreatedAsync(AccountSettingResponseDto account, CancellationToken ct = default);
+    Task AccountSettingUpdatedAsync(AccountSettingResponseDto account, CancellationToken ct = default);
+    Task AccountSettingDeletedAsync(int accountId, CancellationToken ct = default);
+
+    Task WarehouseCreatedAsync(WarehouseResponseDto warehouse, CancellationToken ct = default);
+    Task WarehouseUpdatedAsync(WarehouseResponseDto warehouse, CancellationToken ct = default);
+    Task WarehouseDeletedAsync(int warehouseId, CancellationToken ct = default);
 }

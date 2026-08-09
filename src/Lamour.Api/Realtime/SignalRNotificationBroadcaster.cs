@@ -1,10 +1,13 @@
 using Lamour.Api.Hubs;
 using Lamour.Application.Abstractions;
+using Lamour.Application.Features.AccountSettings.Dtos;
 using Lamour.Application.Features.Categories.Dtos;
 using Lamour.Application.Features.Customers.Dtos;
 using Lamour.Application.Features.Employees.Dtos;
 using Lamour.Application.Features.Products.Dtos;
+using Lamour.Application.Features.ProductUnits.Dtos;
 using Lamour.Application.Features.Suppliers.Dtos;
+using Lamour.Application.Features.Warehouses.Dtos;
 using Microsoft.AspNetCore.SignalR;
 
 namespace Lamour.Api.Realtime;
@@ -65,4 +68,31 @@ public class SignalRNotificationBroadcaster : INotificationBroadcaster
 
     public Task CategoryDeletedAsync(int categoryId, CancellationToken ct = default)
         => _hub.Clients.All.SendAsync("CategoryDeleted", categoryId, ct);
+
+    public Task ProductUnitCreatedAsync(ProductUnitResponseDto unit, CancellationToken ct = default)
+        => _hub.Clients.All.SendAsync("ProductUnitCreated", unit, ct);
+
+    public Task ProductUnitUpdatedAsync(ProductUnitResponseDto unit, CancellationToken ct = default)
+        => _hub.Clients.All.SendAsync("ProductUnitUpdated", unit, ct);
+
+    public Task ProductUnitDeletedAsync(int unitId, CancellationToken ct = default)
+        => _hub.Clients.All.SendAsync("ProductUnitDeleted", unitId, ct);
+
+    public Task AccountSettingCreatedAsync(AccountSettingResponseDto account, CancellationToken ct = default)
+        => _hub.Clients.All.SendAsync("AccountSettingCreated", account, ct);
+
+    public Task AccountSettingUpdatedAsync(AccountSettingResponseDto account, CancellationToken ct = default)
+        => _hub.Clients.All.SendAsync("AccountSettingUpdated", account, ct);
+
+    public Task AccountSettingDeletedAsync(int accountId, CancellationToken ct = default)
+        => _hub.Clients.All.SendAsync("AccountSettingDeleted", accountId, ct);
+
+    public Task WarehouseCreatedAsync(WarehouseResponseDto warehouse, CancellationToken ct = default)
+        => _hub.Clients.All.SendAsync("WarehouseCreated", warehouse, ct);
+
+    public Task WarehouseUpdatedAsync(WarehouseResponseDto warehouse, CancellationToken ct = default)
+        => _hub.Clients.All.SendAsync("WarehouseUpdated", warehouse, ct);
+
+    public Task WarehouseDeletedAsync(int warehouseId, CancellationToken ct = default)
+        => _hub.Clients.All.SendAsync("WarehouseDeleted", warehouseId, ct);
 }

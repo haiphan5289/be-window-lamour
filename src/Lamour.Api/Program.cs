@@ -89,6 +89,42 @@ builder.Services.AddScoped<Lamour.Application.Features.Categories.UseCases.IUpda
 builder.Services.AddScoped<Lamour.Application.Features.Categories.UseCases.IDeleteCategoryUseCase,
                            Lamour.Application.Features.Categories.UseCases.DeleteCategoryUseCase>();
 
+// ── Product Units DI ─────────────────────────────────────────────────────────
+builder.Services.AddScoped<Lamour.Application.Features.ProductUnits.Repositories.IProductUnitRepository,
+                           Lamour.Infrastructure.Repositories.ProductUnitRepository>();
+builder.Services.AddScoped<Lamour.Application.Features.ProductUnits.UseCases.IGetProductUnitsUseCase,
+                           Lamour.Application.Features.ProductUnits.UseCases.GetProductUnitsUseCase>();
+builder.Services.AddScoped<Lamour.Application.Features.ProductUnits.UseCases.ICreateProductUnitUseCase,
+                           Lamour.Application.Features.ProductUnits.UseCases.CreateProductUnitUseCase>();
+builder.Services.AddScoped<Lamour.Application.Features.ProductUnits.UseCases.IUpdateProductUnitUseCase,
+                           Lamour.Application.Features.ProductUnits.UseCases.UpdateProductUnitUseCase>();
+builder.Services.AddScoped<Lamour.Application.Features.ProductUnits.UseCases.IDeleteProductUnitUseCase,
+                           Lamour.Application.Features.ProductUnits.UseCases.DeleteProductUnitUseCase>();
+
+// ── Account Settings DI ──────────────────────────────────────────────────────
+builder.Services.AddScoped<Lamour.Application.Features.AccountSettings.Repositories.IAccountSettingRepository,
+                           Lamour.Infrastructure.Repositories.AccountSettingRepository>();
+builder.Services.AddScoped<Lamour.Application.Features.AccountSettings.UseCases.IGetAccountSettingsUseCase,
+                           Lamour.Application.Features.AccountSettings.UseCases.GetAccountSettingsUseCase>();
+builder.Services.AddScoped<Lamour.Application.Features.AccountSettings.UseCases.ICreateAccountSettingUseCase,
+                           Lamour.Application.Features.AccountSettings.UseCases.CreateAccountSettingUseCase>();
+builder.Services.AddScoped<Lamour.Application.Features.AccountSettings.UseCases.IUpdateAccountSettingUseCase,
+                           Lamour.Application.Features.AccountSettings.UseCases.UpdateAccountSettingUseCase>();
+builder.Services.AddScoped<Lamour.Application.Features.AccountSettings.UseCases.IDeleteAccountSettingUseCase,
+                           Lamour.Application.Features.AccountSettings.UseCases.DeleteAccountSettingUseCase>();
+
+// ── Warehouses DI ────────────────────────────────────────────────────────────
+builder.Services.AddScoped<Lamour.Application.Features.Warehouses.Repositories.IWarehouseRepository,
+                           Lamour.Infrastructure.Repositories.WarehouseRepository>();
+builder.Services.AddScoped<Lamour.Application.Features.Warehouses.UseCases.IGetWarehousesUseCase,
+                           Lamour.Application.Features.Warehouses.UseCases.GetWarehousesUseCase>();
+builder.Services.AddScoped<Lamour.Application.Features.Warehouses.UseCases.ICreateWarehouseUseCase,
+                           Lamour.Application.Features.Warehouses.UseCases.CreateWarehouseUseCase>();
+builder.Services.AddScoped<Lamour.Application.Features.Warehouses.UseCases.IUpdateWarehouseUseCase,
+                           Lamour.Application.Features.Warehouses.UseCases.UpdateWarehouseUseCase>();
+builder.Services.AddScoped<Lamour.Application.Features.Warehouses.UseCases.IDeleteWarehouseUseCase,
+                           Lamour.Application.Features.Warehouses.UseCases.DeleteWarehouseUseCase>();
+
 // ── Customers DI ──────────────────────────────────────────────────────────────
 builder.Services.AddScoped<Lamour.Application.Features.Customers.Repositories.ICustomerRepository,
                            Lamour.Infrastructure.Repositories.CustomerRepository>();
@@ -214,6 +250,34 @@ builder.Services.AddScoped<Lamour.Application.Features.SalesReturn.UseCases.IUpd
                            Lamour.Application.Features.SalesReturn.UseCases.UpdateSalesReturnUseCase>();
 builder.Services.AddScoped<Lamour.Application.Features.SalesReturn.UseCases.IDeleteSalesReturnUseCase,
                            Lamour.Application.Features.SalesReturn.UseCases.DeleteSalesReturnUseCase>();
+
+// ── Deposits DI ───────────────────────────────────────────────────────────────
+builder.Services.AddScoped<Lamour.Application.Features.Deposits.Repositories.IDepositRepository,
+                           Lamour.Infrastructure.Repositories.DepositRepository>();
+builder.Services.AddScoped<Lamour.Application.Features.Deposits.Repositories.IDepositDeductionRepository,
+                           Lamour.Infrastructure.Repositories.DepositDeductionRepository>();
+builder.Services.AddScoped<Lamour.Application.Features.Deposits.UseCases.IGetDepositsUseCase,
+                           Lamour.Application.Features.Deposits.UseCases.GetDepositsUseCase>();
+builder.Services.AddScoped<Lamour.Application.Features.Deposits.UseCases.IGetDepositByIdUseCase,
+                           Lamour.Application.Features.Deposits.UseCases.GetDepositByIdUseCase>();
+builder.Services.AddScoped<Lamour.Application.Features.Deposits.UseCases.IGetNextDepositCodeUseCase,
+                           Lamour.Application.Features.Deposits.UseCases.GetNextDepositCodeUseCase>();
+builder.Services.AddScoped<Lamour.Application.Features.Deposits.UseCases.IGetDepositsByCustomerUseCase,
+                           Lamour.Application.Features.Deposits.UseCases.GetDepositsByCustomerUseCase>();
+builder.Services.AddScoped<Lamour.Application.Features.Deposits.UseCases.ICreateDepositUseCase,
+                           Lamour.Application.Features.Deposits.UseCases.CreateDepositUseCase>();
+builder.Services.AddScoped<Lamour.Application.Features.Deposits.UseCases.IUpdateDepositUseCase,
+                           Lamour.Application.Features.Deposits.UseCases.UpdateDepositUseCase>();
+builder.Services.AddScoped<Lamour.Application.Features.Deposits.UseCases.IDeleteDepositUseCase,
+                           Lamour.Application.Features.Deposits.UseCases.DeleteDepositUseCase>();
+builder.Services.AddScoped<Lamour.Application.Features.Deposits.UseCases.IGetDepositDeductionsUseCase,
+                           Lamour.Application.Features.Deposits.UseCases.GetDepositDeductionsUseCase>();
+builder.Services.AddScoped<Lamour.Application.Features.Deposits.UseCases.IGetDepositDeductionByIdUseCase,
+                           Lamour.Application.Features.Deposits.UseCases.GetDepositDeductionByIdUseCase>();
+builder.Services.AddScoped<Lamour.Application.Features.Deposits.UseCases.ICreateDepositDeductionUseCase,
+                           Lamour.Application.Features.Deposits.UseCases.CreateDepositDeductionUseCase>();
+builder.Services.AddScoped<Lamour.Application.Features.Deposits.UseCases.IDeleteDepositDeductionUseCase,
+                           Lamour.Application.Features.Deposits.UseCases.DeleteDepositDeductionUseCase>();
 
 // ── Backups DI ────────────────────────────────────────────────────────────────
 builder.Services.AddScoped<Lamour.Application.Features.Backups.Repositories.IBackupRepository,

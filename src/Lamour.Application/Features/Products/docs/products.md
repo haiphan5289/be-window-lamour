@@ -1,6 +1,6 @@
 # Products — Feature Document (BE)
 
-> **Jira:** — | **Branch:** `dev` | **Generated:** 2026-04-25 | **Updated:** 2026-07-25 (Category thành master-data FK riêng — xem [`categories.md`](../../Categories/docs/categories.md); bỏ validate CostPrice/SellingPrice > 0)
+> **Jira:** — | **Branch:** `dev` | **Generated:** 2026-04-25 | **Updated:** 2026-08-09 (thêm ~20 field cho popup "Sửa Vật tư, hàng hoá, dịch vụ" — xem changelog cuối file) | 2026-07-25 (Category thành master-data FK riêng — xem [`categories.md`](../../Categories/docs/categories.md); bỏ validate CostPrice/SellingPrice > 0)
 
 ---
 
@@ -236,6 +236,38 @@ Dropdown "Có giảm thuế" trên WPF bị bind nhầm vào `VatRateOptions` (`
 | `ViewModels/ProductFormViewModel.cs` | Thêm `TaxReductionStatusOptions`; default khi thêm mới = `CoGiamThue` |
 | `Views/ProductFormWindow.xaml` | `ItemsSource` → `TaxReductionStatusOptions`; Converter → `TaxReductionStatusDisplayConverter` |
 | `Data/Repositories/ProductRepository.cs` | `MapToModel`: parse `TaxReductionType` as `TaxReductionStatus` thay vì `VatRateType` |
+
+---
+
+## Changelog — 2026-08-09: Redesign popup "Sửa Vật tư, hàng hoá, dịch vụ"
+
+> User cung cấp ảnh chụp màn hình MISA-style "Sửa Vật tư, hàng hóa, dịch vụ" và yêu cầu áp dụng vào popup thêm/sửa sản phẩm. Scope chốt qua `/ct-be-to-desktop`: chỉ header + tab "Ngầm định", tách riêng tab "Thuế" (không làm 3 tab còn lại: Chiết khấu/Đơn vị chuyển đổi/Mã quy cách-hình ảnh).
+
+**~20 field mới trên `Product`** (toàn bộ additive, không đổi/xóa field cũ):
+
+| Field | Type | Mô tả |
+|---|---|---|
+| `Nature` | `ProductNature` enum (`VatTuHangHoa`/`DichVu`) | "Tính chất" |
+| `Description` | `string?` | "Mô tả" |
+| `ProductUnitId` + navigation `ProductUnit` | `int?` FK → `product_units` | "ĐVT chính" — **không thay thế** `Unit` (string) hiện có; `Create/UpdateProductUseCase` tự đồng bộ `Unit = productUnit.Name` khi có chọn, để không phá luồng Sales/SalesReturn/WarehouseReceipt đang đọc `product.Unit` trực tiếp |
+| `WarrantyPeriod` | `string?` | "Thời hạn BH" |
+| `MinStockQuantity` | `int` | "Số lượng tồn tối thiểu" |
+| `Origin` | `string?` | "Nguồn gốc" |
+| `PurchaseDescription` / `SaleDescription` | `string?` | "Diễn giải khi mua"/"khi bán" |
+| `DefaultWarehouseId` + navigation `DefaultWarehouse` | `int?` FK → `warehouses` | "Kho ngầm định" |
+| `StockAccountId`/`RevenueAccountId`/`DiscountAccountId`/`PriceReductionAccountId`/`ReturnAccountId`/`CostAccountId` + 6 navigation tương ứng | `int?` FK → `account_settings` (×6, mỗi field 1 quan hệ riêng) | "Tài khoản kho"/"TK doanh thu"/"TK chiết khấu"/"TK giảm giá"/"TK trả lại"/"TK chi phí" |
+| `TradeDiscountRate` | `decimal` | "Tỷ lệ CKMH (%)" |
+| `SpecialGoodsType` | `string?` | "Loại HH đặc trưng" |
+| `LatestPurchasePrice` | `decimal` | "Đơn giá mua gần nhất" (field mới — khác `CostPrice` hiện có, giờ đóng vai trò "Đơn giá mua cố định") |
+| `IsPromotionalGood` | `bool` | "Là hàng khuyến mại" (cấp sản phẩm — khác `SalesOrderLine.IsPromotion` là cấp dòng đơn hàng) |
+
+**FK delete behavior:** toàn bộ 8 FK mới (`ProductUnitId`, `DefaultWarehouseId`, 6× Account) dùng `OnDelete: SetNull` — xóa 1 `ProductUnit`/`Warehouse`/`AccountSetting` đang được Product tham chiếu sẽ chỉ tự set field đó về `null`, không chặn xóa (khác với `Category` dùng `Restrict` + `IsInUseAsync` guard). Lý do: các danh mục cài đặt này (`product-units.md`, `account-settings.md`) hiện chưa có UI nào wire chọn *tại đây* để user thấy hậu quả, nên chấp nhận rủi ro nhỏ này để tránh phải thêm `IsInUseAsync` guard cho cả 3 repository cùng lúc.
+
+**Migration** `ExtendProductForVTHHForm` (`20260809110425_...`) — thuần additive (`AddColumn` + `AddForeignKey` + `CreateIndex`), không `DropColumn`/`AlterColumn` nào trên data cũ. Cùng migration này cũng seed 2 warehouse mới (`HH`/`TB`) — xem [`warehouses.md`](../../Warehouses/docs/warehouses.md).
+
+**Không đổi**: `ProductsController` (routes cũ giữ nguyên), `IProductRepository` interface (chỉ thêm `.Include()` cho 8 navigation mới trong `GetAllAsync`/`GetByIdAsync`), business rules Code/Name/CategoryId hiện có.
+
+**WPF**: `ProductFormWindow` đổi từ form đơn giản (1 cột, không tab) sang header 900px-wide + `TabControl` 2 tab (Ngầm định/Thuế); thêm nút "💾 Cất & Thêm" (lưu xong reset về Add mode ngay, không đóng popup). Chi tiết đầy đủ xem [`product-list.md`](../../../../../../desktop-lamour/src/DesktopLamour/Features/HomePage/ProductList/docs/product-list.md) (WPF-side doc).
 
 ---
 

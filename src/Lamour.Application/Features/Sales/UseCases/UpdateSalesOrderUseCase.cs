@@ -109,6 +109,9 @@ public class UpdateSalesOrderUseCase : IUpdateSalesOrderUseCase
             order.Notes          = request.Notes;
             order.DeliveryMethod = request.DeliveryMethod;
             order.PaymentMethod  = request.PaymentMethod;
+            // "💾 Ghi sổ" luôn post lại đơn hàng — sửa 1 đơn đang Treo rồi Ghi sổ phải đưa
+            // về Normal (khớp hành vi CreateSalesOrderUseCase); chỉ nút "⏸ Treo" riêng mới giữ Treo.
+            order.Status         = SalesOrderStatus.Normal;
             order.TotalAmount    = newLines.Sum(l => l.Amount);
             order.TotalTaxAmount = newLines.Sum(l => l.TaxAmount);
             order.GrandTotal     = newLines.Sum(l => l.Amount + l.TaxAmount);

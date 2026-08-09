@@ -1,334 +1,363 @@
-# Error Patterns & Classification
+# Error Patterns & Classification — C#/.NET (BE + WPF)
 
 ## Pattern Matching Rules
 
-Each error message from compiler follows a pattern. This file defines how to classify and extract information from each pattern.
+`dotnet build` in ra lỗi theo format MSBuild:
+```
+<file>(<line>,<col>): error <CSxxxx>: <message> [<csproj>]
+```
+
+Ưu tiên match theo `CSxxxx` code — ổn định hơn parse message text (message có thể đổi theo ngôn ngữ/SDK version).
 
 ---
 
-## 1. Missing Argument Errors
+## 1. Namespace/Type Collision — `CS0118`
 
 ### Pattern
 
 ```
-<file>:<line>:<col>: Missing argument for parameter '<param_name>' in call
+<file>(<line>,<col>): error CS0118: '<name>' is a namespace but is used like a type
 ```
 
-### Example
+### Ví dụ thật (đã xảy ra trong repo này)
 
 ```
-CustomerDetailScreen.swift:208:32: Missing argument for parameter 'amount' in call
+Repositories/IWarehouseRepository.cs(7,22): error CS0118: 'Warehouse' is a namespace but is used like a type
 ```
+
+**Nguyên nhân:** feature mới `Lamour.Application.Features.Warehouses` (plural) khai báo type `Warehouse` (bare, via `using Lamour.Domain.Entities;`), nhưng enclosing scope `Lamour.Application.Features` đã có sẵn nested namespace `Warehouse` (singular — feature cũ chứa `GetInventorySummaryUseCase`). C# namespace lookup ưu tiên declaration trong enclosing namespace hơn `using` directive → resolve nhầm.
 
 ### Extracted Info
 
 ```yaml
-category: missing_argument
-file: CustomerDetailScreen.swift
-line: 208
-col: 32
-param_name: amount
+category: namespace_type_collision
+file: Repositories/IWarehouseRepository.cs
+line: 7
+name: Warehouse
 auto_fixable: true
 ```
 
 ### Fix Strategy
-
-→ See FIX_STRATEGIES.md → Missing Argument Strategy
+→ `FIX_STRATEGIES.md` § Strategy 1
 
 ---
 
-## 2. Type Mismatch Errors
+## 2. Duplicate Definition — `CS0101` / `CS0111`
 
 ### Pattern
 
 ```
-<file>:<line>:<col>: Cannot convert value of type '<actual_type>' to expected argument type '<expected_type>'
+<file>(<line>,<col>): error CS0101: The namespace '<ns>' already contains a definition for '<type>'
+<file>(<line>,<col>): error CS0111: Type '<type>' already defines a member called '<member>' with the same parameter types
 ```
 
-### Example
+### Ví dụ thật
 
 ```
-CustomerFormViewModel.swift:58:20: Cannot convert value of type 'String' to expected argument type 'Double'
+Configurations/WarehouseConfiguration.cs(7,14): error CS0101: The namespace 'Lamour.Infrastructure.Persistence.Configurations' already contains a definition for 'WarehouseConfiguration'
 ```
+
+**Nguyên nhân:** tạo file `WarehouseConfiguration.cs` mới, nhưng class cùng tên đã tồn tại — nằm **trong file tên khác** (`WarehouseReceiptConfiguration.cs`, gộp 3 configuration class 1 file). Dễ bị miss nếu chỉ tìm file theo tên khớp.
+
+### Extracted Info
+
+```yaml
+category: duplicate_definition
+file: Configurations/WarehouseConfiguration.cs
+existing_definition_file: Configurations/WarehouseReceiptConfiguration.cs   # phải grep mới tìm ra, không suy từ tên file lỗi
+auto_fixable: depends   # PHẢI đọc cả 2 định nghĩa trước khi quyết định xoá cái nào
+```
+
+### Fix Strategy
+→ `FIX_STRATEGIES.md` § Strategy 2 — **không tự xoá nếu chưa đọc cả 2 bản**
+
+---
+
+## 3. Ambiguous Reference — `CS0104`
+
+### Pattern
+
+```
+<file>(<line>,<col>): error CS0104: '<name>' is an ambiguous reference between '<A>' and '<B>'
+```
+
+### Ví dụ thật (suýt xảy ra, phát hiện trước khi build)
+
+Nếu 1 file DI registration (`HomeServiceCollectionExtensions.cs`) `using` cả `Features.Warehouse.Data.Repositories` (có `IWarehouseRepository` cho phiếu nhập kho) và `Features.Warehouses.Data.Repositories` (định nghĩa `IWarehouseRepository` trùng tên cho danh mục Kho) cùng lúc → ambiguous khi dùng bare `IWarehouseRepository`.
+
+### Extracted Info
+
+```yaml
+category: ambiguous_reference
+file: HomeServiceCollectionExtensions.cs
+name: IWarehouseRepository
+candidate_a: DesktopLamour.Features.HomePage.Warehouse.Data.Repositories.IWarehouseRepository
+candidate_b: DesktopLamour.Features.HomePage.Warehouses.Data.Repositories.IWarehouseRepository
+auto_fixable: true
+```
+
+### Fix Strategy
+→ `FIX_STRATEGIES.md` § Strategy 1 (cùng gốc nguyên nhân với CS0118 — đổi tên type ở 1 trong 2 feature, ưu tiên đổi feature MỚI)
+
+---
+
+## 4. Missing Interface Member — `CS0535`
+
+### Pattern
+
+```
+<file>(<line>,<col>): error CS0535: '<type>' does not implement interface member '<interface>.<member>'
+```
+
+### Ví dụ thật
+
+```
+Domain/Models/AccountSetting.cs(5,31): error CS0535: 'AccountSetting' does not implement interface member 'ISearchableItem.Name'
+```
+
+**Nguyên nhân:** `ISearchableItem` (WPF, dùng cho mọi dropdown picker — `AppSearchableComboBox`) yêu cầu `Id`, `Code`, `Name`, `DisplayText`. Model mới chỉ định nghĩa `Code`/`DisplayText`, quên `Name`.
+
+### Extracted Info
+
+```yaml
+category: missing_interface_member
+file: Domain/Models/AccountSetting.cs
+type: AccountSetting
+interface: ISearchableItem
+member: Name
+auto_fixable: true
+```
+
+### Fix Strategy
+→ `FIX_STRATEGIES.md` § Strategy 3
+
+---
+
+## 5. Missing Required Argument — `CS7036` / `CS1729` / `CS9035`
+
+### Pattern
+
+```
+<file>(<line>,<col>): error CS7036: There is no argument given that corresponds to the required formal parameter '<param>' of '<method>'
+<file>(<line>,<col>): error CS1729: '<type>' does not contain a constructor that takes <N> arguments
+<file>(<line>,<col>): error CS9035: Required member '<type>.<member>' must be set in the object initializer
+```
+
+### Ví dụ thật (dạng sẽ gặp)
+
+Sau khi thêm ~20 field mới vào `CreateProductInput`/`UpdateProductInput` (đổi từ positional record sang record với `required` + `init` property), mọi call site cũ dùng object-initializer thiếu field bắt buộc sẽ báo `CS9035` cho mỗi property `required` chưa set.
+
+### Extracted Info
+
+```yaml
+category: missing_required_argument
+file: ProductFormViewModel.cs
+param: Code
+type: CreateProductInput
+auto_fixable: true
+```
+
+### Fix Strategy
+→ `FIX_STRATEGIES.md` § Strategy 4
+
+---
+
+## 6. Type Mismatch — `CS0029` / `CS1503`
+
+### Pattern
+
+```
+<file>(<line>,<col>): error CS0029: Cannot implicitly convert type '<actual>' to '<expected>'
+<file>(<line>,<col>): error CS1503: Argument <N>: cannot convert from '<actual>' to '<expected>'
+```
+
+### Ví dụ thật (dạng sẽ gặp)
+
+Nâng cấp `Product.Unit` (string free-text) thêm `ProductUnitId` (int? FK) song song — nếu lỡ gán `ProductUnitId = someProductUnit` (object) thay vì `someProductUnit.Id` (int) → CS1503.
 
 ### Extracted Info
 
 ```yaml
 category: type_mismatch
-file: CustomerFormViewModel.swift
-line: 58
-col: 20
-actual_type: String
-expected_type: Double
+actual_type: ProductUnit
+expected_type: int?
 auto_fixable: true
-conversion_available: true
 ```
 
 ### Fix Strategy
-
-→ See FIX_STRATEGIES.md → Type Conversion Strategy
+→ `FIX_STRATEGIES.md` § Strategy 2
 
 ---
 
-## 3. Missing Import Errors
+## 7. Missing Using / Typo — `CS0246` / `CS0103`
 
-### Pattern A: Cannot find type
-
-```
-<file>:<line>:<col>: Cannot find type '<symbol>' in scope
-```
-
-### Pattern B: Use of unresolved identifier
+### Pattern
 
 ```
-<file>:<line>:<col>: Use of unresolved identifier '<symbol>'
+<file>(<line>,<col>): error CS0246: The type or namespace name '<symbol>' could not be found (are you missing a using directive or an assembly reference?)
+<file>(<line>,<col>): error CS0103: The name '<symbol>' does not exist in the current context
 ```
 
-### Example
+### Ví dụ thật (dạng sẽ gặp)
 
-```
-CustomerViewModel.swift:4:12: Cannot find type 'Published' in scope
-DashboardRepository.swift:8:20: Use of unresolved identifier 'Date'
-```
+`ProductFormViewModel.cs` inject `IGetWarehouseSettingsUseCase` (feature `Warehouses` mới) — nếu quên `using DesktopLamour.Features.HomePage.Warehouses.Domain.UseCases;` → CS0246.
 
-### Extracted Info
+### Symbol → Namespace Mapping (rút ra từ 2 repo này)
 
-```yaml
-category: missing_import
-file: CustomerViewModel.swift
-line: 4
-col: 12
-symbol: Published
-required_import: Combine
-auto_fixable: true
-```
-
-### Symbol → Import Mapping
-
-| Symbol | Required Import |
+| Symbol pattern | Namespace cần `using` |
 |---|---|
-| `Published`, `@Published` | `import Combine`|
-| `PassthroughSubject`, `AnyPublisher`, `Cancellable` | `import Combine` |
-| `Date`, `UUID`, `Data` | `import Foundation` |
-| `View`, `Text`, `VStack`, `State` | `import SwiftUI` |
-| `URLSession`, `URLRequest` | `import Foundation` |
-| `ObservableObject`, `@StateObject` | `import Combine` |
-
-### Fix Strategy
-
-→ See FIX_STRATEGIES.md → Add Import Strategy
-
----
-
-## 4. Undefined Symbol Errors (Typo)
-
-### Pattern
-
-```
-<file>:<line>:<col>: Cannot find '<symbol>' in scope
-```
-
-### Example
-
-```
-CustomerScreen.swift:42:18: Cannot find 'Custmer' in scope
-```
+| `IGet*UseCase`, `ICreate*UseCase`, ... trong feature X | `[Lamour.Application \| DesktopLamour.Features.HomePage].<X>.[Domain\|Application].UseCases` |
+| `ISearchableItem` | `DesktopLamour.Shared.Controls` |
+| `ValidationException`, `DomainException`, `NotFoundException` | WPF: `DesktopLamour.Core.Exceptions`; BE: `Lamour.Domain.Exceptions` |
+| `INotificationBroadcaster` | `Lamour.Application.Abstractions` (BE only — WPF không có khái niệm này, nhận qua SignalR client trong `Features/Realtime/`) |
+| `[ObservableProperty]`, `[RelayCommand]` | `CommunityToolkit.Mvvm.ComponentModel` / `CommunityToolkit.Mvvm.Input` |
+| `MessageBox`, `Window` | `System.Windows` |
 
 ### Extracted Info
 
 ```yaml
-category: undefined_symbol
-file: CustomerScreen.swift
-line: 42
-col: 18
-symbol: Custmer
-auto_fixable: depends
-confidence: requires_similarity_check
-```
-
-### Detection Logic
-
-```python
-1. Extract symbol: 'Custmer'
-2. Search workspace for similar:
-   - Exact match: 'Custmer' → not found
-   - Fuzzy match (Levenshtein distance ≤ 2):
-     - 'Customer' (distance = 1) ✅
-3. If single match found with distance ≤ 2:
-   → auto_fixable = true
-4. Else:
-   → auto_fixable = false (manual intervention)
-```
-
-### Fix Strategy
-
-→ See FIX_STRATEGIES.md → Symbol Correction Strategy
-
----
-
-## 5. Protocol Conformance Errors
-
-### Pattern
-
-```
-<file>:<line>:<col>: Type '<type>' does not conform to protocol '<protocol>'
-```
-
-### Example
-
-```
-Customer.swift:3:8: Type 'Customer' does not conform to protocol 'Decodable'
-```
-
-### Extracted Info
-
-```yaml
-category: protocol_conformance
-file: Customer.swift
-line: 3
-col: 8
-type: Customer
-protocol: Decodable
-auto_fixable: false
-reason: requires_manual_implementation
-```
-
-### Fix Strategy
-
-→ Manual intervention (too complex for auto-fix)
-→ Report với suggestion: "Implement required protocol methods"
-
----
-
-## 6. Property Wrapper Misuse
-
-### Pattern
-
-```
-<file>:<line>:<col>: Property wrapper '<wrapper>' can only be applied to classes
-```
-
-### Example
-
-```
-CustomerViewModel.swift:5:5: Property wrapper 'StateObject' can only be applied to classes
-```
-
-### Extracted Info
-
-```yaml
-category: property_wrapper_misuse
-file: CustomerViewModel.swift
-line: 5
-col: 5
-wrapper: StateObject
+category: missing_using_or_typo
+file: ProductFormViewModel.cs
+symbol: IGetWarehouseSettingsUseCase
+required_using: DesktopLamour.Features.HomePage.Warehouses.Domain.UseCases
 auto_fixable: true
-suggested_fix: change_to_ObservedObject_or_make_class
 ```
 
 ### Fix Strategy
-
-→ See FIX_STRATEGIES.md → Property Wrapper Fix Strategy
-
----
-
-## 7. Async/Await Context Errors
-
-### Pattern A: Missing await
-
-```
-<file>:<line>:<col>: Expression is 'async' but is not marked with 'await'
-```
-
-### Pattern B: Async in sync context
-
-```
-<file>:<line>:<col>: 'async' call in a function that does not support concurrency
-```
-
-### Example
-
-```
-DashboardViewModel.swift:25:10: Expression is 'async' but is not marked with 'await'
-CustomerViewModel.swift:42:5: 'async' call in a function that does not support concurrency
-```
-
-### Extracted Info
-
-```yaml
-category: async_context
-file: DashboardViewModel.swift
-line: 25
-col: 10
-error_type: missing_await
-auto_fixable: true
-fix: add_await
-```
-
-### Fix Strategy
-
-→ See FIX_STRATEGIES.md → Async Context Fix Strategy
+→ `FIX_STRATEGIES.md` § Strategy 5
 
 ---
 
-## 8. Preview-Specific Errors
+## 8. Missing Member — `CS1061`
 
 ### Pattern
 
 ```
-<file>:<line>:<col>: [Preview context specific error]
+<file>(<line>,<col>): error CS1061: '<type>' does not contain a definition for '<member>' and no accessible extension method '<member>' accepting a first argument of type '<type>' could be found
 ```
 
-### Common Preview Errors
+### Ví dụ (dạng sẽ gặp)
 
-| Error | Category | Auto-fixable |
-|---|---|---|
-| Missing argument in Customer() call inside #Preview | `missing_argument` | ✅ Yes |
-| Preview provider not found | `preview_config` | ❌ No |
-| PreviewProvider deprecated | `preview_migration` | ✅ Yes |
+Đổi `Product.Unit` từ property độc lập thành derive từ `ProductUnit.Name` ở đâu đó rồi quên là `Unit` vẫn tồn tại — hoặc gọi `SelectedProductUnit.Code` khi `ISearchableItem` không có field đó active cho model đó.
 
 ### Fix Strategy
+→ Đọc lại definition thật của type, xác nhận member đã đổi tên/xoá hay chưa từng tồn tại. Nếu tìm thấy member tên gần giống → sửa tên gọi. Nếu member thực sự chưa có → đây là thiếu code sinh (quay lại bước generate), không phải thiếu using.
 
-→ Same as general missing_argument strategy
-→ Preview blocks should use `.preview()` factory methods
+---
+
+## 9. DI Resolution Failure (Runtime)
+
+### Pattern
+
+```
+System.InvalidOperationException: Unable to resolve service for type '<Interface>' while attempting to activate '<Consumer>'.
+```
+
+**Không xuất hiện trong `dotnet build`** — chỉ lộ khi chạy app (`dotnet run` BE, hoặc app WPF chạy trên UTM). Vì môi trường dev thường không chạy được WPF trực tiếp trên Mac, coi đây là checklist bắt buộc song song với build, không chỉ dựa build xanh.
+
+### Extracted Info
+
+```yaml
+category: di_resolution_failure
+interface: IGetWarehouseSettingsUseCase
+consumer: ProductFormViewModel
+project: wpf
+registration_file: HomeServiceCollectionExtensions.cs   # hoặc Program.cs nếu BE
+auto_fixable: true
+```
+
+### Fix Strategy
+→ `FIX_STRATEGIES.md` § Strategy 6
+
+---
+
+## 10. EF Migration Seed Collision
+
+### Pattern
+
+```
+Npgsql.PostgresException (0x80004005): 23505: duplicate key value violates unique constraint "PK_<table>"
+```
+
+Xảy ra khi `dotnet ef database update` chạy `HasData` insert.
+
+### Ví dụ thật
+
+```
+INSERT INTO warehouses (id, code, is_active, name) VALUES (2, 'HH', ...), (3, 'TB', ...);
+→ 23505: duplicate key value violates unique constraint "PK_warehouses"
+```
+
+**Nguyên nhân:** DB local đã có row `Id=3` (`KHO02`, chèn tay từ trước, không qua `HasData`/migration nào) — `HasData` mới chọn Id=2/3 mà không check trước.
+
+### Extracted Info
+
+```yaml
+category: ef_migration_seed_collision
+table: warehouses
+colliding_id: 3
+auto_fixable: true
+note: "Transaction tự rollback khi lỗi giữa migration — DB KHÔNG bị hỏng dở, an toàn để sửa lại và chạy lại"
+```
+
+### Fix Strategy
+→ `FIX_STRATEGIES.md` § Strategy 7
+
+---
+
+## 11. XAML Resource Not Found (Runtime)
+
+### Pattern
+
+```
+System.Windows.Markup.XamlParseException: 'Cannot find resource named '<Key>'. Resource names are case sensitive.'
+```
+
+**Không xuất hiện trong `dotnet build`** — XAML `StaticResource` resolve lúc runtime (khi Window/UserControl load).
+
+### Ví dụ thật (dạng sẽ gặp)
+
+```xml
+<controls:AppButton Style="{StaticResource AppButton.Secondary.Large}" .../>
+```
+nhưng `AppButtonStyles.xaml` chỉ định nghĩa `AppButton.Secondary.Medium` — không có bản `.Large`.
+
+### Extracted Info
+
+```yaml
+category: xaml_resource_not_found
+file: ProductFormWindow.xaml
+key: AppButton.Secondary.Large
+available_keys: [AppButton.Primary.Small, AppButton.Primary.Medium, AppButton.Primary.Large, AppButton.Secondary.Medium, AppButton.Tertiary.Medium, AppButton.Destructive.Medium]
+auto_fixable: true
+```
+
+### Fix Strategy
+→ `FIX_STRATEGIES.md` § Strategy 8
 
 ---
 
 ## Error Priority for Fixing
 
-Fix trong thứ tự này để tránh cascade errors:
+Fix theo thứ tự này để tránh cascade errors và tránh sửa nhầm khi lỗi gốc chưa rõ:
 
-1. **Missing imports** (cao nhất - causes other errors)
-2. **Undefined symbols** (typos)
-3. **Missing arguments** (common after model changes)
-4. **Type mismatches** (conversions)
-5. **Async context** (wrapping)
-6. **Property wrapper misuse** (quick fixes)
-7. **Protocol conformance** (manual - lowest priority)
+1. **Duplicate definition** (CS0101/CS0111) — phải xác nhận bản nào giữ trước khi làm gì khác, vì các lỗi sau có thể chỉ là hệ quả
+2. **Namespace/type collision** (CS0118) + **Ambiguous reference** (CS0104) — cùng gốc, fix cùng lúc
+3. **Missing using / typo** (CS0246/CS0103) — thường gây ra thêm CS0103 dây chuyền
+4. **Missing interface member** (CS0535)
+5. **Missing required argument** (CS7036/CS1729/CS9035)
+6. **Type mismatch** (CS0029/CS1503)
+7. **Missing member** (CS1061) — thường là dấu hiệu code sinh thiếu, ưu tiên thấp vì cần đọc kỹ hơn là auto-fix máy móc
+8. **DI resolution failure** — check song song với build, không phụ thuộc thứ tự trên
+9. **EF seed collision** / **XAML resource not found** — check riêng vì không lộ qua `dotnet build`
 
 ---
 
 ## Confidence Scoring
 
-Mỗi error được score confidence (0-100%):
-
 | Confidence | Action |
 |---|---|
-| 90-100% | Auto-fix immediately |
-| 70-89% | Auto-fix with warning log |
-| 50-69% | Suggest fix, require confirmation |
-| < 50% | Skip, report for manual intervention |
-
-### Scoring Factors
-
-```python
-confidence = base_score
-if error in well_known_patterns:
-    confidence += 30
-if fix_strategy is deterministic:
-    confidence += 20
-if similar_fixes_succeeded_before:
-    confidence += 20
-if context_is_clear:
-    confidence += 10
-```
+| 90-100% | Auto-fix immediately (CS0118 rõ nguồn, CS0246 tìm thấy đúng 1 namespace khớp, XAML key gần đúng duy nhất) |
+| 70-89% | Auto-fix + log warning (CS0535 dùng field tương đương làm default, CS7036 set default an toàn) |
+| 50-69% | Suggest fix, require confirmation (CS0101 chưa rõ bản nào nên giữ, quyết định OnDelete FK) |
+| < 50% | Skip, report for manual intervention (giá trị nghiệp vụ mặc định không rõ, refactor kiến trúc lớn) |
