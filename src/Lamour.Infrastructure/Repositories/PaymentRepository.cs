@@ -16,23 +16,45 @@ public class PaymentRepository : IPaymentRepository
             .AsNoTracking()
             .Include(p => p.Supplier)
             .Include(p => p.PaymentEmployee)
-            .Include(p => p.Entries)
+            .Include(p => p.Entries).ThenInclude(e => e.ExpenseCategory)
+            .Include(p => p.Entries).ThenInclude(e => e.DebitAccountSetting)
+            .Include(p => p.Entries).ThenInclude(e => e.CreditAccountSetting)
             .OrderByDescending(p => p.CreatedAt)
             .ToListAsync(ct);
+
+    public async Task<IEnumerable<Payment>> GetUnconfirmedByDateRangeAsync(
+        DateTime from, DateTime to, CancellationToken ct = default)
+    {
+        var utcFrom = DateTime.SpecifyKind(from, DateTimeKind.Utc);
+        var utcTo   = DateTime.SpecifyKind(to,   DateTimeKind.Utc);
+        return await _db.Payments
+            .AsNoTracking()
+            .Where(p => p.Status != PaymentStatus.Confirmed
+                     && p.AccountingDate >= utcFrom
+                     && p.AccountingDate <= utcTo)
+            .Include(p => p.Entries).ThenInclude(e => e.DebitAccountSetting)
+            .OrderBy(p => p.AccountingDate)
+            .ThenBy(p => p.Id)
+            .ToListAsync(ct);
+    }
 
     public async Task<Payment?> GetByIdAsync(int id, CancellationToken ct = default)
         => await _db.Payments
             .AsNoTracking()
             .Include(p => p.Supplier)
             .Include(p => p.PaymentEmployee)
-            .Include(p => p.Entries)
+            .Include(p => p.Entries).ThenInclude(e => e.ExpenseCategory)
+            .Include(p => p.Entries).ThenInclude(e => e.DebitAccountSetting)
+            .Include(p => p.Entries).ThenInclude(e => e.CreditAccountSetting)
             .FirstOrDefaultAsync(p => p.Id == id, ct);
 
     public async Task<Payment?> GetByIdTrackedAsync(int id, CancellationToken ct = default)
         => await _db.Payments
             .Include(p => p.Supplier)
             .Include(p => p.PaymentEmployee)
-            .Include(p => p.Entries)
+            .Include(p => p.Entries).ThenInclude(e => e.ExpenseCategory)
+            .Include(p => p.Entries).ThenInclude(e => e.DebitAccountSetting)
+            .Include(p => p.Entries).ThenInclude(e => e.CreditAccountSetting)
             .FirstOrDefaultAsync(p => p.Id == id, ct);
 
     public async Task<Payment> AddAsync(Payment payment, CancellationToken ct = default)
@@ -44,6 +66,13 @@ public class PaymentRepository : IPaymentRepository
         await _db.Entry(payment).Reference(p => p.Supplier).LoadAsync(ct);
         if (payment.PaymentEmployeeId.HasValue)
             await _db.Entry(payment).Reference(p => p.PaymentEmployee).LoadAsync(ct);
+        foreach (var entry in payment.Entries)
+        {
+            await _db.Entry(entry).Reference(e => e.DebitAccountSetting).LoadAsync(ct);
+            await _db.Entry(entry).Reference(e => e.CreditAccountSetting).LoadAsync(ct);
+            if (entry.ExpenseCategoryId.HasValue)
+                await _db.Entry(entry).Reference(e => e.ExpenseCategory).LoadAsync(ct);
+        }
 
         return payment;
     }

@@ -1,273 +1,212 @@
-# Phiếu Chi — Desktop App Documentation
+# Phiếu Chi (Payment) — Feature Document (BE + WPF)
 
-> Feature: Phiếu Chi (Cash Payment)
-> Module: Accounting (WPF)
-> Created: 2026-04-29 (parallel to Phiếu Thu)
-> Last updated: 2026-04-29
+> **Branch:** `dev` | **Created:** 2026-04-29 (parallel to Phiếu Thu) | **Major update:** 2026-08-10 (Draft/Confirm lifecycle, TK Nợ/TK Có → Tài khoản kế toán FK, Khoản mục CP link) | **2026-08-11:** thêm trạng thái `Treo` giữa Draft và Confirmed
 
-## User Flow
+---
 
-1. User vào màn **Kế Toán** (AccountingView)
-2. Click nút **"Phiếu Chi"**
-3. `PaymentWindow` mở như standalone window (không phải popup/ShowDialog)
-4. User điền header info + thêm dòng hạch toán
-5. Click **"Ghi số"** → POST/PUT lên BE → `AccountingView` (Quỹ Tiền Mặt) tự refresh
+## PRD Summary
 
-## Window Layout
+Phiếu Chi ban đầu chỉ là CRUD đơn giản (Create/Update/Delete/Duplicate), TK Nợ/TK Có là 1 enum cứng 4 giá trị (`Cash111/Bank112/Receivable131/Payroll334`), không phân biệt Nháp/Đã ghi số. Ngày 2026-08-10, theo yêu cầu review UI so với ảnh mẫu MISA, đã nâng cấp:
 
-```
-Title: "Phiếu chi - CÔNG TY TNHH THƯƠNG MẠI DỊCH VỤ LAMOUR"
-Size: 1100×720, WindowStartupLocation=CenterOwner
+- **Trạng thái Nháp/Đã ghi số** (`PaymentStatus`) — Cất = lưu Nháp (chưa post sổ quỹ), Ghi số = xác nhận (post `CashTransaction`, sau đó bất biến — đúng rule "Confirmed invoices are immutable" trong `CLAUDE.md`).
+- **TK Nợ / TK Có** đổi từ enum `AccountCode` (4 giá trị cứng) → **FK thật tới `AccountSetting`** ("Tài khoản kế toán") — xem [`account-settings.md`](../../AccountSettings/docs/account-settings.md).
+- **Khoản mục CP** (`ExpenseCategoryId`, nullable) — FK tới `ExpenseCategory`, xem [`expense-categories.md`](../../ExpenseCategories/docs/expense-categories.md).
+- **Lý do chi chi tiết** (`ReasonDetail`, free-text) — bổ sung cạnh dropdown `PaymentReason` cố định, khớp ảnh mẫu ("Chi khác" + ô nhập tự do VD "thuê lái xe 21/7").
 
-┌─ Toolbar ─────────────────────────────────────────────────────────────┐
-│ [◀ Trước | Sau ▶]  [➕ Thêm | 🗑️ Xóa | ↩️ Hoàn | ✖️ Đóng]    [💾 Ghi số] │
-│  Navigation group    Action group (grouped)          Primary action   │
-└───────────────────────────────────────────────────────────────────────┘
+---
 
-┌─ Thông tin chung ───────────────┐  ┌─ Chứng từ ──────┐
-│ Đối tượng   [Supplier ComboBox] │  │ Ngày hạch toán   │
-│ Người nhận  [TextBox — auto]    │  │ [DatePicker]     │
-│ Địa chỉ     [TextBox]           │  │ Ngày chứng từ    │
-│ Lý do chi   [ComboBox]          │  │ [DatePicker]     │
-│ Nhân viên chi [Employee ComboBox]│  │ Số chứng từ      │
-│ Kèm theo    [TextBox]           │  │ [TextBox]        │
-│ Tham chiếu  [TextBox]           │  └──────────────────┘
-└─────────────────────────────────┘
+## Business Rules
 
-┌─ 1. Hạch toán ────────────────────────────────────────┐
-│ DataGrid: Diễn giải | TK Nợ | TK Có | Số tiền |       │
-│           Đối tượng | Tên đối tượng | TK ngân hàng    │
-└───────────────────────────────────────────────────────┘
+| Rule | Description |
+|------|-------------|
+| Draft khi tạo mới | `CreatePaymentUseCase` luôn set `Status = PaymentStatus.Draft` — **không** tạo `CashTransaction` ngay (khác hành vi cũ trước 2026-08-10) |
+| Draft → Treo | `SetPaymentTreoUseCase` (**mới**, 2026-08-11): chỉ chạy khi `Status == Draft` → set `Status = Treo`. Không tạo `CashTransaction`, không bắt buộc phải có dòng hạch toán (khác Confirm) |
+| Draft/Treo đều sửa/xoá được | `UpdatePaymentUseCase`/`DeletePaymentUseCase` throw `DomainException` nếu `Status == Confirmed` ("Phiếu chi đã ghi số, không thể sửa/xoá") — Treo vẫn mutable như Draft |
+| Ghi số chỉ từ Treo = bất biến | `ConfirmPaymentUseCase`: chỉ chạy khi `Status == Treo` (**đổi từ `Draft` sau 2026-08-11** — phải qua Treo trước) và có ≥1 dòng hạch toán; tạo `CashTransaction` (Credit — giảm tiền mặt) tại thời điểm này; set `Status = Confirmed`, `ConfirmedAt = UtcNow` |
+| TK Nợ/TK Có required, FK thật | Validate `AccountSetting` tồn tại qua `IAccountSettingRepository.GetByIdAsync` — throw `DomainException` "Tài khoản Nợ/Có không tồn tại" nếu không có |
+| Khoản mục CP optional | `ExpenseCategoryId` nullable — validate tồn tại nếu có giá trị, không bắt buộc |
+| Duplicate luôn ra Draft mới | `DuplicatePaymentUseCase` set `Status = Draft` bất kể trạng thái phiếu gốc (Draft/Treo/Confirmed), **không** tạo `CashTransaction` cho bản sao |
 
-Footer: Số dòng = N                          {total}
-```
+---
 
-## Field Defaults (New Form)
+## Architecture Overview
 
-| Field | Default |
-|-------|---------|
-| `Số chứng từ` | Auto-generated `PC{N:D5}` — finds max existing PC number + 1 |
-| `Ngày hạch toán` | Today |
-| `Ngày chứng từ` | Today |
-| `Lý do chi` | `ChiKhac` |
-| `TK Nợ` (new entry row) | `Receivable131` (131) |
-| `TK Có` (new entry row) | `Cash111` (111) |
+### Key Components (BE)
 
-### Auto-Generated Document Number
+| Layer | File | Role |
+|-------|------|------|
+| Entity | `Lamour.Domain/Entities/Payment.cs` | + `PaymentStatus` enum (`Draft=0`/`Treo=1`/`Confirmed=2`), `Status`, `ConfirmedAt`, `ReasonDetail` |
+| Entity | `Lamour.Domain/Entities/PaymentEntry.cs` | `DebitAccountSettingId`/`DebitAccountSetting` + `CreditAccountSettingId`/`CreditAccountSetting` (thay `AccountCode DebitAccount/CreditAccount` cũ), `ExpenseCategoryId`/`ExpenseCategory` (nullable) |
+| Config | `Lamour.Infrastructure/Persistence/Configurations/PaymentConfiguration.cs` | `PaymentEntryConfiguration`: FK `Restrict` tới `AccountSetting` (2 lần — Debit/Credit), FK `SetNull` tới `ExpenseCategory`. `Status` lưu `HasConversion<string>()` — thêm giá trị enum mới an toàn, không cần migration |
+| UseCase | `UseCases/CreatePaymentUseCase.cs` | Validate `PaymentReason`, TK Nợ/Có tồn tại, Khoản mục CP (nếu có) → `Status = Draft`, **không** tạo `CashTransaction` |
+| UseCase | `UseCases/SetPaymentTreoUseCase.cs` | **Mới** (2026-08-11) — Guard `Status == Draft` → set `Status = Treo` |
+| UseCase | `UseCases/UpdatePaymentUseCase.cs` | Guard `Status == Confirmed` (đổi từ `!= Draft`) trước khi block sửa — Draft/Treo đều sửa được |
+| UseCase | `UseCases/DeletePaymentUseCase.cs` | Guard `Status == Confirmed` (đổi từ `!= Draft`) trước khi block xoá — **không còn** cleanup `CashTransaction` (Draft/Treo chưa từng có) |
+| UseCase | `UseCases/ConfirmPaymentUseCase.cs` | Guard `Status == Treo` (**đổi từ `Draft`**) — mirror `ConfirmWarehouseReceiptUseCase`: Treo→Confirmed, tạo `CashTransaction` tại đây |
+| UseCase | `UseCases/DuplicatePaymentUseCase.cs` | Copy `DebitAccountSettingId`/`CreditAccountSettingId`/`ExpenseCategoryId`, luôn `Status = Draft` |
+| Repository | `Lamour.Infrastructure/Repositories/PaymentRepository.cs` | `.Include(Entries).ThenInclude(DebitAccountSetting/CreditAccountSetting/ExpenseCategory)` trên mọi query. `GetUnconfirmedByDateRangeAsync` (đổi tên từ `GetDraftsByDateRangeAsync`, filter `Status != Confirmed`) — dùng cho Sổ Quỹ Tiền Mặt |
+| Controller | `Lamour.Api/Controllers/PaymentsController.cs` | + `POST {id}/confirm`, `POST {id}/treo` |
 
-`GenerateNextDocumentNumber()` in `PaymentViewModel`:
-- Scans `_receiptListCache` (the loaded payment list) for "PC"-prefixed numbers
-- Finds the max numeric suffix, returns `PC{max+1:D5}`
-- If no PC payments exist → returns `PC00001`
-- Example: last payment is `PC00214` → new form shows `PC00215`
-
-## Window Open Behavior
-
-Window **luôn mở ở chế độ tạo mới** (blank form). `OnContentRendered` gọi `LoadAsync()` để load lookups + danh sách, sau đó tự gọi `AddNewCommand` để clear form. Dùng **Trước / Sau** để xem phiếu cũ.
-
-## Dropdown Options
-
-**Lý do chi (`PaymentReason`):**
-```
-ChiKhac      — Chi khác
-ChiMuaHang   — Chi mua hàng
-ChiTraNo     — Chi trả nợ
-ChiLuong     — Chi lương
-```
-
-**TK Nợ / TK Có (`AccountCode`):**
-```
-Cash111        — 111 Tiền mặt
-Bank112        — 112 Tiền gửi ngân hàng
-Receivable131  — 131 Phải thu khách hàng
-Payroll334     — 334 Phải trả người lao động
-```
-
-## Quỹ Tiền Mặt Auto-Refresh
-
-Sau khi save thành công:
-1. `PaymentViewModel` fires `PaymentSaved` → `AccountingViewModel.LoadAsync()` → Quỹ Tiền Mặt reload
-2. `PaymentViewModel` fires `RequestClose` → `PaymentWindow.Close()` → cửa sổ tự đóng
-
-```csharp
-// AccountingViewModel.OpenPayment()
-window.ViewModel.PaymentSaved  += () => _ = LoadAsync(CancellationToken.None);
-
-// PaymentWindow constructor (code-behind)
-viewModel.RequestClose += Close;
-```
-
-Cột **Diễn giải** trong Quỹ Tiền Mặt hiện **chỉ tên người nhận** — không có prefix.
-
-## Architecture
+### State Machine
 
 ```
-AccountingView.xaml           "Phiếu Chi" button → OpenPaymentCommand
-        ↓
-AccountingViewModel           Func<PaymentWindow> factory → window.Show()
-                              subscribes PaymentSaved → LoadAsync()
-        ↓
-PaymentWindow.xaml            Standalone Window, DataContext = PaymentViewModel
-        ↓
-PaymentViewModel              Full CRUD: Load, AddNew, Save, Delete, NavigatePrev/Next
-                              fires PaymentSaved after successful save
-        ↓
-ICreatePaymentUseCase         → IPaymentService.CreateAsync()
-IUpdatePaymentUseCase         → IPaymentService.UpdateAsync()
-IDeletePaymentUseCase         → IPaymentService.DeleteAsync()
-IGetPaymentsUseCase           → IPaymentService.GetAllAsync()
-IGetPaymentByIdUseCase        → IPaymentService.GetByIdAsync()
-IDuplicatePaymentUseCase      → IPaymentService.DuplicateAsync()
-        ↓
-PaymentService                HttpClient → http://192.168.64.1:5282
+  Create           Treo (nút "Nạp")        Ghi số
+Draft ──────► Draft ──────────────► Treo ──────► Confirmed (bất biến)
+                ↺ Update/Delete       ↺ Update/Delete
 ```
 
-## DI Registration (HomeServiceCollectionExtensions.cs)
+Update/Delete cho phép ở cả `Draft` và `Treo` — chỉ `Confirmed` mới bất biến.
 
-```csharp
-services.AddTransient<PaymentWindow>();
-services.AddTransient<PaymentViewModel>();
-services.AddTransient<IGetPaymentsUseCase, GetPaymentsUseCase>();
-services.AddTransient<IGetPaymentByIdUseCase, GetPaymentByIdUseCase>();
-services.AddTransient<ICreatePaymentUseCase, CreatePaymentUseCase>();
-services.AddTransient<IUpdatePaymentUseCase, UpdatePaymentUseCase>();
-services.AddTransient<IDeletePaymentUseCase, DeletePaymentUseCase>();
-services.AddTransient<IDuplicatePaymentUseCase, DuplicatePaymentUseCase>();
-services.AddTransient<Func<PaymentWindow>>(sp => () => sp.GetRequiredService<PaymentWindow>());
-services.AddHttpClient<IPaymentService, PaymentService>(client =>
+---
+
+## API Contracts
+
+Base route: `api/v1/accounting/payments`
+
+| Method | Endpoint | Ghi chú |
+|--------|----------|---------|
+| `GET` | `/` | Tất cả payments |
+| `GET` | `/{id}` | 1 payment |
+| `POST` | `/` | Tạo mới — luôn Draft |
+| `PUT` | `/{id}` | Sửa — 400 nếu đã Confirmed |
+| `DELETE` | `/{id}` | Xoá — 400 nếu đã Confirmed |
+| `POST` | `/{id}/duplicate` | Sao chép — bản mới luôn Draft |
+| `POST` | `/{id}/treo` | **Mới** (2026-08-11) — Draft → Treo, 400 nếu không phải Draft |
+| `POST` | `/{id}/confirm` | Treo → Confirmed (**đổi từ Draft**), tạo `CashTransaction` |
+
+### `PaymentEntryDto` (request + response dùng chung)
+
+```json
 {
-    client.BaseAddress = new Uri("http://192.168.64.1:5282");
-    client.Timeout     = TimeSpan.FromSeconds(30);
-    client.DefaultRequestHeaders.Add("Accept", "application/json");
-});
+  "id": 1,
+  "description": "thuê lái xe 21/7",
+  "debit_account_id": 40,
+  "debit_account_code": "111",
+  "debit_account_description": "Tiền mặt",
+  "credit_account_id": 42,
+  "credit_account_code": "131",
+  "credit_account_description": "Phải thu của khách hàng",
+  "amount": 500000,
+  "subject_code": null,
+  "subject_name": null,
+  "bank_account": null,
+  "expense_category_id": 3,
+  "expense_category_name": "PHÒNG NHÂN SỰ"
+}
 ```
 
-## WPF Files Structure
+Request (Create/Update) chỉ cần `debit_account_id`/`credit_account_id`/`expense_category_id` (int, int?) — các field `*_code`/`*_description`/`*_name` chỉ có ở response.
 
-```
-desktop-lamour/src/DesktopLamour/Features/HomePage/Accounting/
-  Data/Services/
-    Dtos/
-      PaymentEntryDto.cs                    — Line item DTO (mirrors BE)
-      PaymentResponseDto.cs                 — Full payment DTO (mirrors BE)
-      CreatePaymentRequestDto.cs            — Create request DTO (mirrors BE)
-      UpdatePaymentRequestDto.cs            — Update request DTO (mirrors BE)
-    IPaymentService.cs                      — Service interface
-    PaymentService.cs                       — HttpClient implementation
-  
-  Domain/
-    Models/
-      PaymentEntryItem.cs                   — INotifyPropertyChanged wrapper for DataGrid
-    UseCases/
-      IGetPaymentsUseCase.cs                — Interface: Get all payments
-      GetPaymentsUseCase.cs                 — Implementation
-      IGetPaymentByIdUseCase.cs             — Interface: Get payment by ID
-      GetPaymentByIdUseCase.cs              — Implementation
-      ICreatePaymentUseCase.cs              — Interface: Create payment
-      CreatePaymentUseCase.cs               — Implementation
-      IUpdatePaymentUseCase.cs              — Interface: Update payment
-      UpdatePaymentUseCase.cs               — Implementation
-      IDeletePaymentUseCase.cs              — Interface: Delete payment
-      DeletePaymentUseCase.cs               — Implementation
-      IDuplicatePaymentUseCase.cs           — Interface: Duplicate payment
-      DuplicatePaymentUseCase.cs            — Implementation
-  
-  ViewModels/
-    PaymentViewModel.cs                     — CRUD logic, navigation, PaymentSaved event
-    AccountingViewModel.cs                  — Updated with OpenPaymentCommand
-  
-  Views/
-    PaymentWindow.xaml                      — Standalone Window UI
-    PaymentWindow.xaml.cs                   — Code-behind (wires RequestClose event)
-    AccountingView.xaml                     — Updated with "Phiếu Chi" button
-  
-  docs/
-    phieu-chi.md                            — This documentation file
+### `PaymentResponseDto` (bổ sung so với trước)
 
-../HomeServiceCollectionExtensions.cs       — DI registration (updated)
+```json
+{
+  "...": "...",
+  "reason_detail": "thuê lái xe 21/7",
+  "status": "Draft",
+  "confirmed_at": null
+}
 ```
 
-## Backend API Endpoints
+---
+
+## Seed Data — 4 tài khoản cash-flow bổ sung cho `AccountSetting`
+
+`AccountSetting` (39 tài khoản cũ, toàn bộ thuộc nhóm hàng hoá/doanh thu — xem [`account-settings.md`](../../AccountSettings/docs/account-settings.md)) **không có** 111/112/131/334 mà `AccountCode` enum cũ dùng cho Payment. Seed thêm 4 dòng để Payment không bị gãy sau khi chuyển sang FK:
+
+| Id | Code | Description |
+|---|---|---|
+| 40 | 111 | Tiền mặt |
+| 41 | 112 | Tiền gửi ngân hàng |
+| 42 | 131 | Phải thu của khách hàng |
+| 43 | 334 | Phải trả người lao động |
+
+Enum `AccountCode` (`Lamour.Domain.Enums.AccountCode`) **vẫn còn** trong codebase — chỉ Payment không dùng nữa, `Receipt`/`ReceiptEntry` (Phiếu thu) vẫn dùng enum này y như cũ (chưa migrate).
+
+---
+
+## EF Migrations (theo thứ tự)
+
+1. `20260810082526_AddDepartmentsAndExpenseCategories` — tạo bảng `departments`/`expense_categories` (xem [`expense-categories.md`](../../ExpenseCategories/docs/expense-categories.md))
+2. `20260810094907_AddPaymentStatusAndExpenseCategoryLink` — `payments.status`/`confirmed_at`/`reason_detail`, `payment_entries.expense_category_id` (FK `SetNull`)
+   - ⚠️ Lần đầu generate có `HasDefaultValue(PaymentStatus.Confirmed)` trên model → EF cảnh báo "sentinel value" (giá trị CLR default `Draft`=0 sẽ luôn bị ghi đè bởi DB default khi insert, vì EF coi giá trị bằng CLR-default là "chưa set"). Đã bỏ `HasDefaultValue` khỏi `Configure()`, chỉ giữ `defaultValue: "Confirmed"` ở migration `AddColumn` (dùng 1 lần để backfill — bảng `payments` rỗng lúc đó nên không ảnh hưởng dữ liệu thật). **Bài học: không dùng `HasDefaultValue` khi giá trị default trùng CLR-default (0/null/false) của property.**
+3. `20260810125950_ConvertPaymentAccountsToAccountSettingFk` — drop cột string `DebitAccount`/`CreditAccount`, add FK int `DebitAccountSettingId`/`CreditAccountSettingId`, insert 4 dòng `account_settings` (111/112/131/334)
+
+---
+
+## Sổ Kế Toán Chi Tiết Quỹ Tiền Mặt — cột Status (2026-08-11)
+
+Màn hình "Sổ Kế Toán Chi Tiết Quỹ Tiền Mặt" (`AccountingView.xaml`) trước đây chỉ đọc `CashTransaction` (luôn đã ghi số). Bổ sung hiển thị cả Payment ở trạng thái `Draft` (chưa ghi số) để người dùng thấy trước các khoản chi sắp tới:
+
+- `IPaymentRepository.GetUnconfirmedByDateRangeAsync(from, to, ct)` — query `Payment` có `Status != Confirmed` (Draft **hoặc** Treo, đổi từ chỉ-Draft sau khi thêm trạng thái Treo 2026-08-11) trong khoảng `AccountingDate`, `Include(Entries.DebitAccountSetting)`.
+- `CashLedgerEntryDto` + `GetCashLedgerUseCase`: merge entries từ `CashTransaction` (`status = "Confirmed"`) với Draft/Treo payments map ngược lại theo đúng công thức `ConfirmPaymentUseCase` dùng để tạo `CashTransaction` (`CreditAmount = tổng Entries.Amount`, `CounterAccount` = code TK Nợ dòng đầu, `DebitAmount = 0`), gắn `status = p.Status.ToString()` ("Draft" hoặc "Treo"). Payment chưa có dòng hạch toán nào bị loại khỏi kết quả (không có amount để hiển thị).
+- **Running balance chỉ cộng/trừ trên dòng `Confirmed`** — dòng `Draft`/`Treo` giữ nguyên số dư hiện tại, không ảnh hưởng `ClosingBalance`.
+- WPF: `CashLedgerEntryDto.Status` (string, khớp BE) + `CashLedgerStatusDisplayConverter` (`Shared/Converters/`) map `"Draft"` → "Nháp", `"Treo"` → "Treo", `"Confirmed"` → "Đã ghi số", cột mới nằm ngay sau "Số phiếu chi" trong `AccountingView.xaml`.
+
+---
+
+## WPF Client (`desktop-lamour`)
+
+### UI — khớp lại theo ảnh mẫu MISA (2026-08-10)
+
+- **Toolbar**: `Trước/Sau | Thêm/Sửa/Xóa/Treo/Ghi số | Làm mới | In/Đóng` — bỏ hẳn `Sửa nhanh/Tiện ích/Mẫu/Giúp` (không có logic thật, ẩn đi theo yêu cầu "action nào không có thì ẩn đi" thay vì hiện placeholder).
+  - ⚠️ **2026-08-11**: nút `Nạp` cũ (`LoadAsync2Command`) chỉ refresh list từ server — vô nghĩa vì list đã tự reload sau mọi Sửa/Xoá/Ghi số. Đổi thành nút **"📌 Treo"** (`TreoCommand`) — set `CurrentPayment` đang `Draft` sang `Treo` qua `POST /{id}/treo`, bắt buộc phải Treo trước khi Ghi số được. Refresh-list thủ công dời sang nút mới **"🔄 Làm mới"** (giữ nguyên logic `LoadAsync2` cũ, đổi tên method).
+  - ⚠️ **2026-08-11 (tiếp)**: bỏ hẳn nút `Cất` (`SaveCommand`/`SaveAsync`, xoá khỏi ViewModel) — logic lưu (`PersistAsync`) gộp vào `TreoCommand`: đang Nháp thì lưu + chuyển Treo; đã Treo rồi thì `TreoAsync` chỉ chạy `PersistAsync` để lưu lại thay đổi, **không** gọi lại `POST /{id}/treo` (tránh lỗi 400 "Chỉ phiếu chi ở trạng thái Nháp mới có thể chuyển Treo"), không đổi trạng thái, không đóng popup.
+- **Banner header + subtitle**: giữ nguyên style cũ, chỉ sửa lại subtitle bug copy-paste "Lập và quản lý phiếu **thu**" → "...phiếu **chi**".
+- **Thông tin chung**: "Lý do nộp"→"Lý do chi" (đúng thuật ngữ), thêm ô `ReasonDetail` tự do cạnh dropdown; "Nhân viên thu"→"Nhân viên"; bố cục lại Nhân viên+Kèm theo chung 1 dòng, Tham chiếu xuống dòng riêng (icon 🔍).
+- **Tab**: `TabControl` với style `AppTabControl.Modern`/`AppTabItem.Modern` copy từ popup "Thêm vật tư hàng hoá" — tab "1. Hạch toán" (grid) + tab "2. Thuế" (placeholder, Payment chưa có field thuế).
+- **Grid**: thêm cột "Khoản mục CP"; TK Nợ/TK Có đổi nguồn từ list string cứng → `AccountSettings` (load qua `IGetAccountSettingsUseCase`).
+- **In**: `PaymentPrintWindow` mới — FlowDocument A5 + `PrintDialog`, mirror `SalesOrderPrintWindow` (logo công ty, bảng hạch toán có cột Khoản mục CP, chữ ký 4 vai: Người lập phiếu/Người nhận tiền/Thủ quỹ/Kế toán trưởng).
+
+### ⚠️ Bug lớn nhất & cách sửa cuối cùng (đọc trước khi đổi UI cột combo trong DataGrid)
+
+Cột TK Nợ/TK Có/Khoản mục CP trải qua **4 lần đổi cách bind** trước khi ổn định — ghi lại để không lặp lại sai lầm:
+
+1. **`DataGridComboBoxColumn` + `SelectedValueBinding`/`SelectedValuePath="Id"`** — ItemsSource `{Binding AccountSettings}` (không `RelativeSource`) **không nhận được DataContext của DataGrid trong app này** → dropdown rỗng hoàn toàn. *Kết luận: đừng dùng `DataGridComboBoxColumn` cho cột trong file này, dù đây là cách "chuẩn" theo tài liệu Microsoft.*
+2. **`DataGridTemplateColumn` (CellTemplate hiện Text, CellEditingTemplate là ComboBox) + `SelectedValue`/`SelectedValuePath="Id"` (kiểu `int?`)** — `ItemsSource` load đúng (có data), nhưng `SelectedValue` TwoWay **không đẩy được** giá trị ngược lại property `int?` nguồn khi list chỉ có 1 item (xác nhận qua debug log: `SelectionChanged` bắn đúng `SelectedValue` nhưng `PropertyChanged` trên entry không bao giờ fire).
+3. Đổi `SelectedValue` → **`SelectedItem`** (bind cả object `ISearchableItem?`/`ExpenseCategory?` thay vì `int?`) — vẫn còn `DataGridTemplateColumn` (Cell/CellEditingTemplate tách biệt). `SelectedItem` binding **hoạt động đúng khi bấm Enter**, nhưng **không commit khi chỉ click sang ô/cột khác** — DataGrid chỉ chịu đẩy binding CellEditingTemplate xuống nguồn khi nhận tín hiệu commit rõ ràng (Enter/Tab), không tự làm khi cell mất focus do click cell khác trong cùng row. Thử ép `grid.CommitEdit(DataGridEditingUnit.Cell, true)` (cả gọi đồng bộ và trì hoãn qua `Dispatcher.BeginInvoke`) — **không hoạt động**. Thử giả lập phím Enter bằng `RaiseEvent(new KeyEventArgs(..., Key.Enter) { RoutedEvent = Keyboard.KeyDownEvent })` — **cũng không hoạt động**.
+4. **Fix cuối cùng**: bỏ hẳn khái niệm "cell editing mode" cho 3 cột này — **ComboBox nằm thẳng trong `CellTemplate`, không có `CellEditingTemplate` riêng**. ComboBox luôn hiện sẵn, luôn tương tác được ngay, không cần DataGrid "vào chế độ sửa" rồi "commit" gì cả → không còn gì để mất. Đây là cách ổn định nhất cho ComboBox trong `DataGridTemplateColumn` khi không cần phân biệt display/edit riêng.
+
+```xml
+<DataGridTemplateColumn Header="TK Nợ" Width="160">
+    <DataGridTemplateColumn.CellTemplate>
+        <DataTemplate>
+            <ComboBox ItemsSource="{Binding DataContext.AccountSettings, RelativeSource={RelativeSource AncestorType=DataGrid}}"
+                      DisplayMemberPath="DisplayText"
+                      SelectedItem="{Binding SelectedDebitAccount, Mode=TwoWay}"
+                      BorderThickness="0" Background="Transparent"/>
+        </DataTemplate>
+    </DataGridTemplateColumn.CellTemplate>
+    <!-- Không có CellEditingTemplate -->
+</DataGridTemplateColumn>
+```
+
+`PaymentEntryItem.cs` (WPF grid row model) theo đó chỉ giữ `SelectedDebitAccount`/`SelectedCreditAccount` (`ISearchableItem?`) + `SelectedExpenseCategory` (`ExpenseCategory?`) — không cần property "Name" riêng để đồng bộ tay, vì `CellTemplate` đọc trực tiếp qua property path (`SelectedDebitAccount.DisplayText`).
+
+### Ghi nhớ TK Nợ/TK Có lần cuối chọn
+
+`ILastUsedPaymentAccountsStore`/`LastUsedPaymentAccountsStore` (`Data/Storage/`, `AddSingleton`) — lưu `LastDebitAccountId`/`LastCreditAccountId` mỗi khi user đổi lựa chọn, dòng mới ("+ Thêm dòng") tự mặc định theo đó. **Chỉ lưu trong RAM (session hiện tại)** — app này chưa có cơ chế lưu file settings nào cả (kể cả JWT token cũng chỉ lưu RAM qua `InMemoryAuthTokenStorage`), nên giá trị này **mất khi tắt app**, không phải bug.
+
+### Files mới/đổi chính (WPF)
 
 ```
-GET    /api/v1/accounting/payments           — Get all payments
-GET    /api/v1/accounting/payments/{id}      — Get payment by ID
-POST   /api/v1/accounting/payments           — Create new payment
-PUT    /api/v1/accounting/payments/{id}      — Update payment
-DELETE /api/v1/accounting/payments/{id}      — Delete payment
-POST   /api/v1/accounting/payments/{id}/duplicate — Duplicate payment
+Features/HomePage/Accounting/
+  Domain/Models/PaymentEntryItem.cs        — SelectedDebitAccount/SelectedCreditAccount/SelectedExpenseCategory
+  Domain/UseCases/{I}ConfirmPaymentUseCase.cs — mới
+  Data/Services/{I}PaymentService.cs       — + ConfirmAsync, TreoAsync (2026-08-11), sửa EnsureSuccessOrThrowAsync (đọc {"error":...} thay vì EnsureSuccessStatusCode() nuốt message)
+  Data/Storage/{I}LastUsedPaymentAccountsStore.cs — mới
+  ViewModels/PaymentViewModel.cs           — CanEdit (gate theo Status), ConfirmCommand, TreoCommand (2026-08-11, thay LoadAsync2Command + SaveCommand cũ — gộp lưu vào Treo), RefreshCommand (mới, giữ logic refresh-list cũ), EditCommand, PrintCommand
+  Views/PaymentWindow.xaml                 — toolbar/tab/grid mới
+  Views/PaymentPrintWindow.xaml(.cs)       — mới, in FlowDocument A5
 ```
 
-## BE Migration
+### Known gaps
 
-Migration `20260429100048_AddPayments` creates:
-- `payments` table with FK to `suppliers` and `employees`
-- `payment_entries` table with cascade delete from `payments`
-- Indexes on `SupplierId`, `PaymentEmployeeId`, `PaymentId`
+- Tab "2. Thuế" chỉ là placeholder — Payment chưa có field thuế nào.
+- Cột "Mục thu/chi", "Đối tượng THCP", "Công trình" trong ảnh mẫu **chưa làm** — chưa có data model, user chọn bỏ qua lần này.
+- Chưa có unit test nào cho `ConfirmPaymentUseCase`/lifecycle mới.
+- "Sửa nhanh"/"Tiện ích"/"Mẫu"/"Giúp" hoàn toàn không có trên UI (theo yêu cầu ẩn action không có thật), không phải bug thiếu sót.
 
-## Auto-Population Features
+---
 
-When a supplier is selected from the **Đối tượng** dropdown:
-- **Người nhận** is automatically populated with the supplier's name
-- **Địa chỉ** is automatically populated with the supplier's address
-
-This reduces manual data entry and ensures consistency with supplier master data.
-
-## Key Differences from Phiếu Thu
-
-| Aspect | Phiếu Thu (Receipt) | Phiếu Chi (Payment) |
-|--------|---------------------|---------------------|
-| **Đối tượng** | Customer (Khách hàng) | Supplier (Nhà cung cấp) |
-| **Người** | Người nộp (Payer) | Người nhận (Payee) |
-| **Nhân viên** | Người thu (Collector) | Người chi (Payment Employee) |
-| **Lý do** | ThuKhac, ThuTienHang, ThuCongNo | ChiKhac, ChiMuaHang, ChiTraNo, ChiLuong |
-| **Số chứng từ** | PT-prefixed, auto-generated | PC-prefixed, auto-generated |
-| **TK Nợ default** | Cash111 (111) | Receivable131 (131) |
-| **TK Có default** | Receivable131 (131) | Cash111 (111) |
-| **Cash flow** | Inbound (Thu tiền) | Outbound (Chi tiền) |
-| **Đối tượng model** | `Customer : ISearchableItem` | `Supplier : ISearchableItem` |
-
-## Bug Fixes Applied (2026-04-29)
-
-| Bug | Root Cause | Fix |
-|-----|-----------|-----|
-| `PaymentEntryItem` not found (CS0246) | File not created | Created `Domain/Models/PaymentEntryItem.cs` |
-| Supplier dropdown empty | `Supplier` missing `ISearchableItem` — `Cast<ISearchableItem>()` threw silently | Added `: ISearchableItem` + `DisplayText` to `Supplier` model |
-| `payments` table not found (42P01) | EF migration never applied | Created + applied migration `20260429100048_AddPayments` |
-| `DocumentNumber` showed `PT00067` | Hardcoded default copied from ReceiptViewModel | Changed to `PC00001` fallback + `GenerateNextDocumentNumber()` |
-| `PayeeName` property missing | Backing field `_payerName` generates `PayerName`, not `PayeeName` | Renamed field to `_payeeName` |
-| `PaymentList` property missing | Backing field `_receiptList` generates `ReceiptList` | Renamed field to `_paymentList` |
-| `PaymentEmployeeEmployeeId` not on DTO | DTO has `PaymentEmployeeId` | Fixed in `PopulateFormFromCurrent`, `BuildCreateRequest`, `BuildUpdateRequest` |
-
-## Known Limitations / Future Work
-
-- `Số chứng từ` là free-text — không validate uniqueness trên WPF
-- `Tham chiếu` search button chưa có lookup action
-- `+` button cạnh `Đối tượng` và `Nhân viên chi` chưa có quick-add flow
-- Duplicate feature có sẵn nhưng chưa có UI button (có thể thêm sau)
-
-## Implementation Notes
-
-This feature was auto-generated from `ReceiptWindow` using automated find/replace:
-- `Receipt` → `Payment`
-- `Customer` → `Supplier`
-- `Payer` → `Payee`
-- `Collector` → `PaymentEmployee`
-- `ThuKhac/ThuTienHang/ThuCongNo` → `ChiKhac/ChiMuaHang/ChiTraNo/ChiLuong`
-
-Several field renames were missed during copy-paste and were fixed post-generation (see Bug Fixes table above).
-
-## Testing Checklist
-
-- [x] `payments` + `payment_entries` tables exist in DB (migration applied)
-- [x] Supplier dropdown loads correctly
-- [x] Employee dropdown loads correctly
-- [x] Document number auto-generates as `PC{N:D5}`
-- [ ] Open PaymentWindow from AccountingView
-- [ ] Select supplier → verify auto-population of Người nhận + Địa chỉ
-- [ ] Add payment entries to DataGrid
-- [ ] Save payment → verify API call succeeds
-- [ ] Verify Quỹ Tiền Mặt auto-refreshes after save
-- [ ] Navigate between payments using Trước/Sau buttons
-- [ ] Delete payment → verify confirmation + API call
-- [ ] Test validation (empty fields, invalid amounts)
+*Cập nhật lần cuối: 2026-08-10*

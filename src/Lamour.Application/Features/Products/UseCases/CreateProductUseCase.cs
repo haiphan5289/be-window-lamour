@@ -3,6 +3,7 @@ using Lamour.Application.Features.Categories.Repositories;
 using Lamour.Application.Features.Products.Dtos;
 using Lamour.Application.Features.Products.Repositories;
 using Lamour.Application.Features.ProductUnits.Repositories;
+using Lamour.Application.Features.Warehouse.Repositories;
 using Lamour.Domain.Entities;
 using Lamour.Domain.Enums;
 using Lamour.Domain.Exceptions;
@@ -15,6 +16,7 @@ public class CreateProductUseCase : ICreateProductUseCase
     private readonly IProductRepository          _repo;
     private readonly ICategoryRepository         _categoryRepo;
     private readonly IProductUnitRepository      _productUnitRepo;
+    private readonly IProductWarehouseStockRepository _stockRepo;
     private readonly INotificationBroadcaster    _broadcaster;
     private readonly ILogger<CreateProductUseCase> _logger;
 
@@ -22,12 +24,14 @@ public class CreateProductUseCase : ICreateProductUseCase
         IProductRepository repo,
         ICategoryRepository categoryRepo,
         IProductUnitRepository productUnitRepo,
+        IProductWarehouseStockRepository stockRepo,
         INotificationBroadcaster broadcaster,
         ILogger<CreateProductUseCase> logger)
     {
         _repo            = repo;
         _categoryRepo    = categoryRepo;
         _productUnitRepo = productUnitRepo;
+        _stockRepo       = stockRepo;
         _broadcaster     = broadcaster;
         _logger          = logger;
     }
@@ -93,6 +97,11 @@ public class CreateProductUseCase : ICreateProductUseCase
         var created = await _repo.AddAsync(product, ct);
         created.Category = category;
         _logger.LogInformation("Created product {Id} '{Name}'", created.Id, created.Name);
+
+        // Ghi nhận tồn kho ban đầu vào đúng kho ngầm định (nếu có chọn) — chỉ khi tạo mới,
+        // không cho phép set lại qua Update sau này (xem UpdateProductUseCase).
+        if (created.StockQuantity != 0 && request.DefaultWarehouseId.HasValue)
+            await _stockRepo.AdjustQuantityAsync(created.Id, request.DefaultWarehouseId.Value, created.StockQuantity, ct);
 
         // Re-fetch với đầy đủ Include (ProductUnit/Warehouse/AccountSettings) để map DTO có tên hiển thị.
         var reloaded = await _repo.GetByIdAsync(created.Id, ct) ?? created;

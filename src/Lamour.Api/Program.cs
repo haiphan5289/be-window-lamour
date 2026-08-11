@@ -113,6 +113,30 @@ builder.Services.AddScoped<Lamour.Application.Features.AccountSettings.UseCases.
 builder.Services.AddScoped<Lamour.Application.Features.AccountSettings.UseCases.IDeleteAccountSettingUseCase,
                            Lamour.Application.Features.AccountSettings.UseCases.DeleteAccountSettingUseCase>();
 
+// ── Departments DI ───────────────────────────────────────────────────────────
+builder.Services.AddScoped<Lamour.Application.Features.Departments.Repositories.IDepartmentRepository,
+                           Lamour.Infrastructure.Repositories.DepartmentRepository>();
+builder.Services.AddScoped<Lamour.Application.Features.Departments.UseCases.IGetDepartmentsUseCase,
+                           Lamour.Application.Features.Departments.UseCases.GetDepartmentsUseCase>();
+builder.Services.AddScoped<Lamour.Application.Features.Departments.UseCases.ICreateDepartmentUseCase,
+                           Lamour.Application.Features.Departments.UseCases.CreateDepartmentUseCase>();
+builder.Services.AddScoped<Lamour.Application.Features.Departments.UseCases.IUpdateDepartmentUseCase,
+                           Lamour.Application.Features.Departments.UseCases.UpdateDepartmentUseCase>();
+builder.Services.AddScoped<Lamour.Application.Features.Departments.UseCases.IDeleteDepartmentUseCase,
+                           Lamour.Application.Features.Departments.UseCases.DeleteDepartmentUseCase>();
+
+// ── Expense Categories DI ────────────────────────────────────────────────────
+builder.Services.AddScoped<Lamour.Application.Features.ExpenseCategories.Repositories.IExpenseCategoryRepository,
+                           Lamour.Infrastructure.Repositories.ExpenseCategoryRepository>();
+builder.Services.AddScoped<Lamour.Application.Features.ExpenseCategories.UseCases.IGetExpenseCategoriesUseCase,
+                           Lamour.Application.Features.ExpenseCategories.UseCases.GetExpenseCategoriesUseCase>();
+builder.Services.AddScoped<Lamour.Application.Features.ExpenseCategories.UseCases.ICreateExpenseCategoryUseCase,
+                           Lamour.Application.Features.ExpenseCategories.UseCases.CreateExpenseCategoryUseCase>();
+builder.Services.AddScoped<Lamour.Application.Features.ExpenseCategories.UseCases.IUpdateExpenseCategoryUseCase,
+                           Lamour.Application.Features.ExpenseCategories.UseCases.UpdateExpenseCategoryUseCase>();
+builder.Services.AddScoped<Lamour.Application.Features.ExpenseCategories.UseCases.IDeleteExpenseCategoryUseCase,
+                           Lamour.Application.Features.ExpenseCategories.UseCases.DeleteExpenseCategoryUseCase>();
+
 // ── Warehouses DI ────────────────────────────────────────────────────────────
 builder.Services.AddScoped<Lamour.Application.Features.Warehouses.Repositories.IWarehouseRepository,
                            Lamour.Infrastructure.Repositories.WarehouseRepository>();
@@ -160,6 +184,8 @@ builder.Services.AddScoped<Lamour.Application.Features.Employees.UseCases.IDupli
 // ── Warehouse DI ─────────────────────────────────────────────────────────────
 builder.Services.AddScoped<Lamour.Application.Features.Warehouse.Repositories.IInventoryRepository,
                            Lamour.Infrastructure.Repositories.InventoryRepository>();
+builder.Services.AddScoped<Lamour.Application.Features.Warehouse.Repositories.IProductWarehouseStockRepository,
+                           Lamour.Infrastructure.Repositories.ProductWarehouseStockRepository>();
 builder.Services.AddScoped<Lamour.Application.Features.Warehouse.UseCases.IGetInventorySummaryUseCase,
                            Lamour.Application.Features.Warehouse.UseCases.GetInventorySummaryUseCase>();
 
@@ -196,6 +222,10 @@ builder.Services.AddScoped<Lamour.Application.Features.Accounting.UseCases.IDele
                            Lamour.Application.Features.Accounting.UseCases.DeletePaymentUseCase>();
 builder.Services.AddScoped<Lamour.Application.Features.Accounting.UseCases.IDuplicatePaymentUseCase,
                            Lamour.Application.Features.Accounting.UseCases.DuplicatePaymentUseCase>();
+builder.Services.AddScoped<Lamour.Application.Features.Accounting.UseCases.IConfirmPaymentUseCase,
+                           Lamour.Application.Features.Accounting.UseCases.ConfirmPaymentUseCase>();
+builder.Services.AddScoped<Lamour.Application.Features.Accounting.UseCases.ISetPaymentTreoUseCase,
+                           Lamour.Application.Features.Accounting.UseCases.SetPaymentTreoUseCase>();
 
 // ── WarehouseReceipts DI ──────────────────────────────────────────────────────
 builder.Services.AddScoped<Lamour.Application.Features.WarehouseReceipts.Repositories.IWarehouseReceiptRepository,

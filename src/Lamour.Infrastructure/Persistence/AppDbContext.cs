@@ -29,6 +29,9 @@ public class AppDbContext : DbContext
     public DbSet<DepositDeduction>      DepositDeductions      => Set<DepositDeduction>();
     public DbSet<ProductUnit>           ProductUnits           => Set<ProductUnit>();
     public DbSet<AccountSetting>        AccountSettings        => Set<AccountSetting>();
+    public DbSet<ProductWarehouseStock> ProductWarehouseStocks => Set<ProductWarehouseStock>();
+    public DbSet<Department>            Departments            => Set<Department>();
+    public DbSet<ExpenseCategory>       ExpenseCategories      => Set<ExpenseCategory>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

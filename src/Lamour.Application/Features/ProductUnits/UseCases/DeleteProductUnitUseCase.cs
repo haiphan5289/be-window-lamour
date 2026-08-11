@@ -23,6 +23,9 @@ public class DeleteProductUnitUseCase : IDeleteProductUnitUseCase
         var unit = await _repo.GetByIdAsync(id, ct)
             ?? throw new NotFoundException($"Product unit {id} not found.");
 
+        if (await _repo.IsInUseAsync(id, ct))
+            throw new DomainException($"Đơn vị tính '{unit.Name}' đang được sản phẩm sử dụng, không thể xoá.");
+
         await _repo.DeleteAsync(unit, ct);
         _logger.LogInformation("Deleted product unit {Id}", id);
 

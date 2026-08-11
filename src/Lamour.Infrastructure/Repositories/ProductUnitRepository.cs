@@ -21,6 +21,9 @@ public class ProductUnitRepository : IProductUnitRepository
         => await _db.ProductUnits.AsNoTracking()
             .AnyAsync(u => u.Name.ToLower() == name.ToLower() && (excludeId == null || u.Id != excludeId), ct);
 
+    public async Task<bool> IsInUseAsync(int productUnitId, CancellationToken ct = default)
+        => await _db.Products.AsNoTracking().AnyAsync(p => p.ProductUnitId == productUnitId, ct);
+
     public async Task<ProductUnit> AddAsync(ProductUnit unit, CancellationToken ct = default)
     {
         _db.ProductUnits.Add(unit);

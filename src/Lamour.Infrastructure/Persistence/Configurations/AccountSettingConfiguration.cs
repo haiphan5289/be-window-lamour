@@ -55,7 +55,11 @@ public class AccountSettingConfiguration : IEntityTypeConfiguration<AccountSetti
             new AccountSetting { Id = 36, Code = "811",  Description = "Chi phí khác" },
             new AccountSetting { Id = 37, Code = "5211", Description = "Chiết khấu thương mại" },
             new AccountSetting { Id = 38, Code = "5212", Description = "Hàng bán bị trả lại" },
-            new AccountSetting { Id = 39, Code = "5213", Description = "Giảm giá hàng bán" }
+            new AccountSetting { Id = 39, Code = "5213", Description = "Giảm giá hàng bán" },
+            new AccountSetting { Id = 40, Code = "111",  Description = "Tiền mặt" },
+            new AccountSetting { Id = 41, Code = "112",  Description = "Tiền gửi ngân hàng" },
+            new AccountSetting { Id = 42, Code = "131",  Description = "Phải thu của khách hàng" },
+            new AccountSetting { Id = 43, Code = "334",  Description = "Phải trả người lao động" }
         );
     }
 }

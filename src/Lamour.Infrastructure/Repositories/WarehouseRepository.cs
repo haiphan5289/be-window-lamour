@@ -21,6 +21,10 @@ public class WarehouseRepository : IWarehouseRepository
         => await _db.Warehouses.AsNoTracking()
             .AnyAsync(w => w.Code.ToLower() == code.ToLower() && (excludeId == null || w.Id != excludeId), ct);
 
+    public async Task<bool> IsInUseAsync(int warehouseId, CancellationToken ct = default)
+        => await _db.WarehouseReceiptLines.AsNoTracking().AnyAsync(l => l.WarehouseId == warehouseId, ct)
+        || await _db.Products.AsNoTracking().AnyAsync(p => p.DefaultWarehouseId == warehouseId, ct);
+
     public async Task<Warehouse> AddAsync(Warehouse warehouse, CancellationToken ct = default)
     {
         _db.Warehouses.Add(warehouse);

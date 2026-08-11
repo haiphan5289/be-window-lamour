@@ -2,6 +2,7 @@ using Lamour.Application.Abstractions;
 using Lamour.Application.Features.Products.Repositories;
 using Lamour.Application.Features.SalesReturn.Dtos;
 using Lamour.Application.Features.SalesReturn.Repositories;
+using Lamour.Application.Features.Warehouse.Repositories;
 using Lamour.Domain.Exceptions;
 using Microsoft.Extensions.Logging;
 
@@ -14,17 +15,20 @@ public class UpdateSalesReturnUseCase : IUpdateSalesReturnUseCase
 {
     private readonly ISalesReturnRepository _repo;
     private readonly IProductRepository     _productRepo;
+    private readonly IProductWarehouseStockRepository _stockRepo;
     private readonly IUnitOfWork            _uow;
     private readonly ILogger<UpdateSalesReturnUseCase> _logger;
 
     public UpdateSalesReturnUseCase(
         ISalesReturnRepository repo,
         IProductRepository productRepo,
+        IProductWarehouseStockRepository stockRepo,
         IUnitOfWork uow,
         ILogger<UpdateSalesReturnUseCase> logger)
     {
         _repo        = repo;
         _productRepo = productRepo;
+        _stockRepo   = stockRepo;
         _uow         = uow;
         _logger      = logger;
     }
@@ -50,6 +54,7 @@ public class UpdateSalesReturnUseCase : IUpdateSalesReturnUseCase
                     product.StockQuantity -= oldLine.Quantity;
                     await _productRepo.UpdateAsync(product, ct);
                 }
+                await _stockRepo.AdjustQuantityAsync(oldLine.ProductId, oldLine.WarehouseId, -oldLine.Quantity, ct);
             }
 
             // Build new lines
@@ -69,6 +74,7 @@ public class UpdateSalesReturnUseCase : IUpdateSalesReturnUseCase
                 newLines.Add(new SalesReturnLineEntity
                 {
                     ProductId        = dto.ProductId,
+                    WarehouseId      = dto.WarehouseId,
                     ProductCode      = product.Code,
                     ProductName      = product.Name,
                     ReturnAccount    = string.IsNullOrWhiteSpace(dto.ReturnAccount)   ? "5212" : dto.ReturnAccount,
@@ -108,6 +114,7 @@ public class UpdateSalesReturnUseCase : IUpdateSalesReturnUseCase
                     product.StockQuantity += line.Quantity;
                     await _productRepo.UpdateAsync(product, ct);
                 }
+                await _stockRepo.AdjustQuantityAsync(line.ProductId, line.WarehouseId, line.Quantity, ct);
             }
 
             await _uow.CommitAsync(ct);

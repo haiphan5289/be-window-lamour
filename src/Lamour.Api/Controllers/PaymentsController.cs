@@ -16,6 +16,8 @@ public class PaymentsController : ControllerBase
     private readonly IUpdatePaymentUseCase     _updatePayment;
     private readonly IDeletePaymentUseCase     _deletePayment;
     private readonly IDuplicatePaymentUseCase  _duplicatePayment;
+    private readonly IConfirmPaymentUseCase    _confirmPayment;
+    private readonly ISetPaymentTreoUseCase    _setPaymentTreo;
 
     public PaymentsController(
         IGetPaymentsUseCase getPayments,
@@ -23,7 +25,9 @@ public class PaymentsController : ControllerBase
         ICreatePaymentUseCase createPayment,
         IUpdatePaymentUseCase updatePayment,
         IDeletePaymentUseCase deletePayment,
-        IDuplicatePaymentUseCase duplicatePayment)
+        IDuplicatePaymentUseCase duplicatePayment,
+        IConfirmPaymentUseCase confirmPayment,
+        ISetPaymentTreoUseCase setPaymentTreo)
     {
         _getPayments       = getPayments;
         _getPaymentById    = getPaymentById;
@@ -31,6 +35,8 @@ public class PaymentsController : ControllerBase
         _updatePayment     = updatePayment;
         _deletePayment     = deletePayment;
         _duplicatePayment  = duplicatePayment;
+        _confirmPayment    = confirmPayment;
+        _setPaymentTreo    = setPaymentTreo;
     }
 
     [HttpGet]
@@ -67,4 +73,12 @@ public class PaymentsController : ControllerBase
         var result = await _duplicatePayment.ExecuteAsync(id, ct);
         return Created($"/api/v1/accounting/payments/{result.Id}", result);
     }
+
+    [HttpPost("{id:int}/confirm")]
+    public async Task<IActionResult> ConfirmPayment(int id, CancellationToken ct)
+        => Ok(await _confirmPayment.ExecuteAsync(id, ct));
+
+    [HttpPost("{id:int}/treo")]
+    public async Task<IActionResult> SetPaymentTreo(int id, CancellationToken ct)
+        => Ok(await _setPaymentTreo.ExecuteAsync(id, ct));
 }

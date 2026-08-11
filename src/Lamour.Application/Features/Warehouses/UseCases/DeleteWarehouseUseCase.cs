@@ -23,6 +23,9 @@ public class DeleteWarehouseUseCase : IDeleteWarehouseUseCase
         var warehouse = await _repo.GetByIdAsync(id, ct)
             ?? throw new NotFoundException($"Warehouse {id} not found.");
 
+        if (await _repo.IsInUseAsync(id, ct))
+            throw new DomainException($"Kho '{warehouse.Name}' đang được sử dụng (có phiếu nhập kho hoặc là kho ngầm định của sản phẩm), không thể xoá.");
+
         await _repo.DeleteAsync(warehouse, ct);
         _logger.LogInformation("Deleted warehouse {Id}", id);
 

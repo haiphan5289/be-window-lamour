@@ -58,7 +58,8 @@ public class UpdateProductUseCase : IUpdateProductUseCase
         product.Unit             = productUnit?.Name ?? request.Unit;
         product.CostPrice        = request.CostPrice;
         product.SellingPrice     = request.SellingPrice;
-        product.StockQuantity    = request.StockQuantity;
+        // StockQuantity KHÔNG được set trực tiếp qua Update — chỉ thay đổi qua giao dịch kho thật
+        // (Nhập/Xuất/Trả hàng), đồng bộ tự động từ ProductWarehouseStock.
         product.IsActive         = request.IsActive;
         product.VatRate          = CreateProductUseCase.ParseVatRate(request.VatRate);
         product.TaxReductionType = CreateProductUseCase.ParseTaxReductionStatus(request.TaxReductionType);
@@ -70,7 +71,7 @@ public class UpdateProductUseCase : IUpdateProductUseCase
         product.Description         = request.Description;
         product.ProductUnitId       = request.ProductUnitId;
         product.WarrantyPeriod      = request.WarrantyPeriod;
-        product.MinStockQuantity    = request.MinStockQuantity;
+        product.MinStockQuantity    = request.MinStockQuantity ?? product.MinStockQuantity;
         product.Origin              = request.Origin;
         product.PurchaseDescription = request.PurchaseDescription;
         product.SaleDescription     = request.SaleDescription;
@@ -82,10 +83,10 @@ public class UpdateProductUseCase : IUpdateProductUseCase
         product.PriceReductionAccountId = request.PriceReductionAccountId;
         product.ReturnAccountId         = request.ReturnAccountId;
         product.CostAccountId           = request.CostAccountId;
-        product.TradeDiscountRate       = request.TradeDiscountRate;
+        product.TradeDiscountRate       = request.TradeDiscountRate ?? product.TradeDiscountRate;
         product.SpecialGoodsType        = request.SpecialGoodsType;
-        product.LatestPurchasePrice     = request.LatestPurchasePrice;
-        product.IsPromotionalGood       = request.IsPromotionalGood;
+        product.LatestPurchasePrice     = request.LatestPurchasePrice ?? product.LatestPurchasePrice;
+        product.IsPromotionalGood       = request.IsPromotionalGood ?? product.IsPromotionalGood;
 
         var updated = await _repo.UpdateAsync(product, ct);
         _logger.LogInformation("Updated product {Id}", id);

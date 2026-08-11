@@ -7,12 +7,17 @@ namespace Lamour.Application.Features.Accounting.UseCases;
 public class GetCashLedgerUseCase : IGetCashLedgerUseCase
 {
     private readonly ICashLedgerRepository _repo;
+    private readonly IPaymentRepository _paymentRepo;
     private readonly ILogger<GetCashLedgerUseCase> _logger;
 
-    public GetCashLedgerUseCase(ICashLedgerRepository repo, ILogger<GetCashLedgerUseCase> logger)
+    public GetCashLedgerUseCase(
+        ICashLedgerRepository repo,
+        IPaymentRepository paymentRepo,
+        ILogger<GetCashLedgerUseCase> logger)
     {
-        _repo   = repo;
-        _logger = logger;
+        _repo        = repo;
+        _paymentRepo = paymentRepo;
+        _logger      = logger;
     }
 
     public async Task<CashLedgerResponseDto> ExecuteAsync(
@@ -20,14 +25,14 @@ public class GetCashLedgerUseCase : IGetCashLedgerUseCase
     {
         _logger.LogInformation("Fetching cash ledger from {From} to {To}", from, to);
 
-        var openingBalance = await _repo.GetBalanceBeforeDateAsync(from, ct);
-        var transactions   = await _repo.GetByDateRangeAsync(from, to, ct);
+        var openingBalance      = await _repo.GetBalanceBeforeDateAsync(from, ct);
+        var transactions        = await _repo.GetByDateRangeAsync(from, to, ct);
+        var unconfirmedPayments = await _paymentRepo.GetUnconfirmedByDateRangeAsync(from, to, ct);
 
-        var runningBalance = openingBalance;
-        var entries = transactions.Select(t =>
-        {
-            runningBalance += t.DebitAmount - t.CreditAmount;
-            return new CashLedgerEntryDto
+        // Confirmed rows come from posted CashTransactions; Draft/Treo rows are Payments not
+        // yet ghi số — shown for visibility only, they must not move the running balance.
+        var rows = transactions
+            .Select(t => new CashLedgerEntryDto
             {
                 AccountingDate = t.AccountingDate,
                 DocumentDate   = t.DocumentDate,
@@ -38,16 +43,41 @@ public class GetCashLedgerUseCase : IGetCashLedgerUseCase
                 CounterAccount = t.CounterAccount,
                 DebitAmount    = t.DebitAmount,
                 CreditAmount   = t.CreditAmount,
-                Balance        = runningBalance,
                 PersonName     = t.PersonName,
-            };
-        }).ToList();
+                Status         = "Confirmed",
+            })
+            .Concat(unconfirmedPayments
+                .Where(p => p.Entries.Count > 0)
+                .Select(p => new CashLedgerEntryDto
+                {
+                    AccountingDate = p.AccountingDate,
+                    DocumentDate   = p.DocumentDate,
+                    ReceiptNumber  = null,
+                    PaymentNumber  = p.DocumentNumber,
+                    Description    = p.PayeeName,
+                    Account        = "111",
+                    CounterAccount = p.Entries.First().DebitAccountSetting.Code,
+                    DebitAmount    = 0m,
+                    CreditAmount   = p.Entries.Sum(e => e.Amount),
+                    PersonName     = p.PayeeName,
+                    Status         = p.Status.ToString(),
+                }))
+            .OrderBy(e => e.AccountingDate)
+            .ToList();
+
+        var runningBalance = openingBalance;
+        foreach (var row in rows)
+        {
+            if (row.Status == "Confirmed")
+                runningBalance += row.DebitAmount - row.CreditAmount;
+            row.Balance = runningBalance;
+        }
 
         return new CashLedgerResponseDto
         {
             OpeningBalance = openingBalance,
-            ClosingBalance = entries.Count > 0 ? entries[^1].Balance : openingBalance,
-            Entries        = entries,
+            ClosingBalance = rows.Count > 0 ? rows[^1].Balance : openingBalance,
+            Entries        = rows,
         };
     }
 }

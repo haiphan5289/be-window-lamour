@@ -1,3 +1,4 @@
+using Lamour.Application.Features.Warehouse.Repositories;
 using Lamour.Application.Features.WarehouseReceipts.Dtos;
 using Lamour.Application.Features.WarehouseReceipts.Repositories;
 using Lamour.Domain.Entities;
@@ -9,14 +10,17 @@ namespace Lamour.Application.Features.WarehouseReceipts.UseCases;
 public class ConfirmWarehouseReceiptUseCase : IConfirmWarehouseReceiptUseCase
 {
     private readonly IWarehouseReceiptRepository _repo;
+    private readonly IProductWarehouseStockRepository _stockRepo;
     private readonly ILogger<ConfirmWarehouseReceiptUseCase> _logger;
 
     public ConfirmWarehouseReceiptUseCase(
         IWarehouseReceiptRepository repo,
+        IProductWarehouseStockRepository stockRepo,
         ILogger<ConfirmWarehouseReceiptUseCase> logger)
     {
-        _repo   = repo;
-        _logger = logger;
+        _repo      = repo;
+        _stockRepo = stockRepo;
+        _logger    = logger;
     }
 
     public async Task<WarehouseReceiptResponseDto> ExecuteAsync(int id, CancellationToken ct = default)
@@ -33,6 +37,7 @@ public class ConfirmWarehouseReceiptUseCase : IConfirmWarehouseReceiptUseCase
                 throw new DomainException($"Product with id {line.ProductId} not found.");
 
             line.Product.StockQuantity += line.Quantity;
+            await _stockRepo.AdjustQuantityAsync(line.ProductId, line.WarehouseId, line.Quantity, ct);
         }
 
         receipt.Status      = WarehouseReceiptStatus.Confirmed;

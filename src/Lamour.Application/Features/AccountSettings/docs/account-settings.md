@@ -1,6 +1,6 @@
 # Account Settings (Tài khoản kế toán) — Feature Document (BE + WPF)
 
-> **Jira:** — | **Branch:** `dev` | **Generated:** 2026-08-09 | **Updated:** 2026-08-09 (thêm 5211/5212/5213 — xem changelog cuối file)
+> **Jira:** — | **Branch:** `dev` | **Generated:** 2026-08-09 | **Updated:** 2026-08-10 (thêm 111/112/131/334 cho Phiếu chi — xem changelog cuối file)
 
 ---
 
@@ -30,7 +30,7 @@
 |------|-------------|
 | Code + Description required | `code`/`description` không được trống — `DomainException` |
 | Code unique | `code` unique case-insensitive — `DomainException` nếu trùng (Create: check toàn bộ; Update: exclude chính nó) |
-| Không có ràng buộc IsInUse | `AccountSetting` chưa được entity nào khác tham chiếu (không wire vào Product form ở phase này), nên `DeleteAccountSettingUseCase` xóa thẳng, không cần guard |
+| Không có ràng buộc IsInUse | ⚠️ **Cập nhật 2026-08-10**: `AccountSetting` **giờ được `PaymentEntry` tham chiếu** (`DebitAccountSettingId`/`CreditAccountSettingId`, FK `Restrict`) — DB sẽ chặn xoá nếu đang được Payment dùng, nhưng `DeleteAccountSettingUseCase` **chưa có guard `IsInUseAsync` ở tầng UseCase** (sẽ ra lỗi FK constraint thô từ Postgres thay vì message rõ ràng). Xem "Known gaps" cuối file. |
 | WPF cache-first | `IAccountSettingService.GetAllAsync` cache-first — load 1 lần sau login (`PostLoginSyncService`), tự cập nhật qua `DataSyncHub` |
 
 ---
@@ -132,7 +132,18 @@ HTTP Request
 
 ---
 
-## Seed Data (39 tài khoản, Thông tư 200 + 3 tài khoản 521x bổ sung)
+## Seed Data (43 tài khoản: 39 Thông tư 200 + 3 tài khoản 521x + 4 tài khoản cash-flow 2026-08-10)
+
+> Id 40-43 (`111`/`112`/`131`/`334`) seed riêng cho Phiếu Chi — TK Nợ/TK Có của Payment đổi từ enum `AccountCode` cứng sang FK thật tới bảng này (2026-08-10). Xem [`phieu-chi.md`](../../Accounting/docs/phieu-chi.md).
+
+| Id | Code | Description |
+|---|---|---|
+| 40 | 111 | Tiền mặt |
+| 41 | 112 | Tiền gửi ngân hàng |
+| 42 | 131 | Phải thu của khách hàng |
+| 43 | 334 | Phải trả người lao động |
+
+### Seed gốc (39 tài khoản, Thông tư 200 + 3 tài khoản 521x bổ sung)
 
 | Code | Description | Code | Description |
 |---|---|---|---|
@@ -201,6 +212,12 @@ Cấu trúc giống pattern Supplier (Code + tên) hơn Category (2 field thay v
 
 - Chưa wire vào `ProductFormWindow` — Product chưa có field TK Kho/TK doanh thu/TK chiết khấu/TK giảm giá/TK trả lại/TK chi phí nào cả. Nếu cần sau này, model `AccountSetting.DisplayText` đã sẵn định dạng phù hợp cho dropdown (`"{Code} — {Description}"`).
 - Chưa có unit test nào (BE lẫn WPF).
+- **Mới 2026-08-10**: `PaymentEntry` (Phiếu chi) giờ tham chiếu `AccountSetting` qua FK `Restrict` — `DeleteAccountSettingUseCase` chưa có guard `IsInUseAsync`, xoá 1 tài khoản đang được Payment dùng sẽ ra lỗi FK constraint thô từ Postgres thay vì message rõ ràng như "Đơn vị tính đang được sản phẩm sử dụng, không thể xoá" (pattern đã có ở `ProductUnit`/`DeleteProductUnitUseCase`). Nên thêm `IsInUseAsync(int accountSettingId)` kiểm tra `PaymentEntry.DebitAccountSettingId`/`CreditAccountSettingId` trước khi cho phép xoá.
+
+## Changelog
+
+- **2026-08-10** — Thêm 4 tài khoản `111`/`112`/`131`/`334` (Id 40-43) phục vụ Phiếu chi chuyển TK Nợ/TK Có từ enum `AccountCode` cứng sang FK thật (xem [`phieu-chi.md`](../../Accounting/docs/phieu-chi.md)). Migration `ConvertPaymentAccountsToAccountSettingFk`.
+- **2026-08-09** — Thêm 3 tài khoản `5211`/`5212`/`5213` (Id 37-39) cho popup "Thêm vật tư hàng hoá".
 
 ---
 

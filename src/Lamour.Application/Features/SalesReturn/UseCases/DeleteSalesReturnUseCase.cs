@@ -1,6 +1,7 @@
 using Lamour.Application.Abstractions;
 using Lamour.Application.Features.Products.Repositories;
 using Lamour.Application.Features.SalesReturn.Repositories;
+using Lamour.Application.Features.Warehouse.Repositories;
 using Lamour.Domain.Exceptions;
 using Microsoft.Extensions.Logging;
 
@@ -10,17 +11,20 @@ public class DeleteSalesReturnUseCase : IDeleteSalesReturnUseCase
 {
     private readonly ISalesReturnRepository _repo;
     private readonly IProductRepository     _productRepo;
+    private readonly IProductWarehouseStockRepository _stockRepo;
     private readonly IUnitOfWork            _uow;
     private readonly ILogger<DeleteSalesReturnUseCase> _logger;
 
     public DeleteSalesReturnUseCase(
         ISalesReturnRepository repo,
         IProductRepository productRepo,
+        IProductWarehouseStockRepository stockRepo,
         IUnitOfWork uow,
         ILogger<DeleteSalesReturnUseCase> logger)
     {
         _repo        = repo;
         _productRepo = productRepo;
+        _stockRepo   = stockRepo;
         _uow         = uow;
         _logger      = logger;
     }
@@ -42,6 +46,7 @@ public class DeleteSalesReturnUseCase : IDeleteSalesReturnUseCase
                     product.StockQuantity -= line.Quantity;
                     await _productRepo.UpdateAsync(product, ct);
                 }
+                await _stockRepo.AdjustQuantityAsync(line.ProductId, line.WarehouseId, -line.Quantity, ct);
             }
 
             await _repo.DeleteAsync(salesReturn, ct);

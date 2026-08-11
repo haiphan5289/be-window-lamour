@@ -1,0 +1,124 @@
+# Departments (Phòng ban) — Feature Document (BE + WPF)
+
+> **Branch:** `dev` | **Generated:** 2026-08-10
+
+---
+
+## PRD Summary
+
+Master data đơn giản (Tên phòng ban) — dùng làm nguồn cho dropdown "Thuộc" trong popup "Thêm Khoản mục chi phí" (xem [`expense-categories.md`](../../ExpenseCategories/docs/expense-categories.md)), theo ảnh mẫu MISA có 8 phòng ban mặc định (PHÒNG SALES/MARKETING/KHO VẬN/TÀI CHÍNH-KẾ TOÁN/NHÂN SỰ/ĐÀO TẠO/SPA/KHÁC).
+
+- **Goal:** CRUD API cho Phòng ban (chỉ 1 field `Name`), seed sẵn 8 phòng ban mẫu, màn quản lý riêng trong hub Kho.
+- **Scope quyết định (user xác nhận qua `/ct-be-to-desktop`):** danh sách cố định (enum) **hay** master data riêng có CRUD? → user chọn **master data riêng** (CRUD đầy đủ), không phải enum cứng.
+
+---
+
+## Business Rules
+
+| Rule | Description |
+|------|-------------|
+| Name required | `name` không được trống — `DomainException` |
+| Name unique | Case-insensitive — `DomainException` nếu trùng (Create: check toàn bộ; Update: exclude chính nó) |
+| Guard IsInUse khi xoá | `IsInUseAsync` kiểm tra `ExpenseCategory.DepartmentId` — throw `DomainException` "Phòng ban '...' đang được khoản mục chi phí sử dụng, không thể xoá" nếu đang được tham chiếu |
+
+---
+
+## Architecture Overview
+
+### Key Components (BE)
+
+| Layer | File | Role |
+|-------|------|------|
+| Entity | `Lamour.Domain/Entities/Department.cs` | `Id`, `Name` — chỉ 1 field |
+| Config | `Lamour.Infrastructure/Persistence/Configurations/DepartmentConfiguration.cs` | Table `departments`, `Name` unique index, `HasData` seed 8 rows (Id 1-8) |
+| Repository | `Repositories/IDepartmentRepository.cs` / `Lamour.Infrastructure/Repositories/DepartmentRepository.cs` | `GetAllAsync`, `GetByIdAsync`, `NameExistsAsync`, `IsInUseAsync` (check `expense_categories.department_id`), CRUD |
+| UseCase | `UseCases/{Get,Create,Update,Delete}DepartmentUseCase.cs` | Chuẩn CRUD 4 use case, không có broadcaster/SignalR (khác Warehouses/AccountSettings — quyết định giữ đơn giản, feature nhỏ) |
+| Controller | `Lamour.Api/Controllers/DepartmentsController.cs` | 4 HTTP actions, `[Authorize]` |
+
+### Data Flow
+
+```
+HTTP Request
+  → DepartmentsController
+  → IXxxDepartmentUseCase.ExecuteAsync()
+  → IDepartmentRepository
+  → AppDbContext (EF Core + PostgreSQL table: departments)
+  ← Department entity → DepartmentResponseDto
+  ← IActionResult
+```
+
+> Không có SignalR broadcast cho Department (khác `AccountSetting`/`Warehouse`) — feature nhỏ, master data ít thay đổi, quyết định giữ tối giản khi build ban đầu.
+
+---
+
+## API Contracts
+
+Base route: `api/v1/departments`
+
+| Method | Endpoint | Input | Output |
+|--------|----------|-------|--------|
+| `GET` | `/` | — | `DepartmentResponseDto[]` |
+| `POST` | `/` | `CreateDepartmentRequestDto` | `DepartmentResponseDto` (201) |
+| `PUT` | `/{id}` | `UpdateDepartmentRequestDto` | `DepartmentResponseDto` (200) |
+| `DELETE` | `/{id}` | — | 204 No Content |
+
+### Request/Response
+
+```json
+// Create/Update
+{ "name": "PHÒNG SALES" }
+
+// Response
+{ "id": 1, "name": "PHÒNG SALES" }
+```
+
+---
+
+## Seed Data (8 phòng ban, khớp ảnh mẫu MISA)
+
+| Id | Name |
+|---|---|
+| 1 | PHÒNG SALES |
+| 2 | PHÒNG MARKETING |
+| 3 | PHÒNG KHO VẬN |
+| 4 | PHÒNG TÀI CHÍNH - KẾ TOÁN |
+| 5 | PHÒNG NHÂN SỰ |
+| 6 | PHÒNG ĐÀO TẠO |
+| 7 | PHÒNG SPA |
+| 8 | KHÁC |
+
+## EF Migration
+
+`20260810082526_AddDepartmentsAndExpenseCategories` — tạo cả 2 bảng `departments` + `expense_categories` (có FK `expense_categories.department_id → departments.id`, `OnDelete: SetNull`) trong cùng 1 migration, seed 8 rows `departments` qua `HasData`.
+
+---
+
+## WPF Client (`desktop-lamour`)
+
+### Module: `Features/HomePage/Warehouses/` (nhúng chung với feature Kho, theo lựa chọn của user)
+
+| File | Role |
+|---|---|
+| `Domain/Models/Department.cs` | Implements `ISearchableItem` — `Code => string.Empty` (không có field Code thật), `DisplayText => Name` |
+| `Data/Services/IDepartmentService.cs` / `DepartmentService.cs` | HttpClient — **không cache-first** (gọi API trực tiếp mỗi lần, khác pattern `EntityCacheStore` của AccountSettings/Warehouses) |
+| `Domain/UseCases/*` (4 pairs) | Validate client-side trước khi gọi API |
+| `ViewModels/DepartmentFormViewModel.cs` + `Views/DepartmentFormWindow.xaml` | Popup 1 field `Name` |
+| `ViewModels/DepartmentListViewModel.cs` + `Views/DepartmentListView.xaml` | List (1 cột: Tên phòng ban) + Thêm/Sửa/Xóa |
+
+### Truy cập từ hub Kho
+
+- `WarehouseView.xaml`: tile "🏢 Phòng ban" trong section "Cài đặt"
+- `WarehouseViewModel.cs`: `NavigateToDepartmentsCommand` → `NavigationRoutes.Departments.List`
+
+### Dùng ở nơi khác
+
+- `ExpenseCategoryFormViewModel` (Khoản mục chi phí) inject `IGetDepartmentsUseCase` cho dropdown "Thuộc" — xem [`expense-categories.md`](../../ExpenseCategories/docs/expense-categories.md)
+
+### Known gaps
+
+- Không có SignalR realtime (khác AccountSettings/Warehouses) — nếu 2 client cùng sửa Department cùng lúc sẽ không tự đồng bộ.
+- Chưa có unit test nào (BE lẫn WPF).
+
+---
+
+*Generated by `/ct-be-to-desktop` on 2026-08-10*

@@ -3,7 +3,9 @@ using Lamour.Application.Abstractions;
 using Lamour.Application.Features.AccountSettings.Dtos;
 using Lamour.Application.Features.Categories.Dtos;
 using Lamour.Application.Features.Customers.Dtos;
+using Lamour.Application.Features.Departments.Dtos;
 using Lamour.Application.Features.Employees.Dtos;
+using Lamour.Application.Features.ExpenseCategories.Dtos;
 using Lamour.Application.Features.Products.Dtos;
 using Lamour.Application.Features.ProductUnits.Dtos;
 using Lamour.Application.Features.Suppliers.Dtos;
@@ -95,4 +97,22 @@ public class SignalRNotificationBroadcaster : INotificationBroadcaster
 
     public Task WarehouseDeletedAsync(int warehouseId, CancellationToken ct = default)
         => _hub.Clients.All.SendAsync("WarehouseDeleted", warehouseId, ct);
+
+    public Task DepartmentCreatedAsync(DepartmentResponseDto department, CancellationToken ct = default)
+        => _hub.Clients.All.SendAsync("DepartmentCreated", department, ct);
+
+    public Task DepartmentUpdatedAsync(DepartmentResponseDto department, CancellationToken ct = default)
+        => _hub.Clients.All.SendAsync("DepartmentUpdated", department, ct);
+
+    public Task DepartmentDeletedAsync(int departmentId, CancellationToken ct = default)
+        => _hub.Clients.All.SendAsync("DepartmentDeleted", departmentId, ct);
+
+    public Task ExpenseCategoryCreatedAsync(ExpenseCategoryResponseDto category, CancellationToken ct = default)
+        => _hub.Clients.All.SendAsync("ExpenseCategoryCreated", category, ct);
+
+    public Task ExpenseCategoryUpdatedAsync(ExpenseCategoryResponseDto category, CancellationToken ct = default)
+        => _hub.Clients.All.SendAsync("ExpenseCategoryUpdated", category, ct);
+
+    public Task ExpenseCategoryDeletedAsync(int categoryId, CancellationToken ct = default)
+        => _hub.Clients.All.SendAsync("ExpenseCategoryDeleted", categoryId, ct);
 }

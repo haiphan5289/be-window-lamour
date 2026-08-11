@@ -284,6 +284,30 @@ namespace Lamour.Infrastructure.Migrations
                             Id = 39,
                             Code = "5213",
                             Description = "Giảm giá hàng bán"
+                        },
+                        new
+                        {
+                            Id = 40,
+                            Code = "111",
+                            Description = "Tiền mặt"
+                        },
+                        new
+                        {
+                            Id = 41,
+                            Code = "112",
+                            Description = "Tiền gửi ngân hàng"
+                        },
+                        new
+                        {
+                            Id = 42,
+                            Code = "131",
+                            Description = "Phải thu của khách hàng"
+                        },
+                        new
+                        {
+                            Id = 43,
+                            Code = "334",
+                            Description = "Phải trả người lao động"
                         });
                 });
 
@@ -681,6 +705,71 @@ namespace Lamour.Infrastructure.Migrations
                     b.ToTable("customers", (string)null);
                 });
 
+            modelBuilder.Entity("Lamour.Domain.Entities.Department", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasColumnName("id");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("name");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Name")
+                        .IsUnique();
+
+                    b.ToTable("departments", (string)null);
+
+                    b.HasData(
+                        new
+                        {
+                            Id = 1,
+                            Name = "PHÒNG SALES"
+                        },
+                        new
+                        {
+                            Id = 2,
+                            Name = "PHÒNG MARKETING"
+                        },
+                        new
+                        {
+                            Id = 3,
+                            Name = "PHÒNG KHO VẬN"
+                        },
+                        new
+                        {
+                            Id = 4,
+                            Name = "PHÒNG TÀI CHÍNH - KẾ TOÁN"
+                        },
+                        new
+                        {
+                            Id = 5,
+                            Name = "PHÒNG NHÂN SỰ"
+                        },
+                        new
+                        {
+                            Id = 6,
+                            Name = "PHÒNG ĐÀO TẠO"
+                        },
+                        new
+                        {
+                            Id = 7,
+                            Name = "PHÒNG SPA"
+                        },
+                        new
+                        {
+                            Id = 8,
+                            Name = "KHÁC"
+                        });
+                });
+
             modelBuilder.Entity("Lamour.Domain.Entities.Deposit", b =>
                 {
                     b.Property<int>("Id")
@@ -892,6 +981,46 @@ namespace Lamour.Infrastructure.Migrations
                     b.ToTable("employees", (string)null);
                 });
 
+            modelBuilder.Entity("Lamour.Domain.Entities.ExpenseCategory", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasColumnName("id");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("Code")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
+                        .HasColumnName("code");
+
+                    b.Property<int?>("DepartmentId")
+                        .HasColumnType("integer")
+                        .HasColumnName("department_id");
+
+                    b.Property<string>("Description")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)")
+                        .HasColumnName("description");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)")
+                        .HasColumnName("name");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Code")
+                        .IsUnique();
+
+                    b.HasIndex("DepartmentId");
+
+                    b.ToTable("expense_categories", (string)null);
+                });
+
             modelBuilder.Entity("Lamour.Domain.Entities.Payment", b =>
                 {
                     b.Property<int>("Id")
@@ -910,6 +1039,9 @@ namespace Lamour.Infrastructure.Migrations
                     b.Property<string>("Attachment")
                         .HasMaxLength(500)
                         .HasColumnType("character varying(500)");
+
+                    b.Property<DateTime?>("ConfirmedAt")
+                        .HasColumnType("timestamp with time zone");
 
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("timestamp with time zone");
@@ -935,9 +1067,18 @@ namespace Lamour.Infrastructure.Migrations
                         .HasMaxLength(30)
                         .HasColumnType("character varying(30)");
 
+                    b.Property<string>("ReasonDetail")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)");
+
                     b.Property<string>("Reference")
                         .HasMaxLength(200)
                         .HasColumnType("character varying(200)");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)");
 
                     b.Property<int>("SupplierId")
                         .HasColumnType("integer");
@@ -967,20 +1108,19 @@ namespace Lamour.Infrastructure.Migrations
                         .HasMaxLength(100)
                         .HasColumnType("character varying(100)");
 
-                    b.Property<string>("CreditAccount")
-                        .IsRequired()
-                        .HasMaxLength(20)
-                        .HasColumnType("character varying(20)");
+                    b.Property<int>("CreditAccountSettingId")
+                        .HasColumnType("integer");
 
-                    b.Property<string>("DebitAccount")
-                        .IsRequired()
-                        .HasMaxLength(20)
-                        .HasColumnType("character varying(20)");
+                    b.Property<int>("DebitAccountSettingId")
+                        .HasColumnType("integer");
 
                     b.Property<string>("Description")
                         .IsRequired()
                         .HasMaxLength(500)
                         .HasColumnType("character varying(500)");
+
+                    b.Property<int?>("ExpenseCategoryId")
+                        .HasColumnType("integer");
 
                     b.Property<int>("PaymentId")
                         .HasColumnType("integer");
@@ -994,6 +1134,12 @@ namespace Lamour.Infrastructure.Migrations
                         .HasColumnType("character varying(200)");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("CreditAccountSettingId");
+
+                    b.HasIndex("DebitAccountSettingId");
+
+                    b.HasIndex("ExpenseCategoryId");
 
                     b.HasIndex("PaymentId");
 
@@ -1271,6 +1417,39 @@ namespace Lamour.Infrastructure.Migrations
                             Id = 10,
                             Name = "Lọ"
                         });
+                });
+
+            modelBuilder.Entity("Lamour.Domain.Entities.ProductWarehouseStock", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasColumnName("id");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<int>("ProductId")
+                        .HasColumnType("integer")
+                        .HasColumnName("product_id");
+
+                    b.Property<int>("Quantity")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasDefaultValue(0)
+                        .HasColumnName("quantity");
+
+                    b.Property<int>("WarehouseId")
+                        .HasColumnType("integer")
+                        .HasColumnName("warehouse_id");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("WarehouseId");
+
+                    b.HasIndex("ProductId", "WarehouseId")
+                        .IsUnique();
+
+                    b.ToTable("product_warehouse_stocks", (string)null);
                 });
 
             modelBuilder.Entity("Lamour.Domain.Entities.Receipt", b =>
@@ -1585,11 +1764,17 @@ namespace Lamour.Infrastructure.Migrations
                         .HasColumnType("numeric(18,2)")
                         .HasColumnName("unit_price");
 
+                    b.Property<int>("WarehouseId")
+                        .HasColumnType("integer")
+                        .HasColumnName("warehouse_id");
+
                     b.HasKey("Id");
 
                     b.HasIndex("ProductId");
 
                     b.HasIndex("SalesOrderId");
+
+                    b.HasIndex("WarehouseId");
 
                     b.ToTable("sales_order_lines", (string)null);
                 });
@@ -1758,11 +1943,17 @@ namespace Lamour.Infrastructure.Migrations
                         .HasColumnType("numeric(18,2)")
                         .HasColumnName("unit_price");
 
+                    b.Property<int>("WarehouseId")
+                        .HasColumnType("integer")
+                        .HasColumnName("warehouse_id");
+
                     b.HasKey("Id");
 
                     b.HasIndex("ProductId");
 
                     b.HasIndex("SalesReturnId");
+
+                    b.HasIndex("WarehouseId");
 
                     b.ToTable("sales_return_lines", (string)null);
                 });
@@ -2069,6 +2260,16 @@ namespace Lamour.Infrastructure.Migrations
                     b.Navigation("SalesOrder");
                 });
 
+            modelBuilder.Entity("Lamour.Domain.Entities.ExpenseCategory", b =>
+                {
+                    b.HasOne("Lamour.Domain.Entities.Department", "Department")
+                        .WithMany()
+                        .HasForeignKey("DepartmentId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.Navigation("Department");
+                });
+
             modelBuilder.Entity("Lamour.Domain.Entities.Payment", b =>
                 {
                     b.HasOne("Lamour.Domain.Entities.Employee", "PaymentEmployee")
@@ -2089,11 +2290,34 @@ namespace Lamour.Infrastructure.Migrations
 
             modelBuilder.Entity("Lamour.Domain.Entities.PaymentEntry", b =>
                 {
+                    b.HasOne("Lamour.Domain.Entities.AccountSetting", "CreditAccountSetting")
+                        .WithMany()
+                        .HasForeignKey("CreditAccountSettingId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("Lamour.Domain.Entities.AccountSetting", "DebitAccountSetting")
+                        .WithMany()
+                        .HasForeignKey("DebitAccountSettingId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("Lamour.Domain.Entities.ExpenseCategory", "ExpenseCategory")
+                        .WithMany()
+                        .HasForeignKey("ExpenseCategoryId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
                     b.HasOne("Lamour.Domain.Entities.Payment", "Payment")
                         .WithMany("Entries")
                         .HasForeignKey("PaymentId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
+
+                    b.Navigation("CreditAccountSetting");
+
+                    b.Navigation("DebitAccountSetting");
+
+                    b.Navigation("ExpenseCategory");
 
                     b.Navigation("Payment");
                 });
@@ -2165,6 +2389,25 @@ namespace Lamour.Infrastructure.Migrations
                     b.Navigation("StockAccount");
                 });
 
+            modelBuilder.Entity("Lamour.Domain.Entities.ProductWarehouseStock", b =>
+                {
+                    b.HasOne("Lamour.Domain.Entities.Product", "Product")
+                        .WithMany()
+                        .HasForeignKey("ProductId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("Lamour.Domain.Entities.Warehouse", "Warehouse")
+                        .WithMany()
+                        .HasForeignKey("WarehouseId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Product");
+
+                    b.Navigation("Warehouse");
+                });
+
             modelBuilder.Entity("Lamour.Domain.Entities.Receipt", b =>
                 {
                     b.HasOne("Lamour.Domain.Entities.Employee", "CollectorEmployee")
@@ -2226,9 +2469,17 @@ namespace Lamour.Infrastructure.Migrations
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
+                    b.HasOne("Lamour.Domain.Entities.Warehouse", "Warehouse")
+                        .WithMany()
+                        .HasForeignKey("WarehouseId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
                     b.Navigation("Product");
 
                     b.Navigation("SalesOrder");
+
+                    b.Navigation("Warehouse");
                 });
 
             modelBuilder.Entity("Lamour.Domain.Entities.SalesReturn", b =>
@@ -2263,9 +2514,17 @@ namespace Lamour.Infrastructure.Migrations
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
+                    b.HasOne("Lamour.Domain.Entities.Warehouse", "Warehouse")
+                        .WithMany()
+                        .HasForeignKey("WarehouseId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
                     b.Navigation("Product");
 
                     b.Navigation("SalesReturn");
+
+                    b.Navigation("Warehouse");
                 });
 
             modelBuilder.Entity("Lamour.Domain.Entities.WarehouseReceipt", b =>

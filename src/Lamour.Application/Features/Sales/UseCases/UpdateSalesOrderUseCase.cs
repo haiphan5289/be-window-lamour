@@ -3,6 +3,7 @@ using Lamour.Application.Features.Products.Repositories;
 using Lamour.Application.Features.Sales;
 using Lamour.Application.Features.Sales.Dtos;
 using Lamour.Application.Features.Sales.Repositories;
+using Lamour.Application.Features.Warehouse.Repositories;
 using Lamour.Domain.Entities;
 using Lamour.Domain.Exceptions;
 using Microsoft.Extensions.Logging;
@@ -13,17 +14,20 @@ public class UpdateSalesOrderUseCase : IUpdateSalesOrderUseCase
 {
     private readonly ISalesOrderRepository _repo;
     private readonly IProductRepository    _productRepo;
+    private readonly IProductWarehouseStockRepository _stockRepo;
     private readonly IUnitOfWork           _uow;
     private readonly ILogger<UpdateSalesOrderUseCase> _logger;
 
     public UpdateSalesOrderUseCase(
         ISalesOrderRepository repo,
         IProductRepository productRepo,
+        IProductWarehouseStockRepository stockRepo,
         IUnitOfWork uow,
         ILogger<UpdateSalesOrderUseCase> logger)
     {
         _repo        = repo;
         _productRepo = productRepo;
+        _stockRepo   = stockRepo;
         _uow         = uow;
         _logger      = logger;
     }
@@ -49,6 +53,7 @@ public class UpdateSalesOrderUseCase : IUpdateSalesOrderUseCase
                     product.StockQuantity += oldLine.Quantity;
                     await _productRepo.UpdateAsync(product, ct);
                 }
+                await _stockRepo.AdjustQuantityAsync(oldLine.ProductId, oldLine.WarehouseId, oldLine.Quantity, ct);
             }
 
             // Build new lines — validate stock against restored quantities
@@ -59,8 +64,12 @@ public class UpdateSalesOrderUseCase : IUpdateSalesOrderUseCase
                 var product = await _productRepo.GetByIdAsync(dto.ProductId, ct);
                 if (product is null)
                     throw new DomainException($"Sản phẩm với id {dto.ProductId} không tồn tại.");
-                if (!dto.IsPromotion && product.StockQuantity < dto.Quantity)
-                    stockErrors.Add($"• {product.Name}: có {product.StockQuantity}, cần {dto.Quantity}");
+                if (!dto.IsPromotion)
+                {
+                    var availableQty = await _stockRepo.GetQuantityAsync(dto.ProductId, dto.WarehouseId, ct);
+                    if (availableQty < dto.Quantity)
+                        stockErrors.Add($"• {product.Name}: kho có {availableQty}, cần {dto.Quantity}");
+                }
 
                 // Hàng khuyến mại: giá/CK/thuế luôn = 0, bất kể client gửi gì lên.
                 var unitPrice      = dto.IsPromotion ? 0m : dto.UnitPrice;
@@ -75,6 +84,7 @@ public class UpdateSalesOrderUseCase : IUpdateSalesOrderUseCase
                 newLines.Add(new SalesOrderLine
                 {
                     ProductId         = dto.ProductId,
+                    WarehouseId       = dto.WarehouseId,
                     ProductCode       = product.Code,
                     ProductName       = product.Name,
                     IsPromotion       = dto.IsPromotion,
@@ -128,6 +138,7 @@ public class UpdateSalesOrderUseCase : IUpdateSalesOrderUseCase
                     product.StockQuantity -= line.Quantity;
                     await _productRepo.UpdateAsync(product, ct);
                 }
+                await _stockRepo.AdjustQuantityAsync(line.ProductId, line.WarehouseId, -line.Quantity, ct);
             }
 
             await _uow.CommitAsync(ct);

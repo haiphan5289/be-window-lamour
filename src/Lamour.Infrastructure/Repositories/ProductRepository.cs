@@ -49,7 +49,11 @@ public class ProductRepository : IProductRepository
 
     public async Task<Product> UpdateAsync(Product product, CancellationToken ct = default)
     {
-        _db.Products.Update(product);
+        // Chỉ mark root entity Modified — KHÔNG dùng _db.Products.Update(product), vì product được load
+        // qua GetByIdAsync (AsNoTracking + Include Category/ProductUnit/DefaultWarehouse/6 AccountSetting).
+        // DbSet.Update() cascade toàn bộ graph reachable thành Modified, ghi đè nhầm các bảng lookup dùng chung
+        // bằng giá trị đã load trước đó (lost-update nếu bảng đó vừa bị sửa bởi request khác).
+        _db.Entry(product).State = EntityState.Modified;
         await _db.SaveChangesAsync(ct);
         return product;
     }

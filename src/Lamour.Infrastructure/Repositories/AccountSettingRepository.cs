@@ -21,6 +21,15 @@ public class AccountSettingRepository : IAccountSettingRepository
         => await _db.AccountSettings.AsNoTracking()
             .AnyAsync(a => a.Code.ToLower() == code.ToLower() && (excludeId == null || a.Id != excludeId), ct);
 
+    public async Task<bool> IsInUseAsync(int accountSettingId, CancellationToken ct = default)
+        => await _db.Products.AsNoTracking().AnyAsync(p =>
+            p.StockAccountId == accountSettingId ||
+            p.RevenueAccountId == accountSettingId ||
+            p.DiscountAccountId == accountSettingId ||
+            p.PriceReductionAccountId == accountSettingId ||
+            p.ReturnAccountId == accountSettingId ||
+            p.CostAccountId == accountSettingId, ct);
+
     public async Task<AccountSetting> AddAsync(AccountSetting account, CancellationToken ct = default)
     {
         _db.AccountSettings.Add(account);

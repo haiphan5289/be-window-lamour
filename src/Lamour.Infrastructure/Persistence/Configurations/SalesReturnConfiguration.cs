@@ -53,6 +53,7 @@ public class SalesReturnLineConfiguration : IEntityTypeConfiguration<SalesReturn
         builder.Property(x => x.Id).HasColumnName("id");
         builder.Property(x => x.SalesReturnId).HasColumnName("sales_return_id");
         builder.Property(x => x.ProductId).HasColumnName("product_id");
+        builder.Property(x => x.WarehouseId).HasColumnName("warehouse_id");
         builder.Property(x => x.ProductCode).HasColumnName("product_code").HasMaxLength(50).IsRequired();
         builder.Property(x => x.ProductName).HasColumnName("product_name").HasMaxLength(200).IsRequired();
         builder.Property(x => x.ReturnAccount).HasColumnName("return_account").HasMaxLength(20).IsRequired();
@@ -69,6 +70,11 @@ public class SalesReturnLineConfiguration : IEntityTypeConfiguration<SalesReturn
         builder.HasOne(x => x.Product)
                .WithMany()
                .HasForeignKey(x => x.ProductId)
+               .OnDelete(DeleteBehavior.Restrict);
+
+        builder.HasOne(x => x.Warehouse)
+               .WithMany()
+               .HasForeignKey(x => x.WarehouseId)
                .OnDelete(DeleteBehavior.Restrict);
     }
 }

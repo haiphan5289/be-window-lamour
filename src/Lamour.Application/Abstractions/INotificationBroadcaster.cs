@@ -1,7 +1,9 @@
 using Lamour.Application.Features.AccountSettings.Dtos;
 using Lamour.Application.Features.Categories.Dtos;
 using Lamour.Application.Features.Customers.Dtos;
+using Lamour.Application.Features.Departments.Dtos;
 using Lamour.Application.Features.Employees.Dtos;
+using Lamour.Application.Features.ExpenseCategories.Dtos;
 using Lamour.Application.Features.Products.Dtos;
 using Lamour.Application.Features.ProductUnits.Dtos;
 using Lamour.Application.Features.Suppliers.Dtos;
@@ -43,4 +45,12 @@ public interface INotificationBroadcaster
     Task WarehouseCreatedAsync(WarehouseResponseDto warehouse, CancellationToken ct = default);
     Task WarehouseUpdatedAsync(WarehouseResponseDto warehouse, CancellationToken ct = default);
     Task WarehouseDeletedAsync(int warehouseId, CancellationToken ct = default);
+
+    Task DepartmentCreatedAsync(DepartmentResponseDto department, CancellationToken ct = default);
+    Task DepartmentUpdatedAsync(DepartmentResponseDto department, CancellationToken ct = default);
+    Task DepartmentDeletedAsync(int departmentId, CancellationToken ct = default);
+
+    Task ExpenseCategoryCreatedAsync(ExpenseCategoryResponseDto category, CancellationToken ct = default);
+    Task ExpenseCategoryUpdatedAsync(ExpenseCategoryResponseDto category, CancellationToken ct = default);
+    Task ExpenseCategoryDeletedAsync(int categoryId, CancellationToken ct = default);
 }

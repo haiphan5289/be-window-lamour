@@ -23,7 +23,7 @@ public class UpdateProductRequestDto
     [JsonPropertyName("description")]          public string?  Description         { get; set; }
     [JsonPropertyName("product_unit_id")]      public int?     ProductUnitId       { get; set; }
     [JsonPropertyName("warranty_period")]      public string?  WarrantyPeriod      { get; set; }
-    [JsonPropertyName("min_stock_quantity")]   public int      MinStockQuantity    { get; set; }
+    [JsonPropertyName("min_stock_quantity")]   public int?     MinStockQuantity    { get; set; }
     [JsonPropertyName("origin")]               public string?  Origin              { get; set; }
     [JsonPropertyName("purchase_description")] public string?  PurchaseDescription { get; set; }
     [JsonPropertyName("sale_description")]     public string?  SaleDescription     { get; set; }
@@ -36,8 +36,8 @@ public class UpdateProductRequestDto
     [JsonPropertyName("price_reduction_account_id")] public int?    PriceReductionAccountId { get; set; }
     [JsonPropertyName("return_account_id")]          public int?    ReturnAccountId         { get; set; }
     [JsonPropertyName("cost_account_id")]            public int?    CostAccountId           { get; set; }
-    [JsonPropertyName("trade_discount_rate")]        public decimal TradeDiscountRate       { get; set; }
+    [JsonPropertyName("trade_discount_rate")]        public decimal? TradeDiscountRate      { get; set; }
     [JsonPropertyName("special_goods_type")]         public string? SpecialGoodsType        { get; set; }
-    [JsonPropertyName("latest_purchase_price")]      public decimal LatestPurchasePrice     { get; set; }
-    [JsonPropertyName("is_promotional_good")]        public bool    IsPromotionalGood       { get; set; }
+    [JsonPropertyName("latest_purchase_price")]      public decimal? LatestPurchasePrice    { get; set; }
+    [JsonPropertyName("is_promotional_good")]        public bool?   IsPromotionalGood       { get; set; }
 }

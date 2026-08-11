@@ -59,6 +59,7 @@ public class SalesOrderLineConfiguration : IEntityTypeConfiguration<SalesOrderLi
         builder.Property(x => x.Id).HasColumnName("id");
         builder.Property(x => x.SalesOrderId).HasColumnName("sales_order_id");
         builder.Property(x => x.ProductId).HasColumnName("product_id");
+        builder.Property(x => x.WarehouseId).HasColumnName("warehouse_id");
         builder.Property(x => x.ProductCode).HasColumnName("product_code").HasMaxLength(50).IsRequired();
         builder.Property(x => x.ProductName).HasColumnName("product_name").HasMaxLength(200).IsRequired();
         builder.Property(x => x.IsPromotion).HasColumnName("is_promotion");
@@ -76,6 +77,11 @@ public class SalesOrderLineConfiguration : IEntityTypeConfiguration<SalesOrderLi
         builder.HasOne(x => x.Product)
                .WithMany()
                .HasForeignKey(x => x.ProductId)
+               .OnDelete(DeleteBehavior.Restrict);
+
+        builder.HasOne(x => x.Warehouse)
+               .WithMany()
+               .HasForeignKey(x => x.WarehouseId)
                .OnDelete(DeleteBehavior.Restrict);
     }
 }

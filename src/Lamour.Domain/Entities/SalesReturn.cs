@@ -43,6 +43,9 @@ public class SalesReturnLine
     public int     ProductId   { get; set; }
     public Product Product     { get; set; } = null!;
 
+    public int       WarehouseId { get; set; }      // Kho nhận lại hàng cho dòng này
+    public Warehouse Warehouse   { get; set; } = null!;
+
     public string ProductCode { get; set; } = "";  // denormalized
     public string ProductName { get; set; } = "";  // denormalized
 

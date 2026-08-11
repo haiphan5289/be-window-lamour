@@ -23,6 +23,9 @@ public class DeleteAccountSettingUseCase : IDeleteAccountSettingUseCase
         var account = await _repo.GetByIdAsync(id, ct)
             ?? throw new NotFoundException($"Account setting {id} not found.");
 
+        if (await _repo.IsInUseAsync(id, ct))
+            throw new DomainException($"Tài khoản '{account.Code}' đang được sản phẩm sử dụng, không thể xoá.");
+
         await _repo.DeleteAsync(account, ct);
         _logger.LogInformation("Deleted account setting {Id}", id);
 
