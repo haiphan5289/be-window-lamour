@@ -1,4 +1,5 @@
 using Lamour.Application.Abstractions;
+using Lamour.Application.Features.Deposits.Repositories;
 using Lamour.Application.Features.Products.Repositories;
 using Lamour.Application.Features.Sales.Dtos;
 using Lamour.Application.Features.Sales.Repositories;
@@ -40,7 +41,7 @@ public class SalesOrderAmountManualTests
 
     private static CreateSalesOrderRequestDto MakeCreateRequest(SalesOrderLineDto line) => new()
     {
-        DocumentNumber = "BC00001",
+        DocumentNumber = "XK00001",
         AccountingDate = DateTime.UtcNow,
         DocumentDate   = DateTime.UtcNow,
         CustomerId     = 1,
@@ -48,7 +49,7 @@ public class SalesOrderAmountManualTests
     };
 
     private static (Mock<ISalesOrderRepository> repo, Mock<IProductRepository> productRepo,
-        Mock<IProductWarehouseStockRepository> stockRepo, Mock<IUnitOfWork> uow)
+        Mock<IProductWarehouseStockRepository> stockRepo, Mock<IDepositRepository> depositRepo, Mock<IUnitOfWork> uow)
         MakeMocks(Product product)
     {
         var repo = new Mock<ISalesOrderRepository>();
@@ -63,16 +64,20 @@ public class SalesOrderAmountManualTests
         stockRepo.Setup(r => r.GetQuantityAsync(product.Id, It.IsAny<int>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(product.StockQuantity);
 
+        var depositRepo = new Mock<IDepositRepository>();
+        depositRepo.Setup(r => r.GetBySourceSalesOrderIdAsync(It.IsAny<int>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync((Domain.Entities.Deposit?)null);
+
         var uow = new Mock<IUnitOfWork>();
-        return (repo, productRepo, stockRepo, uow);
+        return (repo, productRepo, stockRepo, depositRepo, uow);
     }
 
     [Fact]
     public async Task Create_WithAmountManual_UsesClientAmount_IgnoringFormula()
     {
         var product = MakeProduct();
-        var (repo, productRepo, stockRepo, uow) = MakeMocks(product);
-        var useCase = new CreateSalesOrderUseCase(repo.Object, productRepo.Object, stockRepo.Object, uow.Object,
+        var (repo, productRepo, stockRepo, depositRepo, uow) = MakeMocks(product);
+        var useCase = new CreateSalesOrderUseCase(repo.Object, productRepo.Object, stockRepo.Object, depositRepo.Object, uow.Object,
             Mock.Of<ILogger<CreateSalesOrderUseCase>>());
 
         // Formula would give 2 * 150000 * (1 - 10/100) = 270000, but manual amount overrides it.
@@ -89,8 +94,8 @@ public class SalesOrderAmountManualTests
     public async Task Create_WithAmountManualNegative_ThrowsDomainException()
     {
         var product = MakeProduct();
-        var (repo, productRepo, stockRepo, uow) = MakeMocks(product);
-        var useCase = new CreateSalesOrderUseCase(repo.Object, productRepo.Object, stockRepo.Object, uow.Object,
+        var (repo, productRepo, stockRepo, depositRepo, uow) = MakeMocks(product);
+        var useCase = new CreateSalesOrderUseCase(repo.Object, productRepo.Object, stockRepo.Object, depositRepo.Object, uow.Object,
             Mock.Of<ILogger<CreateSalesOrderUseCase>>());
 
         var line = MakeLineDto(isAmountManual: true, amount: -1000);
@@ -103,8 +108,8 @@ public class SalesOrderAmountManualTests
     public async Task Create_WithAmountManualFalse_KeepsAutoCalcFormula()
     {
         var product = MakeProduct();
-        var (repo, productRepo, stockRepo, uow) = MakeMocks(product);
-        var useCase = new CreateSalesOrderUseCase(repo.Object, productRepo.Object, stockRepo.Object, uow.Object,
+        var (repo, productRepo, stockRepo, depositRepo, uow) = MakeMocks(product);
+        var useCase = new CreateSalesOrderUseCase(repo.Object, productRepo.Object, stockRepo.Object, depositRepo.Object, uow.Object,
             Mock.Of<ILogger<CreateSalesOrderUseCase>>());
 
         // amount field sent by client is ignored when IsAmountManual = false.
@@ -121,8 +126,8 @@ public class SalesOrderAmountManualTests
     public async Task Create_PromotionLine_IgnoresAmountManual_ForcesZero()
     {
         var product = MakeProduct();
-        var (repo, productRepo, stockRepo, uow) = MakeMocks(product);
-        var useCase = new CreateSalesOrderUseCase(repo.Object, productRepo.Object, stockRepo.Object, uow.Object,
+        var (repo, productRepo, stockRepo, depositRepo, uow) = MakeMocks(product);
+        var useCase = new CreateSalesOrderUseCase(repo.Object, productRepo.Object, stockRepo.Object, depositRepo.Object, uow.Object,
             Mock.Of<ILogger<CreateSalesOrderUseCase>>());
 
         var line = MakeLineDto(isAmountManual: true, amount: 999000, isPromotion: true);
@@ -138,7 +143,7 @@ public class SalesOrderAmountManualTests
     public async Task Update_WithAmountManual_UsesClientAmount_IgnoringFormula()
     {
         var product = MakeProduct();
-        var (repo, productRepo, stockRepo, uow) = MakeMocks(product);
+        var (repo, productRepo, stockRepo, depositRepo, uow) = MakeMocks(product);
 
         var existingOrder = new SalesOrder
         {
@@ -148,13 +153,13 @@ public class SalesOrderAmountManualTests
         repo.Setup(r => r.GetByIdTrackedAsync(1, It.IsAny<CancellationToken>())).ReturnsAsync(existingOrder);
         repo.Setup(r => r.GetByIdAsync(1, It.IsAny<CancellationToken>())).ReturnsAsync(existingOrder);
 
-        var useCase = new UpdateSalesOrderUseCase(repo.Object, productRepo.Object, stockRepo.Object, uow.Object,
+        var useCase = new UpdateSalesOrderUseCase(repo.Object, productRepo.Object, stockRepo.Object, depositRepo.Object, uow.Object,
             Mock.Of<ILogger<UpdateSalesOrderUseCase>>());
 
         var line = MakeLineDto(isAmountManual: true, amount: 555000);
         var request = new UpdateSalesOrderRequestDto
         {
-            DocumentNumber = "BC00001",
+            DocumentNumber = "XK00001",
             AccountingDate = DateTime.UtcNow,
             DocumentDate   = DateTime.UtcNow,
             CustomerId     = 1,
@@ -171,18 +176,18 @@ public class SalesOrderAmountManualTests
     public async Task Update_WithAmountManualNegative_ThrowsDomainException()
     {
         var product = MakeProduct();
-        var (repo, productRepo, stockRepo, uow) = MakeMocks(product);
+        var (repo, productRepo, stockRepo, depositRepo, uow) = MakeMocks(product);
 
         var existingOrder = new SalesOrder { Id = 1, Lines = new List<SalesOrderLine>() };
         repo.Setup(r => r.GetByIdTrackedAsync(1, It.IsAny<CancellationToken>())).ReturnsAsync(existingOrder);
 
-        var useCase = new UpdateSalesOrderUseCase(repo.Object, productRepo.Object, stockRepo.Object, uow.Object,
+        var useCase = new UpdateSalesOrderUseCase(repo.Object, productRepo.Object, stockRepo.Object, depositRepo.Object, uow.Object,
             Mock.Of<ILogger<UpdateSalesOrderUseCase>>());
 
         var line = MakeLineDto(isAmountManual: true, amount: -50);
         var request = new UpdateSalesOrderRequestDto
         {
-            DocumentNumber = "BC00001",
+            DocumentNumber = "XK00001",
             AccountingDate = DateTime.UtcNow,
             DocumentDate   = DateTime.UtcNow,
             CustomerId     = 1,

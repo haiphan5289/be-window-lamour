@@ -39,8 +39,11 @@ public class UpdateProductUseCase : IUpdateProductUseCase
         if (string.IsNullOrWhiteSpace(request.Name))
             throw new DomainException("Product name is required.");
 
-        var category = await _categoryRepo.GetByIdAsync(request.CategoryId, ct)
-            ?? throw new DomainException($"Danh mục với id {request.CategoryId} không tồn tại.");
+        if (request.CategoryId.HasValue)
+        {
+            _ = await _categoryRepo.GetByIdAsync(request.CategoryId.Value, ct)
+                ?? throw new DomainException($"Danh mục với id {request.CategoryId} không tồn tại.");
+        }
 
         if (!string.IsNullOrWhiteSpace(request.Code) && await _repo.CodeExistsAsync(request.Code, excludeId: id, ct: ct))
             throw new DomainException($"Product with code '{request.Code}' already exists.");
@@ -87,6 +90,7 @@ public class UpdateProductUseCase : IUpdateProductUseCase
         product.SpecialGoodsType        = request.SpecialGoodsType;
         product.LatestPurchasePrice     = request.LatestPurchasePrice ?? product.LatestPurchasePrice;
         product.IsPromotionalGood       = request.IsPromotionalGood ?? product.IsPromotionalGood;
+        product.IsDepositProduct        = request.IsDepositProduct ?? product.IsDepositProduct;
 
         var updated = await _repo.UpdateAsync(product, ct);
         _logger.LogInformation("Updated product {Id}", id);

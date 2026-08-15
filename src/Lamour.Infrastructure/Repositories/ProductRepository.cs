@@ -1,7 +1,9 @@
 using Lamour.Application.Features.Products.Repositories;
 using Lamour.Domain.Entities;
+using Lamour.Domain.Exceptions;
 using Lamour.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
+using Npgsql;
 
 namespace Lamour.Infrastructure.Repositories;
 
@@ -35,11 +37,6 @@ public class ProductRepository : IProductRepository
         => await _db.Products.AsNoTracking()
             .AnyAsync(p => p.Code.ToLower() == code.ToLower() && (excludeId == null || p.Id != excludeId), ct);
 
-    public async Task<bool> IsInUseAsync(int productId, CancellationToken ct = default)
-        => await _db.SalesOrderLines.AsNoTracking().AnyAsync(l => l.ProductId == productId, ct)
-        || await _db.SalesReturnLines.AsNoTracking().AnyAsync(l => l.ProductId == productId, ct)
-        || await _db.WarehouseReceiptLines.AsNoTracking().AnyAsync(l => l.ProductId == productId, ct);
-
     public async Task<Product> AddAsync(Product product, CancellationToken ct = default)
     {
         _db.Products.Add(product);
@@ -61,6 +58,13 @@ public class ProductRepository : IProductRepository
     public async Task DeleteAsync(Product product, CancellationToken ct = default)
     {
         _db.Products.Remove(product);
-        await _db.SaveChangesAsync(ct);
+        try
+        {
+            await _db.SaveChangesAsync(ct);
+        }
+        catch (DbUpdateException ex) when (ex.InnerException is PostgresException { SqlState: PostgresErrorCodes.ForeignKeyViolation })
+        {
+            throw new DomainException($"Không thể xóa sản phẩm '{product.Name}' vì đang có trong đơn bán hàng, phiếu nhập kho hoặc hàng bán bị trả lại.");
+        }
     }
 }

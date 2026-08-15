@@ -238,6 +238,8 @@ builder.Services.AddScoped<Lamour.Application.Features.WarehouseReceipts.UseCase
                            Lamour.Application.Features.WarehouseReceipts.UseCases.GetWarehouseReceiptByIdUseCase>();
 builder.Services.AddScoped<Lamour.Application.Features.WarehouseReceipts.UseCases.IConfirmWarehouseReceiptUseCase,
                            Lamour.Application.Features.WarehouseReceipts.UseCases.ConfirmWarehouseReceiptUseCase>();
+builder.Services.AddScoped<Lamour.Application.Features.Warehouse.UseCases.IGetWarehouseTransactionsUseCase,
+                           Lamour.Application.Features.Warehouse.UseCases.GetWarehouseTransactionsUseCase>();
 
 // ── Unit of Work ─────────────────────────────────────────────────────────────
 builder.Services.AddScoped<Lamour.Application.Abstractions.IUnitOfWork,

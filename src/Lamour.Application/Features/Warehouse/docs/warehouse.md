@@ -1,6 +1,6 @@
 # Warehouse — Feature Document
 
-> **Jira:** — | **Branch:** `dev` | **Generated:** 2026-04-27 | **Updated:** 2026-04-28 (×2)
+> **Jira:** — | **Branch:** `dev` | **Generated:** 2026-04-27 | **Updated:** 2026-08-15 (×2: thêm `GET /api/v1/warehouse-transactions` — danh sách gộp Nhập/Xuất kho, xem changelog cuối file; 4 loại phiếu + Supplier + tab Thống kê + số phiếu `NK00048`) | 2026-04-28 (×2)
 
 ---
 
@@ -23,6 +23,10 @@
   - [x] `GET /api/v1/warehouse-receipts` — lấy danh sách phiếu nhập kho
   - [x] `POST /api/v1/warehouse-receipts` — tạo phiếu nhập kho (Draft)
   - [x] `POST /api/v1/warehouse-receipts/{id}/confirm` — xác nhận phiếu (cập nhật StockQuantity)
+  - [x] (2026-08-15) 4 loại phiếu: `1=FinishedGoodsProduced, 2=ReturnedGoods, 3=Other, 4=ProcessingReceived`
+  - [x] (2026-08-15) "Đối tượng" phiếu là `Customer` **hoặc** `Supplier` (mutually exclusive, không được set cả 2)
+  - [x] (2026-08-15) Mỗi line hỗ trợ 7 field thống kê kế toán mở rộng (optional)
+  - [x] (2026-08-15) Số phiếu đổi format: `NK{seq:D5}` (chạy tuần tự toàn hệ thống, không nhúng ngày)
 
 ---
 
@@ -43,7 +47,10 @@
 | Export qty | Hardcode = 0 (TODO: cần ExportInvoice module) |
 | Phiếu nhập kho — bất biến sau Confirm | Chỉ Draft mới có thể được Confirm; Confirmed không thể sửa/xóa |
 | Xác nhận cập nhật tồn kho | `ConfirmWarehouseReceiptUseCase` thực hiện `Product.StockQuantity += line.Quantity` cho tất cả dòng hàng |
-| Số phiếu tự sinh | Format `NK-{yyyyMMdd}-{seq:D3}`, đếm số phiếu có cùng prefix ngày |
+| Số phiếu tự sinh (đổi 2026-08-15) | Format `NK{seq:D5}` (VD: `NK00048`) — đếm tổng số phiếu toàn hệ thống + 1, **không còn nhúng ngày**; `GetNextReceiptNumberAsync` bỏ tham số `date` (trước đây `NK-{yyyyMMdd}-{seq:D3}` đếm theo prefix ngày) |
+| 4 loại phiếu (đổi 2026-08-15) | `WarehouseReceiptType`: `1=FinishedGoodsProduced` (Thành phẩm sản xuất), `2=ReturnedGoods` (Hàng bán bị trả lại), `3=Other` (Khác — NVL thừa, HH thuê gia công,...), `4=ProcessingReceived` (Hàng nhận gia công). Thay thế enum cũ 3 giá trị (`SupplierImport/ReturnedGoods/Adjustment`) — **breaking change** giá trị 1 và 3 đổi ý nghĩa |
+| Đối tượng: Customer hoặc Supplier (mới 2026-08-15) | `CreateWarehouseReceiptRequestDto` có cả `customer_id` và `supplier_id` (đều nullable) — `CreateWarehouseReceiptUseCase` throw `DomainException` nếu cả 2 cùng có giá trị. Validate tồn tại qua `ICustomerRepository`/`ISupplierRepository` tương ứng |
+| 7 field thống kê trên line (mới 2026-08-15) | `CostItem` (Khoản mục CP), `CostObject` (Đối tượng THCP), `Project` (Công trình), `PurchaseOrderNumber` (Đơn đặt hàng), `SalesContractNumber` (Hợp đồng bán), `LoanContractNumber` (Số khế ước), `StatisticsCode` (Mã thống kê) — toàn bộ `string?`, không validate, chỉ lưu trữ theo dõi nội bộ |
 | Không cho phép truy cập ẩn danh | Tất cả endpoints có `[Authorize]` — phải gửi JWT hợp lệ |
 
 ---
@@ -159,7 +166,7 @@ graph TD
 
 ### Application — Repository Contracts
 - [IInventoryRepository.cs](../Repositories/IInventoryRepository.cs) — `GetAllActiveAsync` + `GetImportsByProductAsync(DateOnly, DateOnly)` → `Dictionary<int, (int Qty, decimal Value, DateTime? LatestDate)>`
-- [IWarehouseReceiptRepository.cs](src/Lamour.Application/Features/WarehouseReceipts/Repositories/IWarehouseReceiptRepository.cs) — `GetAllAsync`, `GetByIdAsync`, `AddAsync`, `SaveChangesAsync`, `GetNextReceiptNumberAsync`
+- [IWarehouseReceiptRepository.cs](src/Lamour.Application/Features/WarehouseReceipts/Repositories/IWarehouseReceiptRepository.cs) — `GetAllAsync`, `GetByIdAsync`, `AddAsync`, `SaveChangesAsync`, `GetNextReceiptNumberAsync(CancellationToken ct = default)` — **đổi 2026-08-15**: bỏ tham số `date` (không còn cần vì số phiếu không nhúng ngày)
 
 ### Application — DTOs
 - [InventorySummaryItemDto.cs](../Dtos/InventorySummaryItemDto.cs) — 13 fields snake_case (incl. `latest_accounting_date`)
@@ -167,7 +174,7 @@ graph TD
 
 ### Domain
 - [Product.cs](src/Lamour.Domain/Entities/Product.cs) — `StockQuantity` (int), `CostPrice` (decimal), `IsActive`
-- [WarehouseReceipt.cs](src/Lamour.Domain/Entities/WarehouseReceipt.cs) — `WarehouseReceiptType` enum (1/2/3), `WarehouseReceiptStatus` enum (Draft/Confirmed), `WarehouseReceiptLine`
+- [WarehouseReceipt.cs](src/Lamour.Domain/Entities/WarehouseReceipt.cs) — `WarehouseReceiptType` enum (1=FinishedGoodsProduced, 2=ReturnedGoods, 3=Other, 4=ProcessingReceived — đổi 2026-08-15), `WarehouseReceiptStatus` enum (Draft/Confirmed), `CustomerId`/`Customer` + `SupplierId`/`Supplier` (mutually exclusive, mới 2026-08-15), `WarehouseReceiptLine` — có thêm 7 field thống kê (`CostItem`, `CostObject`, `Project`, `PurchaseOrderNumber`, `SalesContractNumber`, `LoanContractNumber`, `StatisticsCode`, mới 2026-08-15)
 
 ### Infrastructure
 - [InventoryRepository.cs](src/Lamour.Infrastructure/Repositories/InventoryRepository.cs) — `GetAllActiveAsync` (AsNoTracking, IsActive, OrderBy Code) + `GetImportsByProductAsync` (GroupBy ProductId, SUM Qty+Amount)
@@ -211,8 +218,9 @@ public class InventorySummaryItemDto
 ```csharp
 public class CreateWarehouseReceiptRequestDto
 {
-    [JsonPropertyName("receipt_type")]    public int      ReceiptType    { get; set; }  // 1=SupplierImport, 2=ReturnedGoods, 3=Adjustment
-    [JsonPropertyName("customer_id")]     public int?     CustomerId     { get; set; }
+    [JsonPropertyName("receipt_type")]    public int      ReceiptType    { get; set; }  // 1=FinishedGoodsProduced, 2=ReturnedGoods, 3=Other, 4=ProcessingReceived
+    [JsonPropertyName("customer_id")]     public int?     CustomerId     { get; set; }  // mutually exclusive với supplier_id
+    [JsonPropertyName("supplier_id")]     public int?     SupplierId     { get; set; }  // mutually exclusive với customer_id — mới 2026-08-15
     [JsonPropertyName("employee_id")]     public int?     EmployeeId     { get; set; }
     [JsonPropertyName("accounting_date")] public DateTime AccountingDate { get; set; }
     [JsonPropertyName("document_date")]   public DateTime DocumentDate   { get; set; }
@@ -220,6 +228,18 @@ public class CreateWarehouseReceiptRequestDto
     [JsonPropertyName("delivery_person")] public string?  DeliveryPerson { get; set; }
     [JsonPropertyName("reference")]       public string?  Reference      { get; set; }
     [JsonPropertyName("lines")]           public List<CreateWarehouseReceiptLineDto> Lines { get; set; }
+}
+
+public class CreateWarehouseReceiptLineDto  // mới 2026-08-15: 7 field thống kê, tất cả optional
+{
+    // ... product_id, warehouse_id, quantity, unit_price, amount, debit_account, credit_account (không đổi)
+    [JsonPropertyName("cost_item")]             public string? CostItem              { get; set; }  // Khoản mục CP
+    [JsonPropertyName("cost_object")]           public string? CostObject            { get; set; }  // Đối tượng THCP
+    [JsonPropertyName("project")]               public string? Project               { get; set; }  // Công trình
+    [JsonPropertyName("purchase_order_number")] public string? PurchaseOrderNumber   { get; set; }  // Đơn đặt hàng
+    [JsonPropertyName("sales_contract_number")] public string? SalesContractNumber   { get; set; }  // Hợp đồng bán
+    [JsonPropertyName("loan_contract_number")]  public string? LoanContractNumber    { get; set; }  // Số khế ước
+    [JsonPropertyName("statistics_code")]       public string? StatisticsCode        { get; set; }  // Mã thống kê
 }
 ```
 
@@ -260,6 +280,9 @@ public class CreateWarehouseReceiptRequestDto
 | Receipt không tồn tại khi Confirm | `DomainException("WarehouseReceipt with id X not found.")` → 400 | ✅ |
 | Line có `line.Product is null` (navigation không load) | `DomainException` → 400 | ✅ |
 | Số lượng sản phẩm rất lớn | Không có phân trang — toàn bộ trả về 1 response | ❌ TODO |
+| `customer_id` và `supplier_id` cùng có giá trị (mới 2026-08-15) | `DomainException("A receipt cannot reference both a customer and a supplier — choose one.")` → 400 | ✅ |
+| `supplier_id` không tồn tại (mới 2026-08-15) | `DomainException($"Supplier with id {id} not found.")` → 400 | ✅ |
+| `receipt_type` ngoài 1-4 (mới 2026-08-15) | `DomainException` → 400 (message liệt kê đủ 4 giá trị hợp lệ) | ✅ |
 
 ---
 
@@ -310,4 +333,53 @@ public class CreateWarehouseReceiptRequestDto
 
 ---
 
-*Generated by `/ct-ai-document` on 2026-04-27 | Updated 2026-04-28: LatestAccountingDate column + timezone bug fix + flat list layout (Mã hàng / Tên hàng)*
+## Changelog — 2026-08-15: Update "Phiếu nhập kho" theo mẫu MISA (4 loại, Supplier, tab Thống kê, số phiếu mới)
+
+> User cung cấp 2 ảnh chụp phần mềm kế toán MISA-style ("Phiếu nhập kho" / "Nhập kho khác") và yêu cầu cập nhật cho khớp. Scope chốt qua `/ct-be-to-desktop` (flipped interaction, 4 câu hỏi).
+
+**BE — `Lamour.Domain/Entities/WarehouseReceipt.cs`:**
+- `WarehouseReceiptType` đổi hoàn toàn 3 → 4 giá trị: `FinishedGoodsProduced=1` (trước là `SupplierImport`), `ReturnedGoods=2` (không đổi), `Other=3` (trước là `Adjustment`), `ProcessingReceived=4` (mới). **Breaking change** — giá trị 1 và 3 đổi ý nghĩa, client cũ gửi `receipt_type=1` mong đợi "nhập từ NCC" sẽ bị hiểu sai thành "Thành phẩm sản xuất".
+- Thêm `SupplierId`/`Supplier` (nullable) song song `CustomerId`/`Customer` hiện có. `CreateWarehouseReceiptUseCase` validate mutually-exclusive (throw nếu set cả 2) + validate tồn tại qua `ISupplierRepository.GetByIdAsync`.
+- `WarehouseReceiptLine` thêm 7 field thống kê (`CostItem`, `CostObject`, `Project`, `PurchaseOrderNumber`, `SalesContractNumber`, `LoanContractNumber`, `StatisticsCode`) — toàn bộ `string?` maxlength 100, không có bảng danh mục riêng, chỉ lưu text tự do.
+- `WarehouseReceiptRepository.GetNextReceiptNumberAsync` đổi format: đếm tổng số phiếu (`_db.WarehouseReceipts.CountAsync()`) thay vì đếm theo prefix ngày → `NK{count+1:D5}` (VD: `NK00048`). Bỏ tham số `date` khỏi interface + implementation vì không còn cần.
+- Migration: `20260815024707_UpdateWarehouseReceiptSupplierAndStats` — additive only (`AddColumn` × 8 + FK `supplier_id → suppliers` với `OnDelete: Restrict`).
+
+**WPF (`desktop-lamour`):**
+- `WarehouseReceiptFormWindow.xaml`: combo "Loại phiếu" 4 mục mới; field "Khách hàng" đổi thành "Đối tượng" (combo gộp Customer + Supplier qua `WarehouseObjectItem` wrapper mới, tự phân biệt loại khi lưu); thêm `TabControl` 2 tab "1. Hàng tiền" (grid cũ) / "2. Thống kê" (7 cột mới).
+- `WarehouseReceiptListView.xaml`: cột "Khách hàng" → "Đối tượng" (bind `WarehouseReceiptFlatItem.ObjectName` = `CustomerName ?? SupplierName`); label 4 loại phiếu cập nhật theo enum mới.
+- Fix nhỏ cùng đợt: cột "TK Nợ"/"TK Có" trong `WarehouseReceiptFormWindow.xaml` thiếu `ElementStyle` căn giữa (dọc/ngang) như các cột số khác — đã thêm.
+
+**Known gap:** Nút "+" cạnh combo "Đối tượng" chỉ mở form thêm nhanh **Khách hàng** (chưa có nút thêm nhanh Nhà cung cấp) — nếu cần dùng Supplier form riêng ở màn Suppliers.
+
+---
+
+## Changelog — 2026-08-15 (×2): `GET /api/v1/warehouse-transactions` — danh sách gộp Nhập/Xuất kho + đổi prefix Sales Order BC → XK
+
+> Yêu cầu: màn "Kho" khi mở ra hiển thị 1 danh sách gộp cả Nhập kho lẫn Xuất kho (Xuất kho = Chứng từ bán hàng), khớp UI tham chiếu MISA "Nhập, xuất kho". Vì hệ thống **không có** entity "Phiếu xuất kho" riêng (tồn kho giảm trực tiếp khi Sales Order ghi sổ — xem `CreateSalesOrderUseCase`/`UpdateSalesOrderUseCase`), quyết định (qua flipped-interaction, 3 vòng hỏi):
+> 1. Không tạo entity/bảng "Xuất kho" mới — map trực tiếp từ `SalesOrder` đã ghi sổ.
+> 2. Đổi hẳn prefix số chứng từ Sales Order từ `BC` → `XK` (toàn project, kể cả 14 đơn cũ đã ghi sổ trong DB) — để số Sales Order TỰ NHIÊN dùng được luôn cho dòng Xuất kho, không cần sinh thêm 1 số song song.
+> 3. Bộ lọc + panel "Chi tiết" đầy đủ như ảnh tham chiếu.
+
+**Đổi prefix BC → XK (Sales Order):**
+- `GetNextSalesOrderCodeUseCase` (`$"BC{n:D5}"` → `$"XK{n:D5}"`), `SalesOrderRepository.GetNextCodeNumberAsync` (`const string prefix = "BC"` → `"XK"`).
+- DB: `UPDATE sales_orders SET document_number = 'XK' || substring(document_number from 3) WHERE document_number LIKE 'BC%'` — đổi cả 14 chứng từ cũ (`BC00001`..`BC00014` → `XK00001`..`XK00014`). Đã kiểm tra không có bảng nào khác lưu denormalized text copy của số này cần đồng bộ theo (`sales_return_lines.sales_order_number` là free-text riêng, đang rỗng; `deposit_deductions.sales_order_id` là FK int, tự phản ánh qua navigation).
+- Phát hiện & fix kèm theo: `tests/Lamour.Application.Tests/.../SalesOrderAmountManualTests.cs` gọi constructor `CreateSalesOrderUseCase`/`UpdateSalesOrderUseCase` cũ (thiếu tham số `IDepositRepository` đã thêm ở tính năng Đặt cọc-qua-Sales-Order phiên trước) — test project chưa từng được build lại nên chưa lộ; đã fix, `dotnet test` pass 6/6.
+- WPF: 2 default fallback hardcode `"BC00001"` (`SalesOrderService.GetNextCodeAsync`, `SalesOrderViewModel`) đổi thành `"XK00001"`.
+- Xem chi tiết đầy đủ hơn ở [`Sales/docs/sales.md`](../../Sales/docs/sales.md) changelog cùng ngày.
+
+**`GET /api/v1/warehouse-transactions?from_date=&to_date=&type=import|export`** (mới):
+- `GetWarehouseTransactionsUseCase` (feature `Warehouse`, không phải `WarehouseReceipts`) — gộp `IWarehouseReceiptRepository.GetAllAsync()` (Nhập kho) + `ISalesOrderRepository.GetAllAsync()` (Xuất kho, lọc bỏ dòng `IsPromotion`), map cả 2 về chung 1 `WarehouseTransactionResponseDto`, sort theo `document_date` giảm dần. Filter `from_date`/`to_date` áp theo `AccountingDate`; `type` optional (`import`/`export`/bỏ trống = cả hai).
+- **Nhập kho**: `transaction_type="Import"`, `document_type_label="Nhập kho"`, `object_name` = Customer hoặc Supplier name, `has_sales_order=false`, dòng chi tiết lấy trực tiếp từ `WarehouseReceiptLine` (đã có `Product`/`Warehouse` Include sẵn).
+- **Xuất kho**: `transaction_type="Export"`, `document_type_label="Xuất kho bán hàng"`, `object_name` = `SalesOrder.Customer.Name`, `has_sales_order=true` (luôn true — dòng Xuất kho tự thân LÀ 1 Sales Order đã ghi sổ), `delivery_or_receiver=null` (SalesOrder không lưu tên người giao/nhận, chỉ có `DeliveryMethod` dạng mô tả). Dòng chi tiết: `TK Nợ`/`TK Có` lấy từ **`Product.CostAccount`/`Product.StockAccount`** (mặc định `632`/`1561` nếu sản phẩm chưa gán tài khoản) — **khác** với `ReceivableAccount`/`RevenueAccount` (`131`/`511`) đã có sẵn trên `SalesOrderLine`, vì đây là 2 bút toán khác nhau: Xuất kho ghi Nợ CP/Có Kho (giá vốn), còn Sales Order tự thân ghi Nợ Công nợ/Có Doanh thu. Cần tra `Product` (đã có sẵn `CostAccount`/`StockAccount` qua `IProductRepository.GetAllAsync`) và `Warehouse` (`IWarehouseRepository.GetAllAsync`, feature `Warehouses` — khác `WarehouseReceipts`) 1 lần, dùng chung cho mọi dòng thay vì N+1 query.
+- **`ledger_date`** (Ngày ghi sổ kho): dùng `CreatedAt` — hệ thống không có field "ngày ghi sổ" riêng biệt với ngày chứng từ.
+- **Known gap / scope cắt có chủ đích**: 4 cột "Mã quy cách"/"Số lô"/"Hạn sử dụng"/"Số khế ước" trong ảnh tham chiếu MISA **luôn để trống** — hệ thống hiện không model lô/hạn sử dụng/mã quy cách cho `Product`, thêm đầy đủ sẽ cần 1 subsystem theo dõi lô hàng riêng, ngoài phạm vi feature này.
+- Controller mới: `WarehouseTransactionsController` (`Lamour.Api/Controllers/`), `[Authorize]`. DI: `IGetWarehouseTransactionsUseCase → GetWarehouseTransactionsUseCase` (Scoped) trong `Program.cs`. Không cần EF migration (chỉ 1 query mới, không đổi schema).
+
+**WPF (`desktop-lamour`):**
+- Mới: `Data/Services/Dtos/WarehouseTransactionDtos.cs`, `IWarehouseTransactionService`/`WarehouseTransactionService` (typed HttpClient), `IGetWarehouseTransactionsUseCase`/`GetWarehouseTransactionsUseCase` (client, pass-through), `WarehouseTransactionListView.xaml`/`.xaml.cs`/`WarehouseTransactionListViewModel.cs`.
+- View: toolbar filter (Từ/Đến ngày, Loại: Tất cả/Nhập kho/Xuất kho — đổi `SelectedTypeIndex` tự `LoadCommand`, nút "Lấy dữ liệu" reload thủ công) + master `DataGrid` (1 dòng = 1 chứng từ) + panel "Chi tiết" `DataGrid` bind `{Binding SelectedItem.Lines}` (tự cập nhật khi đổi dòng chọn ở master, không cần code-behind).
+- `NavigationRoutes.Warehouse.NhapXuatKho` route mới; `WarehouseView.xaml` tile "Phiếu Nhập Kho" (📥) đổi thành "Nhập, xuất kho" (📦), trỏ sang route mới; **bỏ hẳn** tile "Phiếu Xuất Kho" placeholder (mờ, chưa từng wire) vì đã được thay thế bởi màn gộp này. Route `WarehouseReceiptListView` cũ (`PhieuNhapKho`) vẫn còn nguyên trong code (không xóa, không còn tile nào trỏ tới) — nút "+ Thêm" trên màn mới tái dùng nguyên `WarehouseReceiptFormWindow` để tạo phiếu Nhập kho (Xuất kho không có luồng tạo riêng, luôn tạo qua Sales Order).
+
+---
+
+*Generated by `/ct-ai-document` on 2026-04-27 | Updated 2026-04-28: LatestAccountingDate column + timezone bug fix + flat list layout (Mã hàng / Tên hàng) | Updated 2026-08-15: 4 loại phiếu + Supplier + tab Thống kê + số phiếu `NK00048` | Updated 2026-08-15 (×2): `GET /api/v1/warehouse-transactions` danh sách gộp Nhập/Xuất kho + đổi prefix Sales Order BC → XK*

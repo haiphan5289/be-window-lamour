@@ -20,7 +20,7 @@ public class ProductWarehouseStockConfiguration : IEntityTypeConfiguration<Produ
         builder.HasOne(x => x.Product)
                .WithMany()
                .HasForeignKey(x => x.ProductId)
-               .OnDelete(DeleteBehavior.Restrict);
+               .OnDelete(DeleteBehavior.Cascade);
 
         builder.HasOne(x => x.Warehouse)
                .WithMany()

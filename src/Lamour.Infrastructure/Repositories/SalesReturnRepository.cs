@@ -84,7 +84,7 @@ public class SalesReturnRepository : ISalesReturnRepository
         if (!string.IsNullOrWhiteSpace(unit))
             query = query.Where(l => l.Unit == unit);
         if (!string.IsNullOrWhiteSpace(category))
-            query = query.Where(l => l.Product.Category.Name == category);
+            query = query.Where(l => l.Product.Category != null && l.Product.Category.Name == category);
         if (fromDate.HasValue)
         {
             var from = DateTime.SpecifyKind(fromDate.Value, DateTimeKind.Utc);

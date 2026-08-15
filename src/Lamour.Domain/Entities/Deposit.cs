@@ -28,5 +28,10 @@ public class Deposit
     public DepositStatus  Status           { get; set; } = DepositStatus.Active;
     public DateTime       CreatedAt        { get; set; }
 
+    // Đơn bán hàng (Chứng từ bán hàng) đã tạo ra cọc này qua 1 dòng sản phẩm "Đặt cọc"
+    // (Product.IsDepositProduct = true) — null nếu cọc được tạo thủ công qua màn Đặt Cọc.
+    public int?        SourceSalesOrderId { get; set; }
+    public SalesOrder? SourceSalesOrder   { get; set; }
+
     public ICollection<DepositDeduction> Deductions { get; set; } = new List<DepositDeduction>();
 }

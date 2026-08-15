@@ -6,6 +6,7 @@ public class CreateWarehouseReceiptRequestDto
 {
     [JsonPropertyName("receipt_type")]    public int      ReceiptType    { get; set; }
     [JsonPropertyName("customer_id")]     public int?     CustomerId     { get; set; }
+    [JsonPropertyName("supplier_id")]     public int?     SupplierId     { get; set; }
     [JsonPropertyName("employee_id")]     public int?     EmployeeId     { get; set; }
     [JsonPropertyName("accounting_date")] public DateTime AccountingDate { get; set; }
     [JsonPropertyName("document_date")]   public DateTime DocumentDate   { get; set; }
@@ -17,13 +18,20 @@ public class CreateWarehouseReceiptRequestDto
 
 public class CreateWarehouseReceiptLineDto
 {
-    [JsonPropertyName("product_id")]     public int     ProductId     { get; set; }
-    [JsonPropertyName("warehouse_id")]   public int     WarehouseId   { get; set; }
-    [JsonPropertyName("quantity")]       public int     Quantity      { get; set; }
-    [JsonPropertyName("unit_price")]     public decimal UnitPrice     { get; set; }
-    [JsonPropertyName("amount")]         public decimal Amount        { get; set; }
-    [JsonPropertyName("debit_account")]  public string  DebitAccount  { get; set; } = "111";
-    [JsonPropertyName("credit_account")] public string  CreditAccount { get; set; } = "131";
+    [JsonPropertyName("product_id")]             public int     ProductId     { get; set; }
+    [JsonPropertyName("warehouse_id")]           public int     WarehouseId   { get; set; }
+    [JsonPropertyName("quantity")]               public int     Quantity      { get; set; }
+    [JsonPropertyName("unit_price")]             public decimal UnitPrice     { get; set; }
+    [JsonPropertyName("amount")]                 public decimal Amount        { get; set; }
+    [JsonPropertyName("debit_account")]          public string  DebitAccount  { get; set; } = "111";
+    [JsonPropertyName("credit_account")]         public string  CreditAccount { get; set; } = "131";
+    [JsonPropertyName("cost_item")]              public string? CostItem              { get; set; }
+    [JsonPropertyName("cost_object")]            public string? CostObject            { get; set; }
+    [JsonPropertyName("project")]                public string? Project               { get; set; }
+    [JsonPropertyName("purchase_order_number")]  public string? PurchaseOrderNumber   { get; set; }
+    [JsonPropertyName("sales_contract_number")]  public string? SalesContractNumber   { get; set; }
+    [JsonPropertyName("loan_contract_number")]   public string? LoanContractNumber    { get; set; }
+    [JsonPropertyName("statistics_code")]        public string? StatisticsCode        { get; set; }
 }
 
 public class WarehouseReceiptResponseDto
@@ -34,6 +42,8 @@ public class WarehouseReceiptResponseDto
     [JsonPropertyName("status")]          public string    Status         { get; set; } = "";
     [JsonPropertyName("customer_id")]     public int?      CustomerId     { get; set; }
     [JsonPropertyName("customer_name")]   public string?   CustomerName   { get; set; }
+    [JsonPropertyName("supplier_id")]     public int?      SupplierId     { get; set; }
+    [JsonPropertyName("supplier_name")]   public string?   SupplierName   { get; set; }
     [JsonPropertyName("employee_id")]     public int?      EmployeeId     { get; set; }
     [JsonPropertyName("employee_name")]   public string?   EmployeeName   { get; set; }
     [JsonPropertyName("accounting_date")] public DateTime  AccountingDate { get; set; }
@@ -60,4 +70,11 @@ public class WarehouseReceiptLineDto
     [JsonPropertyName("amount")]         public decimal Amount        { get; set; }
     [JsonPropertyName("debit_account")]  public string  DebitAccount  { get; set; } = "";
     [JsonPropertyName("credit_account")] public string  CreditAccount { get; set; } = "";
+    [JsonPropertyName("cost_item")]              public string? CostItem              { get; set; }
+    [JsonPropertyName("cost_object")]            public string? CostObject            { get; set; }
+    [JsonPropertyName("project")]                public string? Project               { get; set; }
+    [JsonPropertyName("purchase_order_number")]  public string? PurchaseOrderNumber   { get; set; }
+    [JsonPropertyName("sales_contract_number")]  public string? SalesContractNumber   { get; set; }
+    [JsonPropertyName("loan_contract_number")]   public string? LoanContractNumber    { get; set; }
+    [JsonPropertyName("statistics_code")]        public string? StatisticsCode        { get; set; }
 }

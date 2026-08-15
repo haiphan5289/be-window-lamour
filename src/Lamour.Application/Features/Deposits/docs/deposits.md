@@ -1,6 +1,6 @@
 # Đặt Cọc (Deposit) — Feature Document (BE)
 
-> **Jira:** — | **Branch:** `dev` | **Generated:** 2026-08-09
+> **Jira:** — | **Branch:** `dev` | **Generated:** 2026-08-09 | **Updated:** 2026-08-15 (Deposit có thể tự sinh từ 1 dòng sản phẩm "Đặt cọc" trong Sales Order — xem changelog cuối file)
 
 ---
 
@@ -41,6 +41,9 @@
 | Không đụng tồn kho | Deposit/DepositDeduction hoàn toàn không liên quan `Product`/`StockQuantity` |
 | DB Transaction | `CreateDepositDeductionUseCase` và `DeleteDepositDeductionUseCase` dùng `IUnitOfWork.BeginAsync` → `CommitAsync`/`RollbackAsync` (2 thao tác ghi: deduction row + deposit balance update phải atomic) |
 | DateTime UTC | Lưu `DateTime.UtcNow` / `DateTime.SpecifyKind(..., Utc)`, WPF convert sang local time khi hiển thị |
+| Deposit tự sinh từ Sales Order (mới 2026-08-15) | Khi 1 Sales Order (Chứng từ bán hàng, XK) có dòng dùng sản phẩm `IsDepositProduct = true`, `CreateSalesOrderUseCase`/`UpdateSalesOrderUseCase` tự tạo/đồng bộ 1 `Deposit` với `SourceSalesOrderId` trỏ về đúng đơn đó — số DC vẫn tự sinh như bình thường, nhưng màn "Trừ cọc" hiển thị theo số XK gốc (xem `SourceSalesOrderDocumentNumber`). Xem chi tiết ở changelog cuối file |
+| Deposit tự sinh — sửa/xóa Sales Order gốc | Nếu Deposit **chưa bị trừ** (`RemainingBalance == Amount`): sửa số tiền dòng "Đặt cọc" trên XK → đồng bộ `Amount`/`RemainingBalance`; xóa dòng "Đặt cọc" hoặc xóa cả đơn XK → xóa luôn Deposit. Nếu Deposit **đã bị trừ** (dùng ở 1 lần Trừ cọc nào đó): mọi thao tác đổi số tiền/xóa dòng "Đặt cọc"/xóa đơn XK đều bị chặn — `DomainException("Cọc từ đơn hàng này đã bị trừ, không thể ...")` |
+| Sản phẩm "Đặt cọc" không phải hàng tồn kho thật | `Product.IsDepositProduct = true` → dòng dùng sản phẩm này trong Sales Order được loại khỏi toàn bộ validate/adjust tồn kho (`StockQuantity`, `ProductWarehouseStock`), y hệt cách dòng khuyến mại (`IsPromotion`) được loại trừ |
 
 ---
 
@@ -184,7 +187,7 @@ graph TD
   "amount": 20000000,
   "accounting_date": "2026-08-09T00:00:00",
   "document_date": "2026-08-09T00:00:00",
-  "description": "Trừ cọc thanh toán đơn BC00005"
+  "description": "Trừ cọc thanh toán đơn XK00005"
 }
 ```
 
@@ -197,7 +200,7 @@ graph TD
   "deposit_id": 1,
   "deposit_document_number": "DC00001",
   "sales_order_id": 5,
-  "sales_order_document_number": "BC00005",
+  "sales_order_document_number": "XK00005",
   "customer_id": 1,
   "customer_name": "Nguyễn Văn A",
   "employee_id": 2,
@@ -205,7 +208,7 @@ graph TD
   "amount": 20000000,
   "accounting_date": "2026-08-09T00:00:00Z",
   "document_date": "2026-08-09T00:00:00Z",
-  "description": "Trừ cọc thanh toán đơn BC00005",
+  "description": "Trừ cọc thanh toán đơn XK00005",
   "created_at": "2026-08-09T08:00:00Z"
 }
 ```
@@ -264,12 +267,44 @@ builder.Services.AddScoped<IDeleteDepositDeductionUseCase, DeleteDepositDeductio
 ## Notes
 
 - `[Authorize]` bật trên cả 2 controller — WPF cần gửi Bearer JWT
-- `DepositDeduction.DocumentNumber` (`TC{5}`) tự sinh ở BE trong `CreateDepositDeductionUseCase` — khác với `Deposit.DocumentNumber` (`DC{5}`) sinh qua endpoint `next-code` rồi client gửi lên khi tạo (giống pattern SalesOrder `BC{5}`)
+- `DepositDeduction.DocumentNumber` (`TC{5}`) tự sinh ở BE trong `CreateDepositDeductionUseCase` — khác với `Deposit.DocumentNumber` (`DC{5}`) sinh qua endpoint `next-code` rồi client gửi lên khi tạo (giống pattern SalesOrder `XK{5}`)
 - `GET /api/v1/deposit-deductions` là báo cáo cấp DÒNG (mỗi dòng = 1 lần trừ cọc), filter kết hợp AND, tất cả optional
 - `GET /api/v1/deposits/by-customer/{customerId}` chỉ trả cọc có `RemainingBalance > 0` — dùng để WPF hiển thị dropdown "chọn cọc để trừ" trong popup Sales Order
 - **WPF integration (2026-08-09, không đổi BE):** `POST /api/v1/deposit-deductions` được gọi từ `SalesOrderWindow` (Chứng từ bán hàng) — mỗi cọc còn số dư hiện như 1 lựa chọn "sản phẩm ảo" trong dropdown Mã hàng/Tên hàng (`DepositProductPickerItem`), chọn thủ công qua "+ Thêm dòng" giống chọn 1 sản phẩm thật; gọi API này SAU KHI Sales Order đã lưu thành công (`SalesOrderId` truyền vào là id đơn vừa tạo). Xem chi tiết phía client tại `desktop-lamour/.../Sales/docs/sales.md` (mục "Trừ cọc", updated 2026-08-09).
 
 ---
 
+## Changelog — 2026-08-15: Deposit tự sinh từ dòng sản phẩm "Đặt cọc" trong Sales Order
+
+> Yêu cầu ban đầu ("Update Chứng từ bán hàng, Trừ cọc workflow") mô tả ví dụ y hệt cơ chế `Deposit`/`DepositDeduction` đã có (2026-08-09) — nhưng làm rõ qua 2 vòng hỏi thì phát hiện: trong thực tế, "đơn cọc" **không** được tạo qua màn Đặt Cọc riêng, mà là 1 **sản phẩm** ("Đặt cọc") thêm vào ngay trên chính Chứng từ bán hàng (XK). Do đó cầu nối này được xây thêm — **không thay thế** engine Deposit/DepositDeduction cũ, chỉ thêm 1 đường tạo Deposit mới (tự động, từ Sales Order) song song với đường cũ (thủ công, qua màn Đặt Cọc).
+
+**BE:**
+- `Product.cs`: thêm `IsDepositProduct` (bool, default false) — đánh dấu 1 sản phẩm là "sản phẩm đặt cọc". Wire qua `ProductConfiguration`, 3 DTO, `CreateProductUseCase`/`UpdateProductUseCase`.
+- `Deposit.cs`: thêm `SourceSalesOrderId`/`SourceSalesOrder` (nullable) — đơn XK đã tạo ra cọc này qua 1 dòng sản phẩm "Đặt cọc"; null nếu cọc tạo thủ công qua màn Đặt Cọc như trước. FK `OnDelete: Restrict`.
+- `IDepositRepository`/`DepositRepository`: thêm `GetBySourceSalesOrderIdAsync(salesOrderId)` (tracked, không `AsNoTracking` — dùng để mutate); `.Include(d => d.SourceSalesOrder)` thêm vào `GetAllAsync`/`GetByIdAsync`/`GetByIdTrackedAsync`/`GetByCustomerIdAsync`.
+- `DepositResponseDto`: thêm `source_sales_order_id`/`source_sales_order_document_number`.
+- **`SalesOrderDepositHelper.cs`** (mới, `internal static`, dùng chung bởi Create/Update/DeleteSalesOrderUseCase):
+  - `SyncAsync(order, depositLinesAmount)`: gọi sau khi Sales Order đã lưu (trong cùng `IUnitOfWork` transaction). Nếu `depositLinesAmount <= 0` và có Deposit cũ → xóa (chặn nếu đã bị trừ). Nếu chưa có Deposit → tạo mới (`DocumentNumber` vẫn `DC{5}` tự sinh như cũ, `SourceSalesOrderId = order.Id`). Nếu đã có → đồng bộ `Amount`/`RemainingBalance`/`CustomerId`/`EmployeeId`/ngày tháng (chặn đổi `Amount` nếu đã bị trừ).
+  - `GuardAndDeleteLinkedDepositAsync(salesOrderId)`: gọi trước khi xóa Sales Order — chặn nếu Deposit gắn với đơn đã bị trừ, tự xóa Deposit nếu chưa đụng tới.
+- `CreateSalesOrderUseCase`/`UpdateSalesOrderUseCase`: tích luỹ `depositLinesAmount = Σ(Amount của các dòng có Product.IsDepositProduct)` trong lúc build lines; gọi `SalesOrderDepositHelper.SyncAsync` trước `_uow.CommitAsync()`. Dòng "Đặt cọc" được loại khỏi validate/adjust tồn kho (giống `IsPromotion`) — không phải hàng thật, không trừ/hoàn `StockQuantity`/`ProductWarehouseStock`.
+- `DeleteSalesOrderUseCase`: gọi `SalesOrderDepositHelper.GuardAndDeleteLinkedDepositAsync` trước khi xóa đơn; loại dòng "Đặt cọc" khỏi restore tồn kho.
+- Migration `AddProductDepositLinking` (`20260815035101_...`) — `products.is_deposit_product` (bool default false), `deposits.source_sales_order_id` (int?, FK Restrict → `sales_orders`).
+- **Không cần thay đổi DTO dòng hàng** (`CreateSalesOrderLineDto`) — số tiền đặt cọc nhập qua field `amount` + cờ `is_amount_manual` đã có sẵn (dùng chung với override "Thành tiền thủ công" của dòng sản phẩm thường), không cần field mới.
+
+**WPF (`desktop-lamour`):**
+- `Product.cs` (domain model), 3 DTO (Create/Update/Response), `CreateProductInput`/`UpdateProductInput`, `ProductRepository` (3 chỗ map): thêm `IsDepositProduct`.
+- `ProductFormViewModel.cs` + `ProductFormWindow.xaml`: thêm checkbox "Là sản phẩm đặt cọc" (tab "Ngầm định", ngay dưới "Là hàng khuyến mại") — user tự tạo 1 sản phẩm tên "Đặt cọc" rồi bật cờ này.
+- `DepositResponseDto` (WPF): thêm `source_sales_order_id`/`source_sales_order_document_number`.
+- `DepositProductPickerItem.cs`: `DisplayText`/`Code` ưu tiên hiển thị `SourceSalesOrderDocumentNumber` (số XK gốc, VD `XK00005 — Trừ cọc (còn 5,000,000)`) thay vì số `DC` nội bộ; fallback về `DocumentNumber` (DC) cho các cọc tạo thủ công qua màn Đặt Cọc (không có `SourceSalesOrder`).
+- **Không đổi** luồng "Trừ cọc" đã có (chọn dropdown "sản phẩm ảo" → nhập Thành tiền → Ghi sổ → gọi `POST /api/v1/deposit-deductions`) — chỉ đổi CÁCH cọc được TẠO RA và CÁCH nó hiển thị trong dropdown.
+
+**Cách dùng theo ví dụ gốc:**
+1. Tạo 1 sản phẩm "Đặt cọc", bật cờ "Là sản phẩm đặt cọc" (1 lần, qua màn Danh sách sản phẩm).
+2. Chị A đặt cọc: tạo Chứng từ bán hàng XK0005, thêm dòng sản phẩm "Đặt cọc", gõ tay "Thành tiền" = 30.000.000, Ghi sổ → BE tự tạo Deposit (DC...) với `SourceSalesOrderId = XK0005.Id`, `Amount = RemainingBalance = 30.000.000`. Lặp lại tương tự cho XK0010 (20tr) và XK0015 (10tr).
+3. Ngày 23/3/2026, chị A tạo Chứng từ bán hàng mới, thêm dòng "Trừ cọc" trong dropdown chọn sản phẩm → tìm thấy "XK0005 — Trừ cọc (còn 30.000.000)" (không phải mã DC) → chọn, gõ 25.000.000 → Ghi sổ → Deposit gắn với XK0005 giảm còn 5.000.000; Deposit gắn với XK0010/XK0015 không đổi.
+
+---
+
 *Generated 2026-08-09*
+*Updated 2026-08-15: Deposit tự sinh từ dòng sản phẩm "Đặt cọc" trong Sales Order (SourceSalesOrderId) — xem changelog.*
 *Updated 2026-08-09: thêm ghi chú tích hợp phía WPF client (Sales Order) — không có thay đổi contract/code nào ở BE.*

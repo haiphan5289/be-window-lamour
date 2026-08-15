@@ -8,5 +8,5 @@ public interface IWarehouseReceiptRepository
     Task<WarehouseReceipt?> GetByIdAsync(int id, CancellationToken ct = default);
     Task<WarehouseReceipt> AddAsync(WarehouseReceipt receipt, CancellationToken ct = default);
     Task SaveChangesAsync(CancellationToken ct = default);
-    Task<string> GetNextReceiptNumberAsync(DateTime date, CancellationToken ct = default);
+    Task<string> GetNextReceiptNumberAsync(CancellationToken ct = default);
 }

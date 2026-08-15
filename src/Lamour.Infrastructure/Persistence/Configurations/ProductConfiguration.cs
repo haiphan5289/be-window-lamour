@@ -14,7 +14,7 @@ public class ProductConfiguration : IEntityTypeConfiguration<Product>
         builder.Property(p => p.Id).HasColumnName("id").ValueGeneratedOnAdd();
         builder.Property(p => p.Code).HasColumnName("code").HasMaxLength(50);
         builder.Property(p => p.Name).HasColumnName("name").HasMaxLength(200).IsRequired();
-        builder.Property(p => p.CategoryId).HasColumnName("category_id").IsRequired();
+        builder.Property(p => p.CategoryId).HasColumnName("category_id");
         builder.HasOne(p => p.Category).WithMany().HasForeignKey(p => p.CategoryId).OnDelete(DeleteBehavior.Restrict);
         builder.Property(p => p.Unit).HasColumnName("unit").HasMaxLength(50);
         builder.Property(p => p.CostPrice).HasColumnName("cost_price").HasPrecision(18, 2).IsRequired();
@@ -62,5 +62,6 @@ public class ProductConfiguration : IEntityTypeConfiguration<Product>
         builder.Property(p => p.SpecialGoodsType).HasColumnName("special_goods_type").HasMaxLength(100);
         builder.Property(p => p.LatestPurchasePrice).HasColumnName("latest_purchase_price").HasPrecision(18, 2).HasDefaultValue(0);
         builder.Property(p => p.IsPromotionalGood).HasColumnName("is_promotional_good").HasDefaultValue(false);
+        builder.Property(p => p.IsDepositProduct).HasColumnName("is_deposit_product").HasDefaultValue(false);
     }
 }

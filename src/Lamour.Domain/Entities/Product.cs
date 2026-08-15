@@ -8,8 +8,8 @@ public class Product
     public int          Id                { get; set; }
     public string       Code              { get; set; } = string.Empty;
     public string       Name              { get; set; } = string.Empty;
-    public int          CategoryId        { get; set; }
-    public Category     Category          { get; set; } = null!;
+    public int?         CategoryId        { get; set; }
+    public Category?    Category          { get; set; }
     public string       Unit              { get; set; } = string.Empty;
     public decimal      CostPrice         { get; set; }
     public decimal      SellingPrice      { get; set; }
@@ -55,4 +55,7 @@ public class Product
     public string?         SpecialGoodsType        { get; set; }
     public decimal         LatestPurchasePrice     { get; set; }
     public bool            IsPromotionalGood       { get; set; }
+    // Sản phẩm đại diện cho việc "Đặt cọc" — dòng dùng sản phẩm này trong Sales Order sẽ tự động
+    // tạo/đồng bộ 1 Deposit ngầm gắn với đơn hàng đó (xem SalesOrderDepositHelper).
+    public bool            IsDepositProduct        { get; set; }
 }

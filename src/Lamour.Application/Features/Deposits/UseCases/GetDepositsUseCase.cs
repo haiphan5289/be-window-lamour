@@ -38,6 +38,8 @@ public class GetDepositsUseCase : IGetDepositsUseCase
         RemainingBalance = d.RemainingBalance,
         Status           = (int)d.Status,
         CreatedAt        = d.CreatedAt,
+        SourceSalesOrderId             = d.SourceSalesOrderId,
+        SourceSalesOrderDocumentNumber = d.SourceSalesOrder?.DocumentNumber,
         Deductions       = d.Deductions.Select(GetDepositDeductionsUseCase.MapToDto).ToList(),
     };
 }

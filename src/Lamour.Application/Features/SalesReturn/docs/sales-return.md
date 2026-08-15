@@ -174,7 +174,7 @@ graph TD
       "amount": 4500000,
       "discount_rate": 35,
       "discount_amount": 1575000,
-      "sales_order_number": "BC00046"
+      "sales_order_number": "XK00046"
     }
   ]
 }

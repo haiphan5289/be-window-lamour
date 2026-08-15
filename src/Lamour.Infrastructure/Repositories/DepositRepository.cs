@@ -16,6 +16,7 @@ public class DepositRepository : IDepositRepository
             .AsNoTracking()
             .Include(d => d.Customer)
             .Include(d => d.Employee)
+            .Include(d => d.SourceSalesOrder)
             .Include(d => d.Deductions).ThenInclude(x => x.SalesOrder).ThenInclude(o => o.Employee)
             .OrderByDescending(d => d.CreatedAt)
             .ToListAsync(ct);
@@ -25,6 +26,7 @@ public class DepositRepository : IDepositRepository
             .AsNoTracking()
             .Include(d => d.Customer)
             .Include(d => d.Employee)
+            .Include(d => d.SourceSalesOrder)
             .Include(d => d.Deductions).ThenInclude(x => x.SalesOrder).ThenInclude(o => o.Employee)
             .FirstOrDefaultAsync(d => d.Id == id, ct);
 
@@ -32,6 +34,7 @@ public class DepositRepository : IDepositRepository
         => await _db.Deposits
             .Include(d => d.Customer)
             .Include(d => d.Employee)
+            .Include(d => d.SourceSalesOrder)
             .Include(d => d.Deductions).ThenInclude(x => x.SalesOrder).ThenInclude(o => o.Employee)
             .FirstOrDefaultAsync(d => d.Id == id, ct);
 
@@ -39,9 +42,14 @@ public class DepositRepository : IDepositRepository
         => await _db.Deposits
             .AsNoTracking()
             .Include(d => d.Customer)
+            .Include(d => d.SourceSalesOrder)
             .Where(d => d.CustomerId == customerId && d.RemainingBalance > 0)
             .OrderByDescending(d => d.CreatedAt)
             .ToListAsync(ct);
+
+    public async Task<Deposit?> GetBySourceSalesOrderIdAsync(int salesOrderId, CancellationToken ct = default)
+        => await _db.Deposits
+            .FirstOrDefaultAsync(d => d.SourceSalesOrderId == salesOrderId, ct);
 
     public async Task<Deposit> AddAsync(Deposit deposit, CancellationToken ct = default)
     {

@@ -8,6 +8,7 @@ public interface IDepositRepository
     Task<Deposit?> GetByIdAsync(int id, CancellationToken ct = default);
     Task<Deposit?> GetByIdTrackedAsync(int id, CancellationToken ct = default);
     Task<IEnumerable<Deposit>> GetByCustomerIdAsync(int customerId, CancellationToken ct = default);
+    Task<Deposit?> GetBySourceSalesOrderIdAsync(int salesOrderId, CancellationToken ct = default);
     Task<Deposit> AddAsync(Deposit deposit, CancellationToken ct = default);
     Task UpdateAsync(Deposit deposit, CancellationToken ct = default);
     Task DeleteAsync(Deposit deposit, CancellationToken ct = default);

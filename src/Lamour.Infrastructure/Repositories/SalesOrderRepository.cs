@@ -84,7 +84,7 @@ public class SalesOrderRepository : ISalesOrderRepository
         if (!string.IsNullOrWhiteSpace(unit))
             query = query.Where(l => l.Unit == unit);
         if (!string.IsNullOrWhiteSpace(category))
-            query = query.Where(l => l.Product.Category.Name == category);
+            query = query.Where(l => l.Product.Category != null && l.Product.Category.Name == category);
         if (fromDate.HasValue)
         {
             var from = DateTime.SpecifyKind(fromDate.Value, DateTimeKind.Utc);
@@ -103,7 +103,7 @@ public class SalesOrderRepository : ISalesOrderRepository
 
     public async Task<int> GetNextCodeNumberAsync(CancellationToken ct = default)
     {
-        const string prefix = "BC";
+        const string prefix = "XK";
         var numbers = await _db.SalesOrders
             .AsNoTracking()
             .Select(o => o.DocumentNumber)

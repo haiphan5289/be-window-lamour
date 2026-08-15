@@ -35,6 +35,7 @@ public class WarehouseReceiptConfiguration : IEntityTypeConfiguration<WarehouseR
         builder.Property(r => r.ReceiptType).HasColumnName("receipt_type").HasConversion<int>().IsRequired();
         builder.Property(r => r.Status).HasColumnName("status").HasConversion<int>().IsRequired();
         builder.Property(r => r.CustomerId).HasColumnName("customer_id");
+        builder.Property(r => r.SupplierId).HasColumnName("supplier_id");
         builder.Property(r => r.EmployeeId).HasColumnName("employee_id");
         builder.Property(r => r.AccountingDate).HasColumnName("accounting_date").IsRequired();
         builder.Property(r => r.DocumentDate).HasColumnName("document_date").IsRequired();
@@ -48,6 +49,11 @@ public class WarehouseReceiptConfiguration : IEntityTypeConfiguration<WarehouseR
         builder.HasOne(r => r.Customer)
                .WithMany()
                .HasForeignKey(r => r.CustomerId)
+               .OnDelete(DeleteBehavior.Restrict);
+
+        builder.HasOne(r => r.Supplier)
+               .WithMany()
+               .HasForeignKey(r => r.SupplierId)
                .OnDelete(DeleteBehavior.Restrict);
 
         builder.HasOne(r => r.Employee)
@@ -75,6 +81,14 @@ public class WarehouseReceiptLineConfiguration : IEntityTypeConfiguration<Wareho
         builder.Property(l => l.Amount).HasColumnName("amount").HasPrecision(18, 2).IsRequired();
         builder.Property(l => l.DebitAccount).HasColumnName("debit_account").HasMaxLength(20).IsRequired();
         builder.Property(l => l.CreditAccount).HasColumnName("credit_account").HasMaxLength(20).IsRequired();
+
+        builder.Property(l => l.CostItem).HasColumnName("cost_item").HasMaxLength(100);
+        builder.Property(l => l.CostObject).HasColumnName("cost_object").HasMaxLength(100);
+        builder.Property(l => l.Project).HasColumnName("project").HasMaxLength(100);
+        builder.Property(l => l.PurchaseOrderNumber).HasColumnName("purchase_order_number").HasMaxLength(100);
+        builder.Property(l => l.SalesContractNumber).HasColumnName("sales_contract_number").HasMaxLength(100);
+        builder.Property(l => l.LoanContractNumber).HasColumnName("loan_contract_number").HasMaxLength(100);
+        builder.Property(l => l.StatisticsCode).HasColumnName("statistics_code").HasMaxLength(100);
 
         builder.HasOne(l => l.WarehouseReceipt)
                .WithMany(r => r.Lines)

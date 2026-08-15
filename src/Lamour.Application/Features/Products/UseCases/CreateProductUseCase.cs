@@ -41,8 +41,12 @@ public class CreateProductUseCase : ICreateProductUseCase
         if (string.IsNullOrWhiteSpace(request.Name))
             throw new DomainException("Product name is required.");
 
-        var category = await _categoryRepo.GetByIdAsync(request.CategoryId, ct)
-            ?? throw new DomainException($"Danh mục với id {request.CategoryId} không tồn tại.");
+        Category? category = null;
+        if (request.CategoryId.HasValue)
+        {
+            category = await _categoryRepo.GetByIdAsync(request.CategoryId.Value, ct)
+                ?? throw new DomainException($"Danh mục với id {request.CategoryId} không tồn tại.");
+        }
 
         if (!string.IsNullOrWhiteSpace(request.Code) && await _repo.CodeExistsAsync(request.Code, ct: ct))
             throw new DomainException($"Product with code '{request.Code}' already exists.");
@@ -92,10 +96,11 @@ public class CreateProductUseCase : ICreateProductUseCase
             SpecialGoodsType        = request.SpecialGoodsType,
             LatestPurchasePrice     = request.LatestPurchasePrice,
             IsPromotionalGood       = request.IsPromotionalGood,
+            IsDepositProduct        = request.IsDepositProduct,
         };
 
         var created = await _repo.AddAsync(product, ct);
-        created.Category = category;
+        if (category is not null) created.Category = category;
         _logger.LogInformation("Created product {Id} '{Name}'", created.Id, created.Name);
 
         // Ghi nhận tồn kho ban đầu vào đúng kho ngầm định (nếu có chọn) — chỉ khi tạo mới,
@@ -125,7 +130,7 @@ public class CreateProductUseCase : ICreateProductUseCase
         Code             = p.Code,
         Name             = p.Name,
         CategoryId       = p.CategoryId,
-        CategoryName     = p.Category?.Name ?? string.Empty,
+        CategoryName     = p.Category?.Name,
         Unit             = p.Unit,
         CostPrice        = p.CostPrice,
         SellingPrice     = p.SellingPrice,
@@ -165,5 +170,6 @@ public class CreateProductUseCase : ICreateProductUseCase
         SpecialGoodsType          = p.SpecialGoodsType,
         LatestPurchasePrice       = p.LatestPurchasePrice,
         IsPromotionalGood         = p.IsPromotionalGood,
+        IsDepositProduct          = p.IsDepositProduct,
     };
 }

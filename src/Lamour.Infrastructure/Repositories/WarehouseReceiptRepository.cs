@@ -15,6 +15,7 @@ public class WarehouseReceiptRepository : IWarehouseReceiptRepository
         => await _db.WarehouseReceipts
             .AsNoTracking()
             .Include(r => r.Customer)
+            .Include(r => r.Supplier)
             .Include(r => r.Employee)
             .Include(r => r.Lines)
                 .ThenInclude(l => l.Product)
@@ -26,6 +27,7 @@ public class WarehouseReceiptRepository : IWarehouseReceiptRepository
     public async Task<WarehouseReceipt?> GetByIdAsync(int id, CancellationToken ct = default)
         => await _db.WarehouseReceipts
             .Include(r => r.Customer)
+            .Include(r => r.Supplier)
             .Include(r => r.Employee)
             .Include(r => r.Lines)
                 .ThenInclude(l => l.Product)
@@ -38,7 +40,10 @@ public class WarehouseReceiptRepository : IWarehouseReceiptRepository
         _db.WarehouseReceipts.Add(receipt);
         await _db.SaveChangesAsync(ct);
 
-        await _db.Entry(receipt).Reference(r => r.Customer).LoadAsync(ct);
+        if (receipt.CustomerId.HasValue)
+            await _db.Entry(receipt).Reference(r => r.Customer).LoadAsync(ct);
+        if (receipt.SupplierId.HasValue)
+            await _db.Entry(receipt).Reference(r => r.Supplier).LoadAsync(ct);
         if (receipt.EmployeeId.HasValue)
             await _db.Entry(receipt).Reference(r => r.Employee).LoadAsync(ct);
 
@@ -54,15 +59,9 @@ public class WarehouseReceiptRepository : IWarehouseReceiptRepository
     public async Task SaveChangesAsync(CancellationToken ct = default)
         => await _db.SaveChangesAsync(ct);
 
-    public async Task<string> GetNextReceiptNumberAsync(DateTime date, CancellationToken ct = default)
+    public async Task<string> GetNextReceiptNumberAsync(CancellationToken ct = default)
     {
-        var datePart = date.ToString("yyyyMMdd");
-        var prefix   = $"NK-{datePart}-";
-
-        var count = await _db.WarehouseReceipts
-            .AsNoTracking()
-            .CountAsync(r => r.ReceiptNumber.StartsWith(prefix), ct);
-
-        return $"{prefix}{count + 1:D3}";
+        var count = await _db.WarehouseReceipts.AsNoTracking().CountAsync(ct);
+        return $"NK{count + 1:D5}";
     }
 }

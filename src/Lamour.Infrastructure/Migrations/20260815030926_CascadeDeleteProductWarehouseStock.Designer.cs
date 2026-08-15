@@ -3,6 +3,7 @@ using System;
 using Lamour.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
@@ -11,9 +12,11 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace Lamour.Infrastructure.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260815030926_CascadeDeleteProductWarehouseStock")]
+    partial class CascadeDeleteProductWarehouseStock
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -825,10 +828,6 @@ namespace Lamour.Infrastructure.Migrations
                         .HasColumnType("numeric(18,2)")
                         .HasColumnName("remaining_balance");
 
-                    b.Property<int?>("SourceSalesOrderId")
-                        .HasColumnType("integer")
-                        .HasColumnName("source_sales_order_id");
-
                     b.Property<int>("Status")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("integer")
@@ -845,8 +844,6 @@ namespace Lamour.Infrastructure.Migrations
                         .IsUnique();
 
                     b.HasIndex("EmployeeId");
-
-                    b.HasIndex("SourceSalesOrderId");
 
                     b.ToTable("deposits", (string)null);
                 });
@@ -1161,7 +1158,7 @@ namespace Lamour.Infrastructure.Migrations
 
                     NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
 
-                    b.Property<int?>("CategoryId")
+                    b.Property<int>("CategoryId")
                         .HasColumnType("integer")
                         .HasColumnName("category_id");
 
@@ -1212,12 +1209,6 @@ namespace Lamour.Infrastructure.Migrations
                         .HasColumnType("boolean")
                         .HasDefaultValue(true)
                         .HasColumnName("is_active");
-
-                    b.Property<bool>("IsDepositProduct")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("boolean")
-                        .HasDefaultValue(false)
-                        .HasColumnName("is_deposit_product");
 
                     b.Property<bool>("IsPromotionalGood")
                         .ValueGeneratedOnAdd()
@@ -2289,16 +2280,9 @@ namespace Lamour.Infrastructure.Migrations
                         .HasForeignKey("EmployeeId")
                         .OnDelete(DeleteBehavior.SetNull);
 
-                    b.HasOne("Lamour.Domain.Entities.SalesOrder", "SourceSalesOrder")
-                        .WithMany()
-                        .HasForeignKey("SourceSalesOrderId")
-                        .OnDelete(DeleteBehavior.Restrict);
-
                     b.Navigation("Customer");
 
                     b.Navigation("Employee");
-
-                    b.Navigation("SourceSalesOrder");
                 });
 
             modelBuilder.Entity("Lamour.Domain.Entities.DepositDeduction", b =>
@@ -2387,7 +2371,8 @@ namespace Lamour.Infrastructure.Migrations
                     b.HasOne("Lamour.Domain.Entities.Category", "Category")
                         .WithMany()
                         .HasForeignKey("CategoryId")
-                        .OnDelete(DeleteBehavior.Restrict);
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
 
                     b.HasOne("Lamour.Domain.Entities.AccountSetting", "CostAccount")
                         .WithMany()

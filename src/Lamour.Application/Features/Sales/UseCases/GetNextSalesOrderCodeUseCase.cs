@@ -17,7 +17,7 @@ public class GetNextSalesOrderCodeUseCase : IGetNextSalesOrderCodeUseCase
     public async Task<string> ExecuteAsync(CancellationToken ct = default)
     {
         var nextNum = await _repo.GetNextCodeNumberAsync(ct);
-        var code    = $"BC{nextNum:D5}";
+        var code    = $"XK{nextNum:D5}";
         _logger.LogInformation("Next sales order code: {Code}", code);
         return code;
     }

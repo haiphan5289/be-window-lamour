@@ -16,7 +16,7 @@
   - [x] `POST /api/v1/sales-orders` tạo mới, mặc định Status = Normal (Ghi sổ), trừ tồn kho cho từng line (ngoại trừ line khuyến mại)
   - [x] `PUT /api/v1/sales-orders/{id}` cập nhật, hoàn tồn kho cũ rồi trừ tồn kho mới
   - [x] `DELETE /api/v1/sales-orders/{id}` xóa, hoàn tồn kho về khi xóa
-  - [x] `GET /api/v1/sales-orders/next-code` trả số chứng từ tiếp theo dạng `BC{5 digits}`
+  - [x] `GET /api/v1/sales-orders/next-code` trả số chứng từ tiếp theo dạng `XK{5 digits}`
   - [x] `PUT /api/v1/sales-orders/{id}/hold` treo đơn (Status → Held)
   - [x] `GET /api/v1/sales-orders/report` báo cáo chi tiết dòng bán hàng, lọc theo mặt hàng/nhân viên/khách hàng/khoảng ngày
   - [x] Stock guard: kiểm tra tất cả sản phẩm trước khi trừ kho, gom tất cả lỗi rồi throw 1 lần
@@ -28,7 +28,7 @@
 
 | Rule | Description |
 |------|-------------|
-| Số chứng từ | Prefix `BC`, format `BC{5 digits}` (BC00001...) — sinh tại WPF client |
+| Số chứng từ | Prefix `XK`, format `XK{5 digits}` (XK00001...) — sinh tại WPF client |
 | Ít nhất 1 line | Đơn hàng phải có ít nhất 1 dòng chi tiết — `DomainException` nếu vi phạm |
 | Hàng còn kinh doanh | Chỉ cho phép `IsActive = true` — `DomainException` nếu sản phẩm đã ngưng |
 | Stock guard | Trước khi trừ kho: kiểm tra **tất cả** lines. Nếu bất kỳ sản phẩm nào không đủ kho → gom tất cả lỗi thành 1 message rồi throw `DomainException` — không dừng sớm |
@@ -157,7 +157,7 @@ graph TD
 
 ### Application — UseCases
 - [`UseCases/GetSalesOrdersUseCase.cs`](../UseCases/GetSalesOrdersUseCase.cs) — `ExecuteAsync()` → `IEnumerable<SalesOrderResponseDto>`; chứa `internal static MapToDto()` dùng chung (maps `Status`)
-- [`UseCases/GetNextSalesOrderCodeUseCase.cs`](../UseCases/GetNextSalesOrderCodeUseCase.cs) — `ExecuteAsync()` → `string` (`BC00001`...)
+- [`UseCases/GetNextSalesOrderCodeUseCase.cs`](../UseCases/GetNextSalesOrderCodeUseCase.cs) — `ExecuteAsync()` → `string` (`XK00001`...)
 - [`UseCases/GetSalesOrderByIdUseCase.cs`](../UseCases/GetSalesOrderByIdUseCase.cs) — `ExecuteAsync(id)` → `SalesOrderResponseDto?`
 - [`UseCases/CreateSalesOrderUseCase.cs`](../UseCases/CreateSalesOrderUseCase.cs) — Stock guard (collect all errors) → `IUnitOfWork` transaction → `AddAsync` → trừ stock
 - [`UseCases/UpdateSalesOrderUseCase.cs`](../UseCases/UpdateSalesOrderUseCase.cs) — Stock guard → `IUnitOfWork` → hoàn stock cũ → trừ stock mới
@@ -178,7 +178,7 @@ graph TD
 |--------|----------|-------|--------|
 | `GET` | `/api/v1/sales-orders` | — | `SalesOrderResponseDto[]` |
 | `GET` | `/api/v1/sales-orders/{id}` | — | `SalesOrderResponseDto` (200) / 404 |
-| `GET` | `/api/v1/sales-orders/next-code` | — | `{ "code": "BC00006" }` (200) |
+| `GET` | `/api/v1/sales-orders/next-code` | — | `{ "code": "XK00006" }` (200) |
 | `POST` | `/api/v1/sales-orders` | `CreateSalesOrderRequestDto` | `SalesOrderResponseDto` (201) |
 | `PUT` | `/api/v1/sales-orders/{id}` | `UpdateSalesOrderRequestDto` | `SalesOrderResponseDto` (200) |
 | `DELETE` | `/api/v1/sales-orders/{id}` | — | 204 No Content |
@@ -189,7 +189,7 @@ graph TD
 ### Request — Create / Update
 ```json
 {
-  "document_number": "BC00001",
+  "document_number": "XK00001",
   "accounting_date": "2026-05-01T00:00:00",
   "document_date": "2026-05-01T00:00:00",
   "customer_id": 1,
@@ -228,7 +228,7 @@ graph TD
 ```json
 {
   "id": 1,
-  "document_number": "BC00001",
+  "document_number": "XK00001",
   "accounting_date": "2026-05-01T00:00:00Z",
   "document_date": "2026-05-01T00:00:00Z",
   "customer_id": 1,
@@ -266,7 +266,7 @@ Tất cả 7 query param optional, kết hợp AND (riêng `product_ids` là OR 
 [
   {
     "order_id": 1,
-    "document_number": "BC00001",
+    "document_number": "XK00001",
     "accounting_date": "2026-07-16T00:00:00Z",
     "customer_id": 1,
     "customer_name": "CHI NHI",
@@ -511,3 +511,4 @@ Column added: `sales_order_lines.is_amount_manual boolean NOT NULL DEFAULT FALSE
 *Updated 2026-07-31 (WPF hồi sinh `GET /report` cho drill-down — không đổi code BE): endpoint cấp DÒNG `GET /api/v1/sales-orders/report` (bị bỏ rơi từ 2026-07-18 khi WPF chuyển hẳn sang `/summary-report`) giờ được gọi lại bởi màn "Sổ chi tiết bán hàng" mới (`SalesOrderReportDetailView`/`ViewModel`) — double-click 1 dòng trong báo cáo tổng hợp sẽ gọi `GET /report` với `product_id`/`customer_id`/`employee_id` narrow theo đúng dòng đó (kế thừa `unit`/`category`/`from_date`/`to_date` từ filter gốc). Route, DTO, UseCase, Repository method đều KHÔNG đổi gì (đã đúng sẵn từ 2026-07-18) — chỉ cập nhật lại ghi chú "không còn dùng bởi WPF" ở API Contracts cho khớp thực tế. Known gap: `/report` chỉ trả `SalesOrderLine`, không gộp `SalesReturnLine` như `/summary-report` — nếu cần sổ chi tiết khớp tuyệt đối với "Doanh thu thuần" (đã gộp trả lại), cần thêm bước merge tương tự `GetSalesOrderSummaryReportUseCase` — chưa làm, ngoài phạm vi lần này. Xem `desktop-lamour/.../Sales/docs/sales.md` để biết chi tiết phía client (ID plumbing trên `ReportDisplayRow`, `DrillDownCommand`, navigation route mới).*
 *Updated 2026-08-04 (popup "Chứng từ bán hàng" — cho phép gõ tay Thành tiền): thêm `SalesOrderLine.IsAmountManual` (bool, default false) + `SalesOrderLineDto.is_amount_manual` — khi `true` (và dòng không phải khuyến mại), `CreateSalesOrderUseCase`/`UpdateSalesOrderUseCase` dùng thẳng `amount` client gửi thay vì tự tính `Quantity × UnitPrice × (1 − DiscountRate/100)`; validate `Amount >= 0` (`DomainException` nếu âm); dòng khuyến mại luôn ép `Amount = 0`/`IsAmountManual = false` bất kể client gửi gì. `TaxAmount` vẫn tính từ `Amount` cuối cùng như cũ. Migration 6 `AddIsAmountManualToSalesOrderLines`. Không đổi route/contract shape khác — chỉ thêm 1 field trên `SalesOrderLineDto` (dùng chung request/response). Tạo mới test project `tests/Lamour.Application.Tests` (repo trước đó chưa có test project nào) với 6 test case cho Create/Update ở chế độ thủ công. WPF: `SalesOrderWindow.xaml` cột "Thành tiền" đổi từ read-only sang editable, tự bật `IsAmountManual` khi user gõ tay, tự tắt khi user sửa lại Đơn giá/SL/CK% của dòng đó — xem `desktop-lamour/.../Sales/docs/sales.md` để biết chi tiết phía client.*
 *Updated 2026-08-09 (fix bug: Sửa đơn đang Treo + Ghi sổ không đổi status): user báo "list chứng từ bán hàng không update" khi đổi Treo → Ghi sổ; điều tra xác nhận đây KHÔNG phải bug refresh (WPF `EditSalesOrderAsync` đã reload đầy đủ `LoadSalesOrdersCommand` sau `ShowDialog()==true`) mà là bug data ở BE — `UpdateSalesOrderUseCase` trước đó không đụng field `Status` (chỉ `CreateSalesOrderUseCase` set `Status=Normal` lúc tạo mới, `HoldSalesOrderUseCase` set `Status=Held`, nhưng KHÔNG có action nào set về lại `Normal` sau khi treo) — nên đơn đang Held mà Sửa+Ghi sổ thì `Status` giữ nguyên `Held` trong DB, WPF reload đúng data (vẫn đúng là Held) nên list "trông như không update" dù thực ra đã update đúng theo data sai. Fix: thêm 1 dòng `order.Status = SalesOrderStatus.Normal;` trong `UpdateSalesOrderUseCase.ExecuteAsync` (đặt cùng chỗ set các field header khác) — khớp hành vi `CreateSalesOrderUseCase`, nút "💾 Ghi sổ" giờ luôn post đơn về Normal bất kể trạng thái trước đó, chỉ nút "⏸ Treo" riêng mới giữ Treo. Không cần EF migration (không đổi schema). Không cần sửa WPF (cơ chế reload đã đúng sẵn, chỉ thiếu đúng data từ BE). BE build 0 lỗi.*
+*Updated 2026-08-15 (đổi prefix số chứng từ BC → XK, toàn project): yêu cầu ban đầu nhân dịp update màn "Kho" gộp Nhập/Xuất kho — thay vì sinh 1 số XK riêng cho dòng "Xuất kho" (derived), user chọn đơn giản hơn: đổi hẳn tiền tố Sales Order từ `BC` sang `XK` để số chứng từ Sales Order TỰ NHIÊN đã là số dùng cho dòng Xuất kho trong màn Kho, không cần sinh thêm số song song. `GetNextSalesOrderCodeUseCase` (`$"BC{n:D5}"` → `$"XK{n:D5}"`) và `SalesOrderRepository.GetNextCodeNumberAsync` (`const string prefix = "BC"` → `"XK"`) đổi theo. **Dữ liệu cũ**: UPDATE trực tiếp 14 `sales_orders` hiện có (`BC00001`..`BC00014` → `XK00001`..`XK00014`, theo yêu cầu "đổi luôn cho nhất quán") — không cần migration EF (chỉ đổi data, không đổi schema); đã kiểm tra không có bảng nào khác lưu denormalized text copy của số này (`sales_return_lines.sales_order_number` là free-text riêng, hiện đang rỗng; `deposit_deductions.sales_order_id` là FK int, tự động phản ánh tên mới qua navigation). Phát hiện thêm & fix: `tests/Lamour.Application.Tests/.../SalesOrderAmountManualTests.cs` đang gọi constructor `CreateSalesOrderUseCase`/`UpdateSalesOrderUseCase` cũ (4 tham số, thiếu `IDepositRepository` đã thêm ở phiên trước khi xây tính năng Đặt cọc-qua-Sales-Order) — test project trước đó chưa từng được build lại nên lỗi này chưa bị phát hiện; đã thêm `Mock<IDepositRepository>` vào `MakeMocks()` và cập nhật cả 6 lời gọi constructor, `dotnet test` pass lại đủ 6/6. WPF: 2 default fallback hardcode `"BC00001"` (`SalesOrderService.GetNextCodeAsync` khi BE lỗi, `SalesOrderViewModel._documentNumber`/`_nextDocumentNumber`) đổi thành `"XK00001"`.*
