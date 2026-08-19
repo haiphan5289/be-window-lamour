@@ -3,6 +3,7 @@ using System;
 using Lamour.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
@@ -11,9 +12,11 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace Lamour.Infrastructure.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260819082557_MakeSalesOrderLineWarehouseOptional")]
+    partial class MakeSalesOrderLineWarehouseOptional
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -937,14 +940,6 @@ namespace Lamour.Infrastructure.Migrations
                         .HasDefaultValue("")
                         .HasColumnName("code");
 
-                    b.Property<string>("Gender")
-                        .IsRequired()
-                        .ValueGeneratedOnAdd()
-                        .HasMaxLength(10)
-                        .HasColumnType("character varying(10)")
-                        .HasDefaultValue("Nam")
-                        .HasColumnName("gender");
-
                     b.Property<bool>("IsActive")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("boolean")
@@ -971,10 +966,8 @@ namespace Lamour.Infrastructure.Migrations
 
                     b.Property<string>("Phone")
                         .IsRequired()
-                        .ValueGeneratedOnAdd()
                         .HasMaxLength(20)
                         .HasColumnType("character varying(20)")
-                        .HasDefaultValue("")
                         .HasColumnName("phone");
 
                     b.Property<string>("Role")
@@ -985,8 +978,8 @@ namespace Lamour.Infrastructure.Migrations
 
                     b.Property<string>("Unit")
                         .IsRequired()
-                        .HasMaxLength(30)
-                        .HasColumnType("character varying(30)")
+                        .HasMaxLength(10)
+                        .HasColumnType("character varying(10)")
                         .HasColumnName("unit");
 
                     b.HasKey("Id");
@@ -1720,12 +1713,6 @@ namespace Lamour.Infrastructure.Migrations
                         .HasColumnType("boolean")
                         .HasDefaultValue(false)
                         .HasColumnName("is_amount_manual");
-
-                    b.Property<bool>("IsDepositProduct")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("boolean")
-                        .HasDefaultValue(false)
-                        .HasColumnName("is_deposit_product");
 
                     b.Property<bool>("IsPromotion")
                         .HasColumnType("boolean")

@@ -15,11 +15,11 @@ public class EmployeeConfiguration : IEntityTypeConfiguration<Employee>
         builder.Property(e => e.Code).HasColumnName("code").HasMaxLength(10).IsRequired().HasDefaultValue("");
         builder.HasIndex(e => e.Code).IsUnique();
         builder.Property(e => e.Name).HasColumnName("name").HasMaxLength(200).IsRequired();
-        builder.Property(e => e.Phone).HasColumnName("phone").HasMaxLength(20).IsRequired();
+        builder.Property(e => e.Gender).HasColumnName("gender").HasMaxLength(10).IsRequired().HasDefaultValue("Nam");
+        builder.Property(e => e.Phone).HasColumnName("phone").HasMaxLength(20).IsRequired().HasDefaultValue("");
         builder.Property(e => e.Role).HasColumnName("role")
             .HasConversion<string>().HasMaxLength(20).IsRequired();
-        builder.Property(e => e.Unit).HasColumnName("unit")
-            .HasConversion<string>().HasMaxLength(10).IsRequired();
+        builder.Property(e => e.Unit).HasColumnName("unit").HasMaxLength(30).IsRequired();
         builder.Property(e => e.PasswordHash).HasColumnName("password_hash").HasMaxLength(500).IsRequired();
         builder.Property(e => e.JobTitle).HasColumnName("job_title")
             .HasConversion<string>().HasMaxLength(30).IsRequired();

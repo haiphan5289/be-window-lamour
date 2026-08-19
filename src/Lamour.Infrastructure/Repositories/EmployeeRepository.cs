@@ -38,6 +38,12 @@ public class EmployeeRepository : IEmployeeRepository
         return employee;
     }
 
+    public async Task AddRangeAsync(IEnumerable<Employee> employees, CancellationToken ct = default)
+    {
+        _db.Employees.AddRange(employees);
+        await _db.SaveChangesAsync(ct);
+    }
+
     public async Task<Employee> UpdateAsync(Employee employee, CancellationToken ct = default)
     {
         _db.Employees.Update(employee);

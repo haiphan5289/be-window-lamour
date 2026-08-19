@@ -28,6 +28,12 @@ public class SupplierRepository : ISupplierRepository
         return supplier;
     }
 
+    public async Task AddRangeAsync(IEnumerable<Supplier> suppliers, CancellationToken ct = default)
+    {
+        _db.Suppliers.AddRange(suppliers);
+        await _db.SaveChangesAsync(ct);
+    }
+
     public async Task<Supplier> UpdateAsync(Supplier supplier, CancellationToken ct = default)
     {
         _db.Suppliers.Update(supplier);

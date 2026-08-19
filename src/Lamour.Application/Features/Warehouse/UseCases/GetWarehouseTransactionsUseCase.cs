@@ -114,10 +114,10 @@ public class GetWarehouseTransactionsUseCase : IGetWarehouseTransactionsUseCase
         HasSalesOrder      = true, // dòng Xuất kho luôn phát sinh TỪ 1 Sales Order đã ghi sổ
         LedgerDate         = o.CreatedAt,
         DocumentTypeLabel  = "Xuất kho bán hàng",
-        Lines = o.Lines.Where(l => !l.IsPromotion).Select(l =>
+        Lines = o.Lines.Where(l => !l.IsPromotion && l.WarehouseId.HasValue).Select(l =>
         {
             products.TryGetValue(l.ProductId, out var product);
-            warehouses.TryGetValue(l.WarehouseId, out var warehouse);
+            warehouses.TryGetValue(l.WarehouseId!.Value, out var warehouse);
             return new WarehouseTransactionLineDto
             {
                 ProductCode   = l.ProductCode,

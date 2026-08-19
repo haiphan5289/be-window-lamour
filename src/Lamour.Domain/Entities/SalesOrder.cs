@@ -51,12 +51,13 @@ public class SalesOrderLine
     public int     ProductId   { get; set; }
     public Product Product     { get; set; } = null!;
 
-    public int       WarehouseId { get; set; }             // Kho xuất hàng cho dòng này
-    public Warehouse Warehouse   { get; set; } = null!;
+    public int?       WarehouseId { get; set; }            // Kho xuất hàng cho dòng này — null nếu là dòng "Đặt cọc" (không phải hàng tồn kho thật)
+    public Warehouse? Warehouse   { get; set; }
 
     public string  ProductCode { get; set; } = "";        // Mã hàng (denormalized)
     public string  ProductName { get; set; } = "";        // Tên hàng (denormalized)
     public bool    IsPromotion { get; set; }              // Hàng khuyến mại
+    public bool    IsDepositProduct { get; set; }         // Denormalized từ Product.IsDepositProduct tại thời điểm ghi sổ — dùng để ẩn Đơn giá/CK/Thuế suất trên hóa đơn in
 
     public string  Unit         { get; set; } = "";        // ĐVT
     public int     Quantity     { get; set; }              // Số lượng

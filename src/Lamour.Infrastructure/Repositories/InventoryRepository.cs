@@ -62,7 +62,7 @@ public class InventoryRepository : IInventoryRepository
             .Where(l => !l.IsPromotion
                      && l.SalesOrder.AccountingDate >= fromUtc
                      && l.SalesOrder.AccountingDate <  toUtc
-                     && (!hasWarehouseFilter || warehouseIds!.Contains(l.WarehouseId)))
+                     && (!hasWarehouseFilter || (l.WarehouseId.HasValue && warehouseIds!.Contains(l.WarehouseId.Value))))
             .GroupBy(l => l.ProductId)
             .Select(g => new { ProductId = g.Key, Qty = g.Sum(l => l.Quantity) })
             .ToListAsync(ct);

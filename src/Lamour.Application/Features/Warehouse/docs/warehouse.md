@@ -1,6 +1,6 @@
 # Warehouse — Feature Document
 
-> **Jira:** — | **Branch:** `dev` | **Generated:** 2026-04-27 | **Updated:** 2026-08-15 (×2: thêm `GET /api/v1/warehouse-transactions` — danh sách gộp Nhập/Xuất kho, xem changelog cuối file; 4 loại phiếu + Supplier + tab Thống kê + số phiếu `NK00048`) | 2026-04-28 (×2)
+> **Jira:** — | **Branch:** `dev` | **Generated:** 2026-04-27 | **Updated:** 2026-08-19 (Phiếu nhập kho: cột "Kho" hiển thị đúng mã kho ngầm định HH/TB của sản phẩm thay vì hardcode "Kho chính"; `WarehouseId` khi Lưu cũng đổi theo — xem [`products.md`](../../Products/docs/products.md) changelog cùng ngày) | 2026-08-15 (×2: thêm `GET /api/v1/warehouse-transactions` — danh sách gộp Nhập/Xuất kho, xem changelog cuối file; 4 loại phiếu + Supplier + tab Thống kê + số phiếu `NK00048`) | 2026-04-28 (×2)
 
 ---
 

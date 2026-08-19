@@ -55,7 +55,7 @@ public class DeleteSalesOrderUseCase : IDeleteSalesOrderUseCase
                     product.StockQuantity += line.Quantity;
                     await _productRepo.UpdateAsync(product, ct);
                 }
-                await _stockRepo.AdjustQuantityAsync(line.ProductId, line.WarehouseId, line.Quantity, ct);
+                await _stockRepo.AdjustQuantityAsync(line.ProductId, line.WarehouseId!.Value, line.Quantity, ct);
             }
 
             await _repo.DeleteAsync(order, ct);

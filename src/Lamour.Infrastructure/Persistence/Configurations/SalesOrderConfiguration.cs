@@ -63,6 +63,7 @@ public class SalesOrderLineConfiguration : IEntityTypeConfiguration<SalesOrderLi
         builder.Property(x => x.ProductCode).HasColumnName("product_code").HasMaxLength(50).IsRequired();
         builder.Property(x => x.ProductName).HasColumnName("product_name").HasMaxLength(200).IsRequired();
         builder.Property(x => x.IsPromotion).HasColumnName("is_promotion");
+        builder.Property(x => x.IsDepositProduct).HasColumnName("is_deposit_product").IsRequired().HasDefaultValue(false);
         builder.Property(x => x.Unit).HasColumnName("unit").HasMaxLength(50).IsRequired();
         builder.Property(x => x.Quantity).HasColumnName("quantity").IsRequired();
         builder.Property(x => x.UnitPrice).HasColumnName("unit_price").HasPrecision(18, 2).IsRequired();

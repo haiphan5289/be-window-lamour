@@ -60,7 +60,7 @@ public class UpdateSalesOrderUseCase : IUpdateSalesOrderUseCase
                     product.StockQuantity += oldLine.Quantity;
                     await _productRepo.UpdateAsync(product, ct);
                 }
-                await _stockRepo.AdjustQuantityAsync(oldLine.ProductId, oldLine.WarehouseId, oldLine.Quantity, ct);
+                await _stockRepo.AdjustQuantityAsync(oldLine.ProductId, oldLine.WarehouseId!.Value, oldLine.Quantity, ct);
             }
 
             // Build new lines — validate stock against restored quantities
@@ -92,10 +92,11 @@ public class UpdateSalesOrderUseCase : IUpdateSalesOrderUseCase
                 newLines.Add(new SalesOrderLine
                 {
                     ProductId         = dto.ProductId,
-                    WarehouseId       = dto.WarehouseId,
+                    WarehouseId       = product.IsDepositProduct ? null : dto.WarehouseId,
                     ProductCode       = product.Code,
                     ProductName       = product.Name,
                     IsPromotion       = dto.IsPromotion,
+                    IsDepositProduct  = product.IsDepositProduct,
                     Unit              = string.IsNullOrWhiteSpace(dto.Unit) ? product.Unit : dto.Unit,
                     Quantity          = dto.Quantity,
                     UnitPrice         = unitPrice,
@@ -152,7 +153,7 @@ public class UpdateSalesOrderUseCase : IUpdateSalesOrderUseCase
                     product.StockQuantity -= line.Quantity;
                     await _productRepo.UpdateAsync(product, ct);
                 }
-                await _stockRepo.AdjustQuantityAsync(line.ProductId, line.WarehouseId, -line.Quantity, ct);
+                await _stockRepo.AdjustQuantityAsync(line.ProductId, line.WarehouseId!.Value, -line.Quantity, ct);
             }
 
             await SalesOrderDepositHelper.SyncAsync(_depositRepo, order, depositLinesAmount, ct);

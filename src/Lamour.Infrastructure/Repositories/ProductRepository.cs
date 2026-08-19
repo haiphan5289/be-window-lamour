@@ -44,6 +44,12 @@ public class ProductRepository : IProductRepository
         return product;
     }
 
+    public async Task AddRangeAsync(IEnumerable<Product> products, CancellationToken ct = default)
+    {
+        _db.Products.AddRange(products);
+        await _db.SaveChangesAsync(ct);
+    }
+
     public async Task<Product> UpdateAsync(Product product, CancellationToken ct = default)
     {
         // Chỉ mark root entity Modified — KHÔNG dùng _db.Products.Update(product), vì product được load

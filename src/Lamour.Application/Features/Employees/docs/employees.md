@@ -25,13 +25,16 @@
 | Rule | Description |
 |------|-------------|
 | Tên bắt buộc | `name` không được để trống — ném `DomainException` |
-| SĐT bắt buộc | `phone` không được để trống — ném `DomainException` |
+| SĐT optional (đổi 2026-08-19) | Trước đây `phone` bắt buộc — giờ tùy chọn, cho phép chuỗi rỗng. Cột DB vẫn `NOT NULL DEFAULT ''` (không có giá trị null thật, chỉ chuỗi rỗng) |
+| Giới tính (mới 2026-08-19) | `gender` bắt buộc, phải là `Nam` hoặc `Nữ` (case-insensitive) — `EmployeeGenders.AllowedValues` |
 | Role hợp lệ | Phải là `Admin`, `Cashier`, hoặc `Warehouse` (case-insensitive) |
-| Unit hợp lệ | Phải là `PGD`, `PKD`, `Spa`, `GD`, hoặc `Kho` (case-insensitive) |
-| Mật khẩu | Nếu `password` trống → dùng `phone` làm mật khẩu mặc định |
+| Unit hợp lệ (đổi 2026-08-19) | Trước đây enum cứng `PGD/PKD/Spa/GD/Kho`. Giờ 7 giá trị mới: `Kho và Quỹ/Marketting/Phòng Đào Tạo/Phòng Giám Đốc/Phòng Kinh Doanh/Phòng Nhân Sự/Tiệm spa` — `EmployeeUnits.AllowedValues`. **Lý do đổi từ enum sang string tự do**: C# enum member không chứa được dấu tiếng Việt/khoảng trắng, nên `Employee.Unit` đổi kiểu `EmployeeUnit` (enum) → `string`, validate bằng allowed-list thay vì `Enum.TryParse`. Data cũ remap 1 lần qua migration: `PGD/GD→Phòng Giám Đốc`, `PKD→Phòng Kinh Doanh`, `Spa→Tiệm spa`, `Kho→Kho và Quỹ` |
+| Mật khẩu | Nếu `password` trống → dùng `phone` làm mật khẩu mặc định; nếu `phone` **cũng** trống (2026-08-19, do SĐT giờ optional) → fallback tiếp về `code` (luôn có giá trị, không bao giờ hash chuỗi rỗng) |
 | Mật khẩu hash | SHA256 base64 — không bao giờ lưu raw password |
 | AsNoTracking | Tất cả read queries dùng `AsNoTracking()` |
 | Immutable hash | Password chỉ update khi `password` field trong request không trống |
+| Import Excel (2026-08-19) | `ImportExcelEmployeesUseCase` (Infra, ClosedXML) — header alias: `Tên nhân viên/Giới tính/Điện thoại/Vai trò/Đơn vị/Chức danh/Số tài khoản/Ngân hàng`. `code` luôn auto-gen (`NV{n:D5}`, tính 1 lần trước loop rồi tăng dần trong bộ nhớ — không gọi lại `GetNextCodeAsync` mỗi dòng). Role/Gender/Unit/JobTitle trống → mặc định `Cashier`/`Nam`/`Tiệm spa`/`Khac`; sai giá trị → skip dòng kèm lỗi. Không có cột mật khẩu trong file → mặc định = SĐT, hoặc Code nếu SĐT cũng trống. Gộp `AddRangeAsync` + broadcast `EmployeesBulkChangedAsync` |
+| ⚠️ Known gap (không phải do đổi lần này) | `DuplicateEmployeeUseCase` chỉ copy `Name/Phone/Role/IsActive` — **không** copy `Unit/JobTitle/Gender/Code/BankAccountNumber/BankName` từ bản gốc (bug có sẵn từ trước, ngoài phạm vi thay đổi lần này) |
 
 ---
 
@@ -123,14 +126,16 @@ graph TD
 | `PUT` | `/api/v1/employees/{id}` | `UpdateEmployeeRequestDto` | `EmployeeResponseDto` (200) |
 | `DELETE` | `/api/v1/employees/{id}` | — | 204 No Content |
 | `POST` | `/api/v1/employees/{id}/duplicate` | — | `EmployeeResponseDto` (201) |
+| `POST` | `/api/v1/employees/import-excel` | `multipart/form-data` (`file`, .xlsx) | `ImportEmployeeResultDto` (200) — `{total, imported, skipped, errors[]}` (2026-08-19) |
 
 ### Request — Create
 ```json
 {
   "name": "Nguyễn Văn A",
+  "gender": "Nam",
   "phone": "0912345678",
   "role": "Cashier",
-  "unit": "Spa",
+  "unit": "Tiệm spa",
   "password": "",
   "is_active": true
 }
@@ -141,9 +146,10 @@ graph TD
 {
   "id": 1,
   "name": "Nguyễn Văn A",
+  "gender": "Nam",
   "phone": "0912345678",
   "role": "Cashier",
-  "unit": "Spa",
+  "unit": "Tiệm spa",
   "is_active": true
 }
 ```
@@ -203,3 +209,5 @@ graph TD
 ---
 
 *Updated by `/ct-ai-document` on 2026-04-26*
+*Updated 2026-08-19: thêm `POST /api/v1/employees/import-excel` (ClosedXML) + WPF "📤 Xuất khẩu"/"📥 Nhập khẩu" trên `EmployeeListView`. Export không xuất `PasswordHash`. Không đổi schema, không cần migration.*
+*Updated 2026-08-19 (popup "Thêm nhân viên"): thêm field `Gender` (Nam/Nữ, migration `UpdateEmployeeGenderAndUnit`); đổi `Unit` từ enum cứng `PGD/PKD/Spa/GD/Kho` sang string tự do 7 giá trị mới (data cũ đã remap qua migration); `Phone` đổi từ bắt buộc sang optional (mật khẩu mặc định fallback thêm 1 tầng: password → phone → code). WPF: `EmployeeFormWindow.xaml` thêm ComboBox "Giới tính", bỏ dấu `*` bắt buộc ở "Số điện thoại", `EmployeeListView` thêm cột "Giới tính".*

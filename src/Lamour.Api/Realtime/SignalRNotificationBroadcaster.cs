@@ -44,6 +44,9 @@ public class SignalRNotificationBroadcaster : INotificationBroadcaster
     public Task EmployeeDeletedAsync(int employeeId, CancellationToken ct = default)
         => _hub.Clients.All.SendAsync("EmployeeDeleted", employeeId, ct);
 
+    public Task EmployeesBulkChangedAsync(CancellationToken ct = default)
+        => _hub.Clients.All.SendAsync("EmployeesBulkChanged", ct);
+
     public Task ProductCreatedAsync(ProductResponseDto product, CancellationToken ct = default)
         => _hub.Clients.All.SendAsync("ProductCreated", product, ct);
 
@@ -53,6 +56,9 @@ public class SignalRNotificationBroadcaster : INotificationBroadcaster
     public Task ProductDeletedAsync(int productId, CancellationToken ct = default)
         => _hub.Clients.All.SendAsync("ProductDeleted", productId, ct);
 
+    public Task ProductsBulkChangedAsync(CancellationToken ct = default)
+        => _hub.Clients.All.SendAsync("ProductsBulkChanged", ct);
+
     public Task SupplierCreatedAsync(SupplierResponseDto supplier, CancellationToken ct = default)
         => _hub.Clients.All.SendAsync("SupplierCreated", supplier, ct);
 
@@ -61,6 +67,9 @@ public class SignalRNotificationBroadcaster : INotificationBroadcaster
 
     public Task SupplierDeletedAsync(int supplierId, CancellationToken ct = default)
         => _hub.Clients.All.SendAsync("SupplierDeleted", supplierId, ct);
+
+    public Task SuppliersBulkChangedAsync(CancellationToken ct = default)
+        => _hub.Clients.All.SendAsync("SuppliersBulkChanged", ct);
 
     public Task CategoryCreatedAsync(CategoryResponseDto category, CancellationToken ct = default)
         => _hub.Clients.All.SendAsync("CategoryCreated", category, ct);

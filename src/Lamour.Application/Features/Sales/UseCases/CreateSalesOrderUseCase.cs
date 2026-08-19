@@ -73,10 +73,11 @@ public class CreateSalesOrderUseCase : ICreateSalesOrderUseCase
             lines.Add(new SalesOrderLine
             {
                 ProductId         = dto.ProductId,
-                WarehouseId       = dto.WarehouseId,
+                WarehouseId       = product.IsDepositProduct ? null : dto.WarehouseId,
                 ProductCode       = product.Code,
                 ProductName       = product.Name,
                 IsPromotion       = dto.IsPromotion,
+                IsDepositProduct  = product.IsDepositProduct,
                 Unit              = string.IsNullOrWhiteSpace(dto.Unit) ? product.Unit : dto.Unit,
                 Quantity          = dto.Quantity,
                 UnitPrice         = unitPrice,
@@ -137,7 +138,7 @@ public class CreateSalesOrderUseCase : ICreateSalesOrderUseCase
                     product.StockQuantity -= line.Quantity;
                     await _productRepo.UpdateAsync(product, ct);
                 }
-                await _stockRepo.AdjustQuantityAsync(line.ProductId, line.WarehouseId, -line.Quantity, ct);
+                await _stockRepo.AdjustQuantityAsync(line.ProductId, line.WarehouseId!.Value, -line.Quantity, ct);
             }
 
             await SalesOrderDepositHelper.SyncAsync(_depositRepo, saved, depositLinesAmount, ct);

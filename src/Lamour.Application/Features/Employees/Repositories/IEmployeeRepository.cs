@@ -9,6 +9,7 @@ public interface IEmployeeRepository
     Task<Employee?> GetByPhoneAsync(string phone, CancellationToken ct = default);
     Task<string> GetNextCodeAsync(CancellationToken ct = default);
     Task<Employee> AddAsync(Employee employee, CancellationToken ct = default);
+    Task AddRangeAsync(IEnumerable<Employee> employees, CancellationToken ct = default);
     Task<Employee> UpdateAsync(Employee employee, CancellationToken ct = default);
     Task DeleteAsync(Employee employee, CancellationToken ct = default);
 }

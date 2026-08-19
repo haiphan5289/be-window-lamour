@@ -21,14 +21,17 @@ public interface INotificationBroadcaster
     Task EmployeeCreatedAsync(EmployeeResponseDto employee, CancellationToken ct = default);
     Task EmployeeUpdatedAsync(EmployeeResponseDto employee, CancellationToken ct = default);
     Task EmployeeDeletedAsync(int employeeId, CancellationToken ct = default);
+    Task EmployeesBulkChangedAsync(CancellationToken ct = default);
 
     Task ProductCreatedAsync(ProductResponseDto product, CancellationToken ct = default);
     Task ProductUpdatedAsync(ProductResponseDto product, CancellationToken ct = default);
     Task ProductDeletedAsync(int productId, CancellationToken ct = default);
+    Task ProductsBulkChangedAsync(CancellationToken ct = default);
 
     Task SupplierCreatedAsync(SupplierResponseDto supplier, CancellationToken ct = default);
     Task SupplierUpdatedAsync(SupplierResponseDto supplier, CancellationToken ct = default);
     Task SupplierDeletedAsync(int supplierId, CancellationToken ct = default);
+    Task SuppliersBulkChangedAsync(CancellationToken ct = default);
 
     Task CategoryCreatedAsync(CategoryResponseDto category, CancellationToken ct = default);
     Task CategoryUpdatedAsync(CategoryResponseDto category, CancellationToken ct = default);

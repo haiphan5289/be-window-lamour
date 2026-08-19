@@ -41,7 +41,9 @@
 | Thành tiền thủ công (2026-08-04) | `SalesOrderLineDto.IsAmountManual` (bool) — nếu `true` và dòng không phải khuyến mại: BE dùng thẳng `dto.Amount` do client gửi thay vì tự tính từ `Quantity × UnitPrice × (1 − DiscountRate/100)`; validate `Amount >= 0` (`DomainException` nếu âm). `UnitPrice`/`DiscountRate` vẫn được lưu như bình thường (chỉ dùng để hiển thị/tham khảo, không dùng để tính `Amount` khi ở chế độ thủ công). `TaxAmount = Amount × TaxRate / 100` vẫn tính như cũ dựa trên `Amount` cuối cùng (dù thủ công hay auto-calc) |
 | Thành tiền thủ công + khuyến mại | `IsPromotion = true` luôn thắng: `Amount` bị ép về `0` và `IsAmountManual` bị ép về `false`, bất kể client gửi gì lên (nhất quán với rule "Line khuyến mại" hiện có) |
 | Tính thuế (2026-07-15) | `TaxRate` lấy từ `Product.VatRate` tại thời điểm ghi sổ (không tin client): `Five→5`, `Eight→8`, `Ten→10`, còn lại (`Zero`/`KCT`/`KKKNT`/`KHAC`/null) → `0`. `TaxAmount = Amount × TaxRate / 100` — xem `SalesOrderTaxCalculator.ToPercent()` |
-| Denormalize | `ProductCode`, `ProductName`, `TaxRate` được copy vào line tại thời điểm tạo — không phụ thuộc sản phẩm/thuế suất sản phẩm thay đổi sau này |
+| Denormalize | `ProductCode`, `ProductName`, `TaxRate`, `IsDepositProduct` (2026-08-19) được copy vào line tại thời điểm tạo — không phụ thuộc sản phẩm/thuế suất sản phẩm thay đổi sau này |
+| Dòng "Đặt cọc" không cần chọn Kho (2026-08-19) | `SalesOrderLine.WarehouseId` là `int?` (nullable) — khi `Product.IsDepositProduct = true`, BE luôn ép `WarehouseId = null` bất kể client gửi gì lên, bỏ qua toàn bộ validate/adjust tồn kho theo kho (giống cách dòng khuyến mại được loại trừ). Line không phải Đặt cọc vẫn bắt buộc `WarehouseId` hợp lệ (FK tới `warehouses`) như cũ |
+| `SalesOrderLine.IsDepositProduct` (mới 2026-08-19) | Denormalize từ `Product.IsDepositProduct` tại thời điểm ghi sổ (set trong `CreateSalesOrderUseCase`/`UpdateSalesOrderUseCase`), trả về qua `SalesOrderLineDto.is_deposit_product`. Lý do thêm: hóa đơn in cần biết dòng nào là "Đặt cọc" để ẩn cột Đơn giá/CK/Thuế suất, nhưng `AddAsync`/`GetAllAsync`/`GetByIdAsync` không `.Include(l => l.Product)` nên không thể dựa vào navigation property lúc map DTO — phải denormalize thay vì query lại |
 | DateTime UTC | Lưu `DateTime.UtcNow`, WPF convert sang local time khi hiển thị |
 | TK mặc định | `ReceivableAccount = "131"`, `RevenueAccount = "511"` |
 | Tổng tiền | `TotalAmount = SUM(line.Amount)` (net sau chiết khấu, **chưa thuế**); `TotalTaxAmount = SUM(line.TaxAmount)`; `GrandTotal = TotalAmount + TotalTaxAmount` (tổng thanh toán thật) — tất cả tính tại BE |
@@ -453,6 +455,36 @@ dotnet ef database update \
 ```
 Column added: `sales_order_lines.is_amount_manual boolean NOT NULL DEFAULT FALSE`.
 
+**Migration 7 — `MakeSalesOrderLineWarehouseOptional` (2026-08-19):**
+```bash
+dotnet ef migrations add MakeSalesOrderLineWarehouseOptional \
+  --project src/Lamour.Infrastructure \
+  --startup-project src/Lamour.Api
+dotnet ef database update \
+  --project src/Lamour.Infrastructure \
+  --startup-project src/Lamour.Api
+```
+Column changed: `sales_order_lines.warehouse_id` → nullable (`DROP NOT NULL`).
+
+Fix cho bug: dòng "Đặt cọc" (`Product.IsDepositProduct = true`) không có Kho thật để chọn (WPF `DepositProductPickerItem` không cung cấp `WarehouseId`, mặc định gửi `0`) — nhưng `warehouse_id` trước đó là FK bắt buộc (`Restrict`) tới bảng `warehouses` (chỉ có id `1/4/5` seed sẵn), nên insert vi phạm FK constraint → exception không phải `DomainException` → `GlobalExceptionHandler` trả 500 `"An unexpected error occurred."` (WPF hiển thị "Không thể ghi sổ"). Fix: `SalesOrderLine.WarehouseId`/`Warehouse` đổi sang nullable; `CreateSalesOrderUseCase`/`UpdateSalesOrderUseCase` ép `WarehouseId = null` khi `product.IsDepositProduct` bất kể client gửi gì lên (giống cách ép giá/CK/thuế = 0 cho dòng khuyến mại). Các UseCase khác đọc `line.WarehouseId` sau khi đã `continue` qua dòng Đặt cọc nên an toàn dùng `.Value`. Side-fix: `GetWarehouseTransactionsUseCase.MapSalesOrder` và `InventoryRepository.GetExportQtyByProductAsync` cũng loại dòng có `WarehouseId == null` khỏi báo cáo Kho/tồn kho (trước đây dòng Đặt cọc bị lẫn vào báo cáo "Xuất kho bán hàng" dù không phải hàng thật — bug có sẵn, tiện fix luôn).
+
+⚠️ **Cần chạy migration này trên môi trường deploy (Windows Server)** trước khi dùng lại tính năng "Đặt cọc" qua Sales Order — xem mục Deployment trong `CLAUDE.md`.
+
+**Migration 8 — `AddIsDepositProductToSalesOrderLines` (2026-08-19):**
+```bash
+dotnet ef migrations add AddIsDepositProductToSalesOrderLines \
+  --project src/Lamour.Infrastructure \
+  --startup-project src/Lamour.Api
+dotnet ef database update \
+  --project src/Lamour.Infrastructure \
+  --startup-project src/Lamour.Api
+```
+Column added: `sales_order_lines.is_deposit_product boolean NOT NULL DEFAULT FALSE`. Kèm data-migration backfill 1 lần cho dòng cũ: `UPDATE sales_order_lines SET is_deposit_product = true FROM products WHERE product_id = products.id AND products.is_deposit_product = true`.
+
+Lý do: UI In Hoá Đơn cần ẩn cột Đơn giá/CK/Thuế suất cho dòng "Đặt cọc" (số tiền nhập tay qua Thành tiền thủ công, không phải Quantity×UnitPrice). `SalesOrderRepository.AddAsync`/`GetAllAsync`/`GetByIdAsync` không `.Include(l => l.Product)` nên WPF không thể tự suy ra dòng nào là Đặt cọc từ response — phải denormalize flag này lên chính `SalesOrderLine` (giống `ProductCode`/`ProductName`/`TaxRate`) thay vì thêm `.Include()` ở nhiều nơi.
+
+⚠️ **Cần chạy migration này trên môi trường deploy (Windows Server)** trước khi build/deploy `Lamour.Api` mới.
+
 ---
 
 ## Test Coverage Notes
@@ -512,3 +544,4 @@ Column added: `sales_order_lines.is_amount_manual boolean NOT NULL DEFAULT FALSE
 *Updated 2026-08-04 (popup "Chứng từ bán hàng" — cho phép gõ tay Thành tiền): thêm `SalesOrderLine.IsAmountManual` (bool, default false) + `SalesOrderLineDto.is_amount_manual` — khi `true` (và dòng không phải khuyến mại), `CreateSalesOrderUseCase`/`UpdateSalesOrderUseCase` dùng thẳng `amount` client gửi thay vì tự tính `Quantity × UnitPrice × (1 − DiscountRate/100)`; validate `Amount >= 0` (`DomainException` nếu âm); dòng khuyến mại luôn ép `Amount = 0`/`IsAmountManual = false` bất kể client gửi gì. `TaxAmount` vẫn tính từ `Amount` cuối cùng như cũ. Migration 6 `AddIsAmountManualToSalesOrderLines`. Không đổi route/contract shape khác — chỉ thêm 1 field trên `SalesOrderLineDto` (dùng chung request/response). Tạo mới test project `tests/Lamour.Application.Tests` (repo trước đó chưa có test project nào) với 6 test case cho Create/Update ở chế độ thủ công. WPF: `SalesOrderWindow.xaml` cột "Thành tiền" đổi từ read-only sang editable, tự bật `IsAmountManual` khi user gõ tay, tự tắt khi user sửa lại Đơn giá/SL/CK% của dòng đó — xem `desktop-lamour/.../Sales/docs/sales.md` để biết chi tiết phía client.*
 *Updated 2026-08-09 (fix bug: Sửa đơn đang Treo + Ghi sổ không đổi status): user báo "list chứng từ bán hàng không update" khi đổi Treo → Ghi sổ; điều tra xác nhận đây KHÔNG phải bug refresh (WPF `EditSalesOrderAsync` đã reload đầy đủ `LoadSalesOrdersCommand` sau `ShowDialog()==true`) mà là bug data ở BE — `UpdateSalesOrderUseCase` trước đó không đụng field `Status` (chỉ `CreateSalesOrderUseCase` set `Status=Normal` lúc tạo mới, `HoldSalesOrderUseCase` set `Status=Held`, nhưng KHÔNG có action nào set về lại `Normal` sau khi treo) — nên đơn đang Held mà Sửa+Ghi sổ thì `Status` giữ nguyên `Held` trong DB, WPF reload đúng data (vẫn đúng là Held) nên list "trông như không update" dù thực ra đã update đúng theo data sai. Fix: thêm 1 dòng `order.Status = SalesOrderStatus.Normal;` trong `UpdateSalesOrderUseCase.ExecuteAsync` (đặt cùng chỗ set các field header khác) — khớp hành vi `CreateSalesOrderUseCase`, nút "💾 Ghi sổ" giờ luôn post đơn về Normal bất kể trạng thái trước đó, chỉ nút "⏸ Treo" riêng mới giữ Treo. Không cần EF migration (không đổi schema). Không cần sửa WPF (cơ chế reload đã đúng sẵn, chỉ thiếu đúng data từ BE). BE build 0 lỗi.*
 *Updated 2026-08-15 (đổi prefix số chứng từ BC → XK, toàn project): yêu cầu ban đầu nhân dịp update màn "Kho" gộp Nhập/Xuất kho — thay vì sinh 1 số XK riêng cho dòng "Xuất kho" (derived), user chọn đơn giản hơn: đổi hẳn tiền tố Sales Order từ `BC` sang `XK` để số chứng từ Sales Order TỰ NHIÊN đã là số dùng cho dòng Xuất kho trong màn Kho, không cần sinh thêm số song song. `GetNextSalesOrderCodeUseCase` (`$"BC{n:D5}"` → `$"XK{n:D5}"`) và `SalesOrderRepository.GetNextCodeNumberAsync` (`const string prefix = "BC"` → `"XK"`) đổi theo. **Dữ liệu cũ**: UPDATE trực tiếp 14 `sales_orders` hiện có (`BC00001`..`BC00014` → `XK00001`..`XK00014`, theo yêu cầu "đổi luôn cho nhất quán") — không cần migration EF (chỉ đổi data, không đổi schema); đã kiểm tra không có bảng nào khác lưu denormalized text copy của số này (`sales_return_lines.sales_order_number` là free-text riêng, hiện đang rỗng; `deposit_deductions.sales_order_id` là FK int, tự động phản ánh tên mới qua navigation). Phát hiện thêm & fix: `tests/Lamour.Application.Tests/.../SalesOrderAmountManualTests.cs` đang gọi constructor `CreateSalesOrderUseCase`/`UpdateSalesOrderUseCase` cũ (4 tham số, thiếu `IDepositRepository` đã thêm ở phiên trước khi xây tính năng Đặt cọc-qua-Sales-Order) — test project trước đó chưa từng được build lại nên lỗi này chưa bị phát hiện; đã thêm `Mock<IDepositRepository>` vào `MakeMocks()` và cập nhật cả 6 lời gọi constructor, `dotnet test` pass lại đủ 6/6. WPF: 2 default fallback hardcode `"BC00001"` (`SalesOrderService.GetNextCodeAsync` khi BE lỗi, `SalesOrderViewModel._documentNumber`/`_nextDocumentNumber`) đổi thành `"XK00001"`.*
+*Updated 2026-08-19 (UI In Hoá Đơn — ẩn Đơn giá/CK/Thuế suất cho dòng "Đặt cọc"): thêm `SalesOrderLine.IsDepositProduct` (denormalize từ `Product.IsDepositProduct` lúc ghi sổ) + `SalesOrderLineDto.is_deposit_product`; migration 8 `AddIsDepositProductToSalesOrderLines` kèm backfill data cũ. WPF: `SalesOrderPrintWindow.BuildInvoiceDocument` — dòng có `IsDepositProduct = true` để trống 3 cột Đơn giá/CK/Thuế suất (giữ nguyên SL/Thành tiền/Tổng cộng), giống cách dòng khuyến mại ẩn cột không áp dụng; `SalesOrderLineItem` thêm property cùng tên, set trong `SelectedProduct` setter khi chọn 1 `Product` thật; `ToLineDto`/`PopulateFormFromCurrent` trong `SalesOrderViewModel` wire xuyên suốt.*

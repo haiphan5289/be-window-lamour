@@ -62,6 +62,8 @@ builder.Services.AddScoped<Lamour.Application.Features.Suppliers.UseCases.IDelet
                            Lamour.Application.Features.Suppliers.UseCases.DeleteSupplierUseCase>();
 builder.Services.AddScoped<Lamour.Application.Features.Suppliers.UseCases.IDuplicateSupplierUseCase,
                            Lamour.Application.Features.Suppliers.UseCases.DuplicateSupplierUseCase>();
+builder.Services.AddScoped<Lamour.Application.Features.Suppliers.UseCases.IImportExcelSuppliersUseCase,
+                           Lamour.Infrastructure.UseCases.ImportExcelSuppliersUseCase>();
 
 // ── Products DI ───────────────────────────────────────────────────────────────
 builder.Services.AddScoped<Lamour.Application.Features.Products.Repositories.IProductRepository,
@@ -76,6 +78,8 @@ builder.Services.AddScoped<Lamour.Application.Features.Products.UseCases.IDelete
                            Lamour.Application.Features.Products.UseCases.DeleteProductUseCase>();
 builder.Services.AddScoped<Lamour.Application.Features.Products.UseCases.IDuplicateProductUseCase,
                            Lamour.Application.Features.Products.UseCases.DuplicateProductUseCase>();
+builder.Services.AddScoped<Lamour.Application.Features.Products.UseCases.IImportExcelProductsUseCase,
+                           Lamour.Infrastructure.UseCases.ImportExcelProductsUseCase>();
 
 // ── Categories DI ─────────────────────────────────────────────────────────────
 builder.Services.AddScoped<Lamour.Application.Features.Categories.Repositories.ICategoryRepository,
@@ -180,6 +184,8 @@ builder.Services.AddScoped<Lamour.Application.Features.Employees.UseCases.IDelet
                            Lamour.Application.Features.Employees.UseCases.DeleteEmployeeUseCase>();
 builder.Services.AddScoped<Lamour.Application.Features.Employees.UseCases.IDuplicateEmployeeUseCase,
                            Lamour.Application.Features.Employees.UseCases.DuplicateEmployeeUseCase>();
+builder.Services.AddScoped<Lamour.Application.Features.Employees.UseCases.IImportExcelEmployeesUseCase,
+                           Lamour.Infrastructure.UseCases.ImportExcelEmployeesUseCase>();
 
 // ── Warehouse DI ─────────────────────────────────────────────────────────────
 builder.Services.AddScoped<Lamour.Application.Features.Warehouse.Repositories.IInventoryRepository,

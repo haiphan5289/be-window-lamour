@@ -1,6 +1,6 @@
 # Products — Feature Document (BE)
 
-> **Jira:** — | **Branch:** `dev` | **Generated:** 2026-04-25 | **Updated:** 2026-08-15 (×3: thêm `is_deposit_product` — đánh dấu sản phẩm dùng để ghi nhận Đặt cọc trên Sales Order, xem [`deposits.md`](../../Deposits/docs/deposits.md); `category_id` thành optional — xem changelog cuối file; bỏ guard `IsInUseAsync` khi xóa sản phẩm) | 2026-08-09 (thêm ~20 field cho popup "Sửa Vật tư, hàng hoá, dịch vụ" — xem changelog cuối file) | 2026-07-25 (Category thành master-data FK riêng — xem [`categories.md`](../../Categories/docs/categories.md); bỏ validate CostPrice/SellingPrice > 0)
+> **Jira:** — | **Branch:** `dev` | **Generated:** 2026-04-25 | **Updated:** 2026-08-19 (thêm `default_warehouse_code` vào `ProductResponseDto` — dùng cho cột "Kho" trên Phiếu nhập kho, xem [`warehouse.md`](../../Warehouse/docs/warehouse.md)) | 2026-08-18 (import 72 sản phẩm thực tế + tồn kho theo kho từ Excel — xem changelog cuối file) | 2026-08-15 (×3: thêm `is_deposit_product` — đánh dấu sản phẩm dùng để ghi nhận Đặt cọc trên Sales Order, xem [`deposits.md`](../../Deposits/docs/deposits.md); `category_id` thành optional — xem changelog cuối file; bỏ guard `IsInUseAsync` khi xóa sản phẩm) | 2026-08-09 (thêm ~20 field cho popup "Sửa Vật tư, hàng hoá, dịch vụ" — xem changelog cuối file) | 2026-07-25 (Category thành master-data FK riêng — xem [`categories.md`](../../Categories/docs/categories.md); bỏ validate CostPrice/SellingPrice > 0)
 
 ---
 
@@ -31,6 +31,7 @@
 | ~~SellingPrice > 0~~ | ~~`selling_price` phải lớn hơn 0~~ — **Bỏ 2026-07-25** theo yêu cầu, giờ chấp nhận mọi giá trị kể cả 0 |
 | Stock quantity | `stock_quantity` lưu tại DB, tăng/giảm qua import/export invoice |
 | Duplicate code | Khi nhân bản: code mới = `{original_code}_COPY`; lỗi nếu `_COPY` đã tồn tại |
+| Import Excel (2026-08-19) | `ImportExcelProductsUseCase` (Infra, ClosedXML) — **chỉ hỗ trợ field cốt lõi**, khớp đúng cột hiển thị trên `ProductListView` (WPF): `Mã sản phẩm/Tên sản phẩm/Danh mục/Đơn vị/Giá nhập/Giá bán/Tồn kho`. Không đụng ~20 field còn lại (thuế, tài khoản kế toán, kho ngầm định...) — để nguyên default, sửa qua form từng sản phẩm sau. `code` optional như create (bỏ trống hợp lệ), nếu có thì phải unique. `Danh mục` resolve theo tên qua `ICategoryRepository.GetAllAsync` (không match → để `category_id = null`, không lỗi). `Tồn kho` set thẳng `Product.StockQuantity`, **không** ghi `ProductWarehouseStock` (vì không có cột chọn Kho trong file import). Gộp `AddRangeAsync` + broadcast `ProductsBulkChangedAsync` |
 | is_active | Sản phẩm có thể ngừng kinh doanh (`is_active = false`) |
 | vat_rate | Thuế suất GTGT — enum `VatRateType`: `Zero`, `Five`, `Eight`, `Ten`, `KCT`, `KKKNT`, `KHAC`; nullable |
 | tax_reduction_type | Có giảm thuế — enum `TaxReductionStatus`: `CoGiamThue`, `ChuaGiamThue`, `ChuaXacDinh`; nullable |
@@ -128,6 +129,7 @@ graph TD
 | `PUT` | `/api/v1/products/{id}` | `UpdateProductRequestDto` | `ProductResponseDto` (200) |
 | `DELETE` | `/api/v1/products/{id}` | — | 204 No Content |
 | `POST` | `/api/v1/products/{id}/duplicate` | — | `ProductResponseDto` (201) |
+| `POST` | `/api/v1/products/import-excel` | `multipart/form-data` (`file`, .xlsx) | `ImportProductResultDto` (200) — `{total, imported, skipped, errors[]}` (2026-08-19), chỉ field cốt lõi — xem Business Rules |
 
 ### Request — Create / Update
 ```json
@@ -288,6 +290,31 @@ Dropdown "Có giảm thuế" trên WPF bị bind nhầm vào `VatRateOptions` (`
 
 ---
 
+## Changelog — 2026-08-19: Thêm `default_warehouse_code` vào `ProductResponseDto`
+
+> Yêu cầu: "Update Phiếu nhập kho — cột Kho chỉ hiển thị HH hoặc TB". Cột "Kho" trên WPF trước đó hardcode text "Kho chính" (không phải data thật) và khi Lưu luôn gửi `WarehouseId=1` cứng cho mọi dòng — không liên quan gì đến kho ngầm định thật của sản phẩm. Đã hỏi rõ trước khi sửa: chỉ đổi chữ hiển thị hay sửa đúng bản chất — user chọn **sửa đúng bản chất**.
+
+- `ProductResponseDto.cs`: thêm `[JsonPropertyName("default_warehouse_code")] public string? DefaultWarehouseCode` — cạnh `default_warehouse_id`/`default_warehouse_name` đã có.
+- `CreateProductUseCase.MapToDto` (dùng chung bởi Get/Update/Duplicate): thêm `DefaultWarehouseCode = p.DefaultWarehouse?.Code`. Không cần sửa gì ở `ProductRepository` vì `.Include(p => p.DefaultWarehouse)` đã có sẵn.
+- Không có migration (field tính từ navigation `DefaultWarehouse` có sẵn, không phải cột DB mới).
+
+**WPF (`desktop-lamour`)**: `WarehouseReceiptFormWindow` tab "1. Hàng tiền" — cột "Mã/Tên hàng" đổi thành "Tên hàng" (chỉ hiển thị `SelectedProduct.Name`, bỏ mã); cột "Kho" đổi từ text hardcode "Kho chính" sang bind `SelectedProduct.DefaultWarehouseCode` (hiển thị "HH"/"TB" theo đúng kho ngầm định của sản phẩm đang chọn). `WarehouseReceiptFormViewModel.SaveAsync`: `WarehouseId` khi gửi BE đổi từ hardcode `=1` sang `(SelectedProduct as WarehouseProductItem)?.DefaultWarehouseId ?? 1` — sản phẩm chưa gán kho ngầm định vẫn fallback về Kho chính (Id=1) để không phá luồng cũ. Chi tiết đầy đủ xem [`warehouse.md`](../../Warehouse/docs/warehouse.md) changelog cùng ngày.
+
+---
+
+## Changelog — 2026-08-18: Import 72 sản phẩm thực tế từ Excel + tồn kho theo kho
+
+> Nguồn: `vật tư hàng hóa.xlsx` (danh sách Mã/Tên/Tính chất/ĐVT/Số lượng tồn tối thiểu/Giảm thuế theo QĐ) + `Tổng hợp tồn kho.xlsx` (tồn kho theo 2 kho `HH`/`TB`, ngày 2026-08-18) — do user cung cấp qua `/ct-be-to-desktop`.
+
+- Migration `ImportVatTuHangHoaAndTonKhoData` (`20260818131059_...`) — upsert bằng raw SQL (`ON CONFLICT (code) DO UPDATE`), an toàn chạy lại nhiều lần và tự động apply ở mọi môi trường khi `dotnet ef database update`.
+- 72 `Product` mới: `nature` map "Vật tư hàng hóa"→`VatTuHangHoa`/"Dịch vụ"→`DichVu`; `tax_reduction_type` map "Có giảm thuế"→`CoGiamThue`/"Chưa xác định"→`ChuaXacDinh`; `product_unit_id` resolve qua tên đơn vị đã có sẵn trong `product_units` (không cần tạo mới); `category_id = NULL` (cột "Nhóm VTHH" trống toàn bộ trong file nguồn); `cost_price = selling_price = 0` (file không có giá — user tự cập nhật sau qua popup Sửa sản phẩm).
+- 2 mục `"CỌC"` (code `65`) và `"Trừ Cọc"` (code `36`) đánh dấu `is_deposit_product = true` — theo yêu cầu user, tương đương vai trò `DATCOC` hiện có (loại khỏi trừ tồn kho, tự tạo `Deposit` khi dùng trên Sales Order).
+- 95 dòng `ProductWarehouseStock` (66 kho `HH`/"Hàng hoá" + 29 kho `TB`/"Trưng bày") — join theo `product.code`/`warehouse.code`, `ON CONFLICT (product_id, warehouse_id) DO UPDATE`. `Product.StockQuantity` set bằng tổng 2 kho (khớp business rule "Closing qty = Product.StockQuantity" ở [`warehouse.md`](../../../Warehouse/docs/warehouse.md)).
+- 5 sản phẩm/dịch vụ không có ĐVT trong file gốc (`36`, `65`, `CPMH`, `KHACHSAN_PHI_PHUCVU`, `LPXD`) → `unit = ''`, `product_unit_id = NULL`.
+- `Down()` xóa theo danh sách 72 `code` — `product_warehouse_stocks` tự xóa theo (`ON DELETE CASCADE` trên `product_id`).
+
+---
+
 ## Changelog — 2026-08-15: `category_id` ("Nhóm VTHH") trở thành optional
 
 > Yêu cầu: "Thêm vật tư hàng hoá screen — bỏ * field Nhóm VTHH". Đã hỏi rõ trước khi sửa: chỉ bỏ dấu `*` trên UI (cosmetic, vẫn bắt buộc) hay optional thật sự — user chọn **optional thật sự (`category_id` → `int?`)**.
@@ -312,3 +339,4 @@ Dropdown "Có giảm thuế" trên WPF bị bind nhầm vào `VatRateOptions` (`
 ---
 
 *Generated by `/ct-ai-document` on 2026-04-25*
+*Updated 2026-08-19: thêm `POST /api/v1/products/import-excel` (ClosedXML, chỉ field cốt lõi) + WPF "📤 Xuất khẩu"/"📥 Nhập khẩu" trên `ProductListView` (Export tôn trọng bộ lọc `SearchText` hiện tại). Không đổi schema, không cần migration.*

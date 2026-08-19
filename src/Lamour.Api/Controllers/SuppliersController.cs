@@ -15,19 +15,22 @@ public class SuppliersController : ControllerBase
     private readonly IUpdateSupplierUseCase    _update;
     private readonly IDeleteSupplierUseCase    _delete;
     private readonly IDuplicateSupplierUseCase _duplicate;
+    private readonly IImportExcelSuppliersUseCase _importExcel;
 
     public SuppliersController(
         IGetSuppliersUseCase      getAll,
         ICreateSupplierUseCase    create,
         IUpdateSupplierUseCase    update,
         IDeleteSupplierUseCase    delete,
-        IDuplicateSupplierUseCase duplicate)
+        IDuplicateSupplierUseCase duplicate,
+        IImportExcelSuppliersUseCase importExcel)
     {
-        _getAll    = getAll;
-        _create    = create;
-        _update    = update;
-        _delete    = delete;
-        _duplicate = duplicate;
+        _getAll      = getAll;
+        _create      = create;
+        _update      = update;
+        _delete      = delete;
+        _duplicate   = duplicate;
+        _importExcel = importExcel;
     }
 
     [HttpGet]
@@ -63,5 +66,16 @@ public class SuppliersController : ControllerBase
     {
         var result = await _duplicate.ExecuteAsync(id, ct);
         return CreatedAtAction(nameof(GetAll), new { }, result);
+    }
+
+    [HttpPost("import-excel")]
+    public async Task<IActionResult> ImportExcel(IFormFile file, CancellationToken ct)
+    {
+        if (file is null || file.Length == 0)
+            return BadRequest(new { message = "File không được để trống." });
+
+        using var stream = file.OpenReadStream();
+        var result = await _importExcel.ExecuteAsync(stream, ct);
+        return Ok(result);
     }
 }

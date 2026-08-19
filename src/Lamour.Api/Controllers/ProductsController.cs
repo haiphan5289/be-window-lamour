@@ -15,19 +15,22 @@ public class ProductsController : ControllerBase
     private readonly IUpdateProductUseCase    _update;
     private readonly IDeleteProductUseCase    _delete;
     private readonly IDuplicateProductUseCase _duplicate;
+    private readonly IImportExcelProductsUseCase _importExcel;
 
     public ProductsController(
         IGetProductsUseCase      getAll,
         ICreateProductUseCase    create,
         IUpdateProductUseCase    update,
         IDeleteProductUseCase    delete,
-        IDuplicateProductUseCase duplicate)
+        IDuplicateProductUseCase duplicate,
+        IImportExcelProductsUseCase importExcel)
     {
-        _getAll    = getAll;
-        _create    = create;
-        _update    = update;
-        _delete    = delete;
-        _duplicate = duplicate;
+        _getAll      = getAll;
+        _create      = create;
+        _update      = update;
+        _delete      = delete;
+        _duplicate   = duplicate;
+        _importExcel = importExcel;
     }
 
     [HttpGet]
@@ -63,5 +66,16 @@ public class ProductsController : ControllerBase
     {
         var result = await _duplicate.ExecuteAsync(id, ct);
         return CreatedAtAction(nameof(GetAll), new { }, result);
+    }
+
+    [HttpPost("import-excel")]
+    public async Task<IActionResult> ImportExcel(IFormFile file, CancellationToken ct)
+    {
+        if (file is null || file.Length == 0)
+            return BadRequest(new { message = "File không được để trống." });
+
+        using var stream = file.OpenReadStream();
+        var result = await _importExcel.ExecuteAsync(stream, ct);
+        return Ok(result);
     }
 }

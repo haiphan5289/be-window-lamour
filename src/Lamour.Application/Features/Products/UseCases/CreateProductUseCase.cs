@@ -154,6 +154,7 @@ public class CreateProductUseCase : ICreateProductUseCase
 
         DefaultWarehouseId        = p.DefaultWarehouseId,
         DefaultWarehouseName      = p.DefaultWarehouse?.Name,
+        DefaultWarehouseCode      = p.DefaultWarehouse?.Code,
         StockAccountId            = p.StockAccountId,
         StockAccountCode          = p.StockAccount?.Code,
         RevenueAccountId          = p.RevenueAccountId,

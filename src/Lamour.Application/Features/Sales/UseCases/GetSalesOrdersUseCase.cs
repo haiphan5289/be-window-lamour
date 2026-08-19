@@ -52,6 +52,7 @@ public class GetSalesOrdersUseCase : IGetSalesOrdersUseCase
             ProductCode       = l.ProductCode,
             ProductName       = l.ProductName,
             IsPromotion       = l.IsPromotion,
+            IsDepositProduct  = l.IsDepositProduct,
             Unit              = l.Unit,
             Quantity          = l.Quantity,
             UnitPrice         = l.UnitPrice,
