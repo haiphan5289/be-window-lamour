@@ -16,7 +16,7 @@ public class SalesOrderRepository : ISalesOrderRepository
             .AsNoTracking()
             .Include(o => o.Customer)
             .Include(o => o.Employee)
-            .Include(o => o.Lines)
+            .Include(o => o.Lines.OrderBy(l => l.Id))
             .OrderByDescending(o => o.CreatedAt)
             .ToListAsync(ct);
 
@@ -25,14 +25,14 @@ public class SalesOrderRepository : ISalesOrderRepository
             .AsNoTracking()
             .Include(o => o.Customer)
             .Include(o => o.Employee)
-            .Include(o => o.Lines)
+            .Include(o => o.Lines.OrderBy(l => l.Id))
             .FirstOrDefaultAsync(o => o.Id == id, ct);
 
     public async Task<SalesOrder?> GetByIdTrackedAsync(int id, CancellationToken ct = default)
         => await _db.SalesOrders
             .Include(o => o.Customer)
             .Include(o => o.Employee)
-            .Include(o => o.Lines)
+            .Include(o => o.Lines.OrderBy(l => l.Id))
             .FirstOrDefaultAsync(o => o.Id == id, ct);
 
     public async Task<SalesOrder> AddAsync(SalesOrder order, CancellationToken ct = default)
@@ -101,9 +101,8 @@ public class SalesOrderRepository : ISalesOrderRepository
             .ToListAsync(ct);
     }
 
-    public async Task<int> GetNextCodeNumberAsync(CancellationToken ct = default)
+    public async Task<int> GetNextCodeNumberAsync(string prefix, CancellationToken ct = default)
     {
-        const string prefix = "XK";
         var numbers = await _db.SalesOrders
             .AsNoTracking()
             .Select(o => o.DocumentNumber)

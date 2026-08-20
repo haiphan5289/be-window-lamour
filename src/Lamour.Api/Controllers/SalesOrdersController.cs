@@ -1,5 +1,6 @@
 using Lamour.Application.Features.Sales.Dtos;
 using Lamour.Application.Features.Sales.UseCases;
+using Lamour.Domain.Enums;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
@@ -46,9 +47,16 @@ public class SalesOrdersController : ControllerBase
     public async Task<IActionResult> GetAll(CancellationToken ct)
         => Ok(await _getAll.ExecuteAsync(ct));
 
+    // source=direct → BH (mở từ "Bán hàng"); mặc định/bất kỳ giá trị khác (kể cả không truyền,
+    // giữ tương thích ngược với client cũ) → XK (mở từ "Xuất kho bán hàng").
     [HttpGet("next-code")]
-    public async Task<IActionResult> GetNextCode(CancellationToken ct)
-        => Ok(new { code = await _getNextCode.ExecuteAsync(ct) });
+    public async Task<IActionResult> GetNextCode([FromQuery] string? source, CancellationToken ct)
+    {
+        var codeSource = string.Equals(source, "direct", StringComparison.OrdinalIgnoreCase)
+            ? SalesOrderCodeSource.Direct
+            : SalesOrderCodeSource.WarehouseExport;
+        return Ok(new { code = await _getNextCode.ExecuteAsync(codeSource, ct) });
+    }
 
     [HttpGet("report")]
     public async Task<IActionResult> GetReport(

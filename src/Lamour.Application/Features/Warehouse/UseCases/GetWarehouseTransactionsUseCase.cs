@@ -112,6 +112,7 @@ public class GetWarehouseTransactionsUseCase : IGetWarehouseTransactionsUseCase
         DeliveryOrReceiver = null, // SalesOrder không lưu tên người giao/nhận riêng (chỉ có DeliveryMethod dạng mô tả)
         ObjectName         = o.Customer?.Name,
         HasSalesOrder      = true, // dòng Xuất kho luôn phát sinh TỪ 1 Sales Order đã ghi sổ
+        IsHeld             = o.Status == SalesOrderStatus.Held,
         LedgerDate         = o.CreatedAt,
         DocumentTypeLabel  = "Xuất kho bán hàng",
         Lines = o.Lines.Where(l => !l.IsPromotion && l.WarehouseId.HasValue).Select(l =>

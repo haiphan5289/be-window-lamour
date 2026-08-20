@@ -49,6 +49,7 @@ public class GetSalesOrdersUseCase : IGetSalesOrdersUseCase
         {
             Id                = l.Id,
             ProductId         = l.ProductId,
+            WarehouseId       = l.WarehouseId ?? 0,
             ProductCode       = l.ProductCode,
             ProductName       = l.ProductName,
             IsPromotion       = l.IsPromotion,
