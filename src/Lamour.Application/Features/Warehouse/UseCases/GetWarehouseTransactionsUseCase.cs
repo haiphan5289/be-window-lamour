@@ -53,7 +53,7 @@ public class GetWarehouseTransactionsUseCase : IGetWarehouseTransactionsUseCase
 
         if (wantExport)
         {
-            var orders = await _salesOrderRepo.GetAllAsync(ct);
+            var orders = await _salesOrderRepo.GetAllAsync(ct: ct);
             var ordersInRange = orders.Where(o => InRange(o.AccountingDate, fromDate, toDate)).ToList();
 
             // SalesOrderLine không denormalize tên kho / TK Nợ-Có phía chi phí (632/1561) như

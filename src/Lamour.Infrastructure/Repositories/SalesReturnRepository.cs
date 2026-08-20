@@ -11,14 +11,39 @@ public class SalesReturnRepository : ISalesReturnRepository
 
     public SalesReturnRepository(AppDbContext db) => _db = db;
 
-    public async Task<IEnumerable<SalesReturn>> GetAllAsync(CancellationToken ct = default)
-        => await _db.SalesReturns
+    public async Task<IEnumerable<SalesReturn>> GetAllAsync(
+        DateTime? fromDate = null, DateTime? toDate = null, string? search = null, CancellationToken ct = default)
+    {
+        var query = _db.SalesReturns
             .AsNoTracking()
             .Include(r => r.Customer)
             .Include(r => r.Employee)
             .Include(r => r.Lines)
+            .AsQueryable();
+
+        if (fromDate.HasValue)
+        {
+            var from = DateTime.SpecifyKind(fromDate.Value.Date, DateTimeKind.Utc);
+            query = query.Where(r => r.DocumentDate >= from);
+        }
+        if (toDate.HasValue)
+        {
+            var to = DateTime.SpecifyKind(toDate.Value.Date.AddDays(1), DateTimeKind.Utc);
+            query = query.Where(r => r.DocumentDate < to);
+        }
+        if (!string.IsNullOrWhiteSpace(search))
+        {
+            var term = $"%{search}%";
+            query = query.Where(r =>
+                EF.Functions.ILike(r.DocumentNumber, term) ||
+                (r.Customer != null && EF.Functions.ILike(r.Customer.Name, term)) ||
+                (r.Employee != null && EF.Functions.ILike(r.Employee.Name, term)));
+        }
+
+        return await query
             .OrderByDescending(r => r.CreatedAt)
             .ToListAsync(ct);
+    }
 
     public async Task<SalesReturn?> GetByIdAsync(int id, CancellationToken ct = default)
         => await _db.SalesReturns

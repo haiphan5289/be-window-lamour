@@ -44,8 +44,9 @@ public class SalesOrdersController : ControllerBase
     }
 
     [HttpGet]
-    public async Task<IActionResult> GetAll(CancellationToken ct)
-        => Ok(await _getAll.ExecuteAsync(ct));
+    public async Task<IActionResult> GetAll(
+        [FromQuery] DateTime? from_date, [FromQuery] DateTime? to_date, [FromQuery] string? search, CancellationToken ct)
+        => Ok(await _getAll.ExecuteAsync(from_date, to_date, search, ct));
 
     // source=direct → BH (mở từ "Bán hàng"); mặc định/bất kỳ giá trị khác (kể cả không truyền,
     // giữ tương thích ngược với client cũ) → XK (mở từ "Xuất kho bán hàng").

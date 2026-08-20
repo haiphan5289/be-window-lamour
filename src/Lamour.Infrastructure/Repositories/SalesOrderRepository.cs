@@ -11,14 +11,44 @@ public class SalesOrderRepository : ISalesOrderRepository
 
     public SalesOrderRepository(AppDbContext db) => _db = db;
 
-    public async Task<IEnumerable<SalesOrder>> GetAllAsync(CancellationToken ct = default)
-        => await _db.SalesOrders
+    public async Task<IEnumerable<SalesOrder>> GetAllAsync(
+        DateTime? fromDate = null, DateTime? toDate = null, string? search = null, CancellationToken ct = default)
+    {
+        var query = _db.SalesOrders
             .AsNoTracking()
             .Include(o => o.Customer)
             .Include(o => o.Employee)
             .Include(o => o.Lines.OrderBy(l => l.Id))
+            .AsQueryable();
+
+        if (fromDate.HasValue)
+        {
+            var from = DateTime.SpecifyKind(fromDate.Value.Date, DateTimeKind.Utc);
+            query = query.Where(o => o.DocumentDate >= from);
+        }
+        if (toDate.HasValue)
+        {
+            var to = DateTime.SpecifyKind(toDate.Value.Date.AddDays(1), DateTimeKind.Utc);
+            query = query.Where(o => o.DocumentDate < to);
+        }
+        // ILike (Npgsql) thay vì Contains() để khớp hành vi case-insensitive (OrdinalIgnoreCase)
+        // mà SalesOrderListViewModel.Matches() đang làm phía client trước khi chuyển filter xuống
+        // SQL. Không lọc theo StatusLabel (nhãn tiếng Việt tính ở WPF, không map 1-1 xuống DB) —
+        // đổi nhỏ so với hành vi client-side cũ, chấp nhận được.
+        if (!string.IsNullOrWhiteSpace(search))
+        {
+            var term = $"%{search}%";
+            query = query.Where(o =>
+                EF.Functions.ILike(o.DocumentNumber, term) ||
+                (o.Customer != null && EF.Functions.ILike(o.Customer.Name, term)) ||
+                (o.Employee != null && EF.Functions.ILike(o.Employee.Name, term)) ||
+                (o.Notes != null && EF.Functions.ILike(o.Notes, term)));
+        }
+
+        return await query
             .OrderByDescending(o => o.CreatedAt)
             .ToListAsync(ct);
+    }
 
     public async Task<SalesOrder?> GetByIdAsync(int id, CancellationToken ct = default)
         => await _db.SalesOrders

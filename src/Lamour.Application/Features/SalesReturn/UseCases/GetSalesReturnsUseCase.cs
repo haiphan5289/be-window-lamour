@@ -17,10 +17,11 @@ public class GetSalesReturnsUseCase : IGetSalesReturnsUseCase
         _logger = logger;
     }
 
-    public async Task<IEnumerable<SalesReturnResponseDto>> ExecuteAsync(CancellationToken ct = default)
+    public async Task<IEnumerable<SalesReturnResponseDto>> ExecuteAsync(
+        DateTime? fromDate = null, DateTime? toDate = null, string? search = null, CancellationToken ct = default)
     {
-        _logger.LogInformation("Fetching all sales returns");
-        var returns = await _repo.GetAllAsync(ct);
+        _logger.LogInformation("Fetching sales returns (fromDate={FromDate}, toDate={ToDate}, search={Search})", fromDate, toDate, search);
+        var returns = await _repo.GetAllAsync(fromDate, toDate, search, ct);
         return returns.Select(MapToDto);
     }
 

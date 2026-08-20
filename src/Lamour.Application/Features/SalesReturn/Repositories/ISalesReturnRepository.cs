@@ -4,7 +4,8 @@ using SalesReturnEntity = Lamour.Domain.Entities.SalesReturn;
 
 public interface ISalesReturnRepository
 {
-    Task<IEnumerable<SalesReturnEntity>> GetAllAsync(CancellationToken ct = default);
+    Task<IEnumerable<SalesReturnEntity>> GetAllAsync(
+        DateTime? fromDate = null, DateTime? toDate = null, string? search = null, CancellationToken ct = default);
     Task<SalesReturnEntity?> GetByIdAsync(int id, CancellationToken ct = default);
     Task<SalesReturnEntity?> GetByIdTrackedAsync(int id, CancellationToken ct = default);
     Task<SalesReturnEntity> AddAsync(SalesReturnEntity salesReturn, CancellationToken ct = default);

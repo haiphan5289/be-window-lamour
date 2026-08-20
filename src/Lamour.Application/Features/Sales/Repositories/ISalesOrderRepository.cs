@@ -4,7 +4,8 @@ namespace Lamour.Application.Features.Sales.Repositories;
 
 public interface ISalesOrderRepository
 {
-    Task<IEnumerable<SalesOrder>> GetAllAsync(CancellationToken ct = default);
+    Task<IEnumerable<SalesOrder>> GetAllAsync(
+        DateTime? fromDate = null, DateTime? toDate = null, string? search = null, CancellationToken ct = default);
     Task<SalesOrder?> GetByIdAsync(int id, CancellationToken ct = default);
     Task<SalesOrder?> GetByIdTrackedAsync(int id, CancellationToken ct = default);
     Task<SalesOrder> AddAsync(SalesOrder order, CancellationToken ct = default);

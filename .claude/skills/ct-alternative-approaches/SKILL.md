@@ -9,6 +9,14 @@ effort: high
 
 > **Anti-Hallucination:** Verify every class, interface, route, and EF entity against the codebase before generating code. See [ct-anti-hallucination](../ct-anti-hallucination/SKILL.md).
 
+> **Lesson learned (verify existing infra before proposing solutions):** A prior run analyzed "tối ưu load data WPF gọi BE" and confidently claimed "no caching layer exists anywhere" after grepping only for `IMemoryCache`/`MemoryCache`/`ICacheService`/`singleton.*cache`. The real infra used a different vocabulary entirely — `IEntityCacheStore<T>`, `RealtimeSyncService`, `PostLoginSyncService`, `SignalRNotificationBroadcaster`, `DataSyncHub` — a full realtime cache-aside system (SignalR push + per-entity cache stores + post-login warmup) already covering Customers/Employees/Products/Suppliers/Categories/ProductUnits/AccountSettings/Warehouses on both BE and WPF. The narrow grep missed all of it, so every "alternative solution" proposed was solving an already-solved problem.
+>
+> **Before claiming "X doesn't exist" as a premise for any solution:**
+> - Grep broadly, not just for the term you expect (`cache`) — also try `realtime`, `sync`, `hub`, `signalr`, `websocket`, `store`, `warmup`, `invalidat*`.
+> - Check DI registration files (`*ServiceCollectionExtensions.cs`) for the feature area — they list every service actually wired up, which is faster and more reliable than guessing names.
+> - Read the concrete method body of the layer you think is "just a raw HTTP call" (e.g. the `Data/Services/*.cs` implementation, not just its interface) — a cache-aside check can be hiding a few lines into the method.
+> - If a problem "shouldn't exist yet" in a codebase this mature, that itself is a signal to look harder before writing 5 solutions for it.
+
 ## Overview
 
 This skill generates **3–5 alternative solutions** for ASP.NET Core backend development problems in BE Window Lamour, with comprehensive pros/cons analysis, C# code examples, a comparison matrix, and a decision framework. It helps evaluate trade-offs before committing to an implementation strategy.
