@@ -194,6 +194,8 @@ builder.Services.AddScoped<Lamour.Application.Features.Warehouse.Repositories.IP
                            Lamour.Infrastructure.Repositories.ProductWarehouseStockRepository>();
 builder.Services.AddScoped<Lamour.Application.Features.Warehouse.UseCases.IGetInventorySummaryUseCase,
                            Lamour.Application.Features.Warehouse.UseCases.GetInventorySummaryUseCase>();
+builder.Services.AddScoped<Lamour.Application.Features.Warehouse.UseCases.IGetInventoryDetailByProductUseCase,
+                           Lamour.Application.Features.Warehouse.UseCases.GetInventoryDetailByProductUseCase>();
 
 // ── Accounting DI ─────────────────────────────────────────────────────────────
 builder.Services.AddScoped<Lamour.Application.Features.Accounting.Repositories.ICashLedgerRepository,
@@ -212,6 +214,12 @@ builder.Services.AddScoped<Lamour.Application.Features.Accounting.UseCases.IUpda
                            Lamour.Application.Features.Accounting.UseCases.UpdateReceiptUseCase>();
 builder.Services.AddScoped<Lamour.Application.Features.Accounting.UseCases.IDeleteReceiptUseCase,
                            Lamour.Application.Features.Accounting.UseCases.DeleteReceiptUseCase>();
+builder.Services.AddScoped<Lamour.Application.Features.Accounting.UseCases.IGetNextReceiptCodeUseCase,
+                           Lamour.Application.Features.Accounting.UseCases.GetNextReceiptCodeUseCase>();
+builder.Services.AddScoped<Lamour.Application.Features.Accounting.UseCases.IGetOutstandingSalesOrdersUseCase,
+                           Lamour.Application.Features.Accounting.UseCases.GetOutstandingSalesOrdersUseCase>();
+builder.Services.AddScoped<Lamour.Application.Features.Accounting.UseCases.ICreateBulkCustomerReceiptUseCase,
+                           Lamour.Application.Features.Accounting.UseCases.CreateBulkCustomerReceiptUseCase>();
 
 // Payment UseCases
 builder.Services.AddScoped<Lamour.Application.Features.Accounting.Repositories.IPaymentRepository,

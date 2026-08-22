@@ -64,6 +64,7 @@ public class UpdateReceiptUseCase : IUpdateReceiptUseCase
                 SubjectCode   = e.SubjectCode,
                 SubjectName   = e.SubjectName,
                 BankAccount   = e.BankAccount,
+                SalesOrderId  = e.SalesOrderId,
             });
         }
 
@@ -77,6 +78,9 @@ public class UpdateReceiptUseCase : IUpdateReceiptUseCase
         var counterAccount = receipt.Entries.Count > 0
             ? CreateReceiptUseCase.MapAccountCodeToString(receipt.Entries.First().CreditAccount)
             : "131";
+        var account = receipt.Entries.Count > 0
+            ? CreateReceiptUseCase.MapAccountCodeToString(receipt.Entries.First().DebitAccount)
+            : "111";
 
         await _cashRepo.AddAsync(new CashTransaction
         {
@@ -85,7 +89,7 @@ public class UpdateReceiptUseCase : IUpdateReceiptUseCase
             ReceiptNumber  = receipt.DocumentNumber,
             PaymentNumber  = null,
             Description    = receipt.PayerName,
-            Account        = "111",
+            Account        = account,
             CounterAccount = counterAccount,
             DebitAmount    = totalAmount,
             CreditAmount   = 0m,

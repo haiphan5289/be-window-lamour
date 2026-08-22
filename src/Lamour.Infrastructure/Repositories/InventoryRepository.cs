@@ -97,4 +97,87 @@ public class InventoryRepository : IInventoryRepository
 
         return rows.ToDictionary(r => r.ProductId, r => r.Qty);
     }
+
+    public async Task<IEnumerable<(
+        DateTime AccountingDate, DateTime DocumentDate, string DocumentNumber, string DocumentType,
+        int? SourceId, string? Description, string Unit,
+        int ImportQty, decimal ImportValue, int ExportQty)>> GetTransactionLinesByProductAsync(
+        int productId, DateOnly fromDate, DateOnly toDate, IReadOnlyList<int>? warehouseIds = null, CancellationToken ct = default)
+    {
+        var fromUtc = DateTime.SpecifyKind(fromDate.ToDateTime(TimeOnly.MinValue), DateTimeKind.Utc);
+        var toUtc   = DateTime.SpecifyKind(toDate.AddDays(1).ToDateTime(TimeOnly.MinValue), DateTimeKind.Utc);
+        var hasWarehouseFilter = warehouseIds is { Count: > 0 };
+
+        var imports = await _db.WarehouseReceiptLines
+            .AsNoTracking()
+            .Where(l => l.ProductId == productId
+                     && l.WarehouseReceipt.Status == WarehouseReceiptStatus.Confirmed
+                     && l.WarehouseReceipt.AccountingDate >= fromUtc
+                     && l.WarehouseReceipt.AccountingDate <  toUtc
+                     && (!hasWarehouseFilter || warehouseIds!.Contains(l.WarehouseId)))
+            .Select(l => new
+            {
+                AccountingDate = l.WarehouseReceipt.AccountingDate,
+                DocumentDate   = l.WarehouseReceipt.DocumentDate,
+                DocumentNumber = l.WarehouseReceipt.ReceiptNumber,
+                SourceId       = l.WarehouseReceipt.Id,
+                Description    = l.WarehouseReceipt.Description,
+                Unit           = l.Product.Unit,
+                Qty            = l.Quantity,
+                Value          = l.Amount,
+            })
+            .ToListAsync(ct);
+
+        var exports = await _db.SalesOrderLines
+            .AsNoTracking()
+            .Where(l => l.ProductId == productId
+                     && !l.IsPromotion
+                     && l.SalesOrder.AccountingDate >= fromUtc
+                     && l.SalesOrder.AccountingDate <  toUtc
+                     && (!hasWarehouseFilter || (l.WarehouseId.HasValue && warehouseIds!.Contains(l.WarehouseId.Value))))
+            .Select(l => new
+            {
+                AccountingDate = l.SalesOrder.AccountingDate,
+                DocumentDate   = l.SalesOrder.DocumentDate,
+                DocumentNumber = l.SalesOrder.DocumentNumber,
+                SourceId       = l.SalesOrder.Id,
+                Description    = "Xuất kho bán hàng " + (l.SalesOrder.Customer != null ? l.SalesOrder.Customer.Name : ""),
+                Unit           = l.Unit,
+                Qty            = l.Quantity,
+            })
+            .ToListAsync(ct);
+
+        var returns = await _db.SalesReturnLines
+            .AsNoTracking()
+            .Where(l => l.ProductId == productId
+                     && l.SalesReturn.AccountingDate >= fromUtc
+                     && l.SalesReturn.AccountingDate <  toUtc
+                     && (!hasWarehouseFilter || warehouseIds!.Contains(l.WarehouseId)))
+            .Select(l => new
+            {
+                AccountingDate = l.SalesReturn.AccountingDate,
+                DocumentDate   = l.SalesReturn.DocumentDate,
+                DocumentNumber = l.SalesReturn.DocumentNumber,
+                Description    = "Hàng bán bị trả lại " + (l.SalesReturn.Customer != null ? l.SalesReturn.Customer.Name : ""),
+                Unit           = l.Unit,
+                Qty            = l.Quantity,
+            })
+            .ToListAsync(ct);
+
+        var rows = new List<(DateTime, DateTime, string, string, int?, string?, string, int, decimal, int)>();
+
+        foreach (var i in imports)
+            rows.Add((i.AccountingDate, i.DocumentDate, i.DocumentNumber, "Import", i.SourceId, i.Description, i.Unit, i.Qty, i.Value, 0));
+
+        foreach (var e in exports)
+            rows.Add((e.AccountingDate, e.DocumentDate, e.DocumentNumber, "Export", e.SourceId, e.Description, e.Unit, 0, 0m, e.Qty));
+
+        // Hàng bán bị trả lại làm TĂNG tồn kho (giống 1 lần Nhập) — không có SourceId (WPF chưa có
+        // màn xem lại chứng từ trả hàng từ đây, chỉ hiện text) — khớp GetExportQtyByProductAsync
+        // vốn cũng trừ returnRows khỏi export qty, không xử lý riêng.
+        foreach (var r in returns)
+            rows.Add((r.AccountingDate, r.DocumentDate, r.DocumentNumber, "SalesReturn", null, r.Description, r.Unit, r.Qty, 0m, 0));
+
+        return rows.OrderBy(r => r.Item1).ThenBy(r => r.Item3);
+    }
 }

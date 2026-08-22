@@ -195,6 +195,8 @@ graph TD
   "accounting_date": "2026-05-01T00:00:00",
   "document_date": "2026-05-01T00:00:00",
   "customer_id": 1,
+  "customer_name_override": null,
+  "customer_address_override": null,
   "employee_id": 2,
   "description": "Bán hàng CHI NHI",
   "reference": null,
@@ -225,6 +227,7 @@ graph TD
 ```
 
 > `tax_rate`/`tax_amount` gửi lên (nếu có) bị **bỏ qua** — BE luôn tự tra `Product.VatRate` thật tại thời điểm ghi sổ.
+> `customer_name_override`/`customer_address_override` (2026-08-22): tên/địa chỉ khách hàng hiển thị tuỳ chỉnh cho riêng chứng từ này — `null` = không override, dùng thẳng `Customer.Name`/`Customer.Address` thật (tự đổi theo nếu khách hàng được đổi tên/địa chỉ sau này). Không đổi `customer_id`/công nợ liên quan — thuần hiển thị/in.
 
 ### Response (includes `status`, `total_tax_amount`, `grand_total`)
 ```json
@@ -235,6 +238,9 @@ graph TD
   "document_date": "2026-05-01T00:00:00Z",
   "customer_id": 1,
   "customer_name": "CHI NHI",
+  "customer_name_override": null,
+  "customer_address": "123 Nguyễn Trãi, Q.1",
+  "customer_address_override": null,
   "employee_id": 2,
   "employee_name": "Nguyễn Văn A",
   "description": "Bán hàng CHI NHI",
@@ -255,6 +261,8 @@ graph TD
 ```
 
 `status` values: `0` = Normal (Ghi sổ — mặc định khi tạo), `1` = Held (Treo)
+
+`customer_name`/`customer_address` = giá trị đã RESOLVE (`CustomerNameOverride ?? Customer.Name`, `CustomerAddressOverride ?? Customer.Address`) — dùng để hiển thị/in trực tiếp. `customer_name_override`/`customer_address_override` = giá trị RAW (có thể `null`) — WPF cần giá trị raw này để nạp lại đúng vào ô nhập khi mở lại chứng từ để sửa (không phải để hiển thị).
 
 ### Request/Response — Report (2026-07-16, extended 2026-07-18)
 
@@ -485,6 +493,32 @@ Lý do: UI In Hoá Đơn cần ẩn cột Đơn giá/CK/Thuế suất cho dòng 
 
 ⚠️ **Cần chạy migration này trên môi trường deploy (Windows Server)** trước khi build/deploy `Lamour.Api` mới.
 
+**Migration 9 — `AddCustomerNameOverrideToSalesOrder` (2026-08-22):**
+```bash
+dotnet ef migrations add AddCustomerNameOverrideToSalesOrder \
+  --project src/Lamour.Infrastructure \
+  --startup-project src/Lamour.Api
+dotnet ef database update \
+  --project src/Lamour.Infrastructure \
+  --startup-project src/Lamour.Api
+```
+Column added: `sales_orders.customer_name_override character varying(200)` (nullable, không default). Xem changelog `2026-08-22` ở cuối file.
+
+⚠️ **Cần chạy migration này trên môi trường deploy (Windows Server)** trước khi build/deploy `Lamour.Api` mới.
+
+**Migration 10 — `AddCustomerAddressOverrideToSalesOrder` (2026-08-22):**
+```bash
+dotnet ef migrations add AddCustomerAddressOverrideToSalesOrder \
+  --project src/Lamour.Infrastructure \
+  --startup-project src/Lamour.Api
+dotnet ef database update \
+  --project src/Lamour.Infrastructure \
+  --startup-project src/Lamour.Api
+```
+Column added: `sales_orders.customer_address_override character varying(500)` (nullable, khớp `Customer.Address` maxlength). Cùng đợt với Migration 9 — xem changelog.
+
+⚠️ **Cần chạy migration này trên môi trường deploy (Windows Server)** trước khi build/deploy `Lamour.Api` mới.
+
 ---
 
 ## Test Coverage Notes
@@ -545,3 +579,6 @@ Lý do: UI In Hoá Đơn cần ẩn cột Đơn giá/CK/Thuế suất cho dòng 
 *Updated 2026-08-09 (fix bug: Sửa đơn đang Treo + Ghi sổ không đổi status): user báo "list chứng từ bán hàng không update" khi đổi Treo → Ghi sổ; điều tra xác nhận đây KHÔNG phải bug refresh (WPF `EditSalesOrderAsync` đã reload đầy đủ `LoadSalesOrdersCommand` sau `ShowDialog()==true`) mà là bug data ở BE — `UpdateSalesOrderUseCase` trước đó không đụng field `Status` (chỉ `CreateSalesOrderUseCase` set `Status=Normal` lúc tạo mới, `HoldSalesOrderUseCase` set `Status=Held`, nhưng KHÔNG có action nào set về lại `Normal` sau khi treo) — nên đơn đang Held mà Sửa+Ghi sổ thì `Status` giữ nguyên `Held` trong DB, WPF reload đúng data (vẫn đúng là Held) nên list "trông như không update" dù thực ra đã update đúng theo data sai. Fix: thêm 1 dòng `order.Status = SalesOrderStatus.Normal;` trong `UpdateSalesOrderUseCase.ExecuteAsync` (đặt cùng chỗ set các field header khác) — khớp hành vi `CreateSalesOrderUseCase`, nút "💾 Ghi sổ" giờ luôn post đơn về Normal bất kể trạng thái trước đó, chỉ nút "⏸ Treo" riêng mới giữ Treo. Không cần EF migration (không đổi schema). Không cần sửa WPF (cơ chế reload đã đúng sẵn, chỉ thiếu đúng data từ BE). BE build 0 lỗi.*
 *Updated 2026-08-15 (đổi prefix số chứng từ BC → XK, toàn project): yêu cầu ban đầu nhân dịp update màn "Kho" gộp Nhập/Xuất kho — thay vì sinh 1 số XK riêng cho dòng "Xuất kho" (derived), user chọn đơn giản hơn: đổi hẳn tiền tố Sales Order từ `BC` sang `XK` để số chứng từ Sales Order TỰ NHIÊN đã là số dùng cho dòng Xuất kho trong màn Kho, không cần sinh thêm số song song. `GetNextSalesOrderCodeUseCase` (`$"BC{n:D5}"` → `$"XK{n:D5}"`) và `SalesOrderRepository.GetNextCodeNumberAsync` (`const string prefix = "BC"` → `"XK"`) đổi theo. **Dữ liệu cũ**: UPDATE trực tiếp 14 `sales_orders` hiện có (`BC00001`..`BC00014` → `XK00001`..`XK00014`, theo yêu cầu "đổi luôn cho nhất quán") — không cần migration EF (chỉ đổi data, không đổi schema); đã kiểm tra không có bảng nào khác lưu denormalized text copy của số này (`sales_return_lines.sales_order_number` là free-text riêng, hiện đang rỗng; `deposit_deductions.sales_order_id` là FK int, tự động phản ánh tên mới qua navigation). Phát hiện thêm & fix: `tests/Lamour.Application.Tests/.../SalesOrderAmountManualTests.cs` đang gọi constructor `CreateSalesOrderUseCase`/`UpdateSalesOrderUseCase` cũ (4 tham số, thiếu `IDepositRepository` đã thêm ở phiên trước khi xây tính năng Đặt cọc-qua-Sales-Order) — test project trước đó chưa từng được build lại nên lỗi này chưa bị phát hiện; đã thêm `Mock<IDepositRepository>` vào `MakeMocks()` và cập nhật cả 6 lời gọi constructor, `dotnet test` pass lại đủ 6/6. WPF: 2 default fallback hardcode `"BC00001"` (`SalesOrderService.GetNextCodeAsync` khi BE lỗi, `SalesOrderViewModel._documentNumber`/`_nextDocumentNumber`) đổi thành `"XK00001"`.*
 *Updated 2026-08-19 (UI In Hoá Đơn — ẩn Đơn giá/CK/Thuế suất cho dòng "Đặt cọc"): thêm `SalesOrderLine.IsDepositProduct` (denormalize từ `Product.IsDepositProduct` lúc ghi sổ) + `SalesOrderLineDto.is_deposit_product`; migration 8 `AddIsDepositProductToSalesOrderLines` kèm backfill data cũ. WPF: `SalesOrderPrintWindow.BuildInvoiceDocument` — dòng có `IsDepositProduct = true` để trống 3 cột Đơn giá/CK/Thuế suất (giữ nguyên SL/Thành tiền/Tổng cộng), giống cách dòng khuyến mại ẩn cột không áp dụng; `SalesOrderLineItem` thêm property cùng tên, set trong `SelectedProduct` setter khi chọn 1 `Product` thật; `ToLineDto`/`PopulateFormFromCurrent` trong `SalesOrderViewModel` wire xuyên suốt.*
+*Updated 2026-08-22 (WPF-only — migrate product picker sang `AppSearchableComboBox` + fix loạt bug UX popup "Chứng từ bán hàng"): cột "Mã hàng"/"Tên hàng" trước đó dùng `ComboBox` thường + ~80 dòng code-behind chắp vá (`OnProductCellTextChanged`, `PreparingCellForEdit`, `RestoreTypedTextDeferred` — chống lỗi WPF mất ký tự đầu khi gõ + xung đột với bộ gõ tiếng Việt) — thay hẳn bằng `controls:AppSearchableComboBox` (đã dùng cho "Phiếu nhập kho" trước đó cùng đợt), xoá toàn bộ code-behind vá lỗi cũ; `SalesOrderViewModel.FilterProductsByCode/ByName` (lọc `Products` mỗi keystroke) không cần nữa vì `AppSearchableComboBox` tự lọc nội bộ — `ResetProductFilter()` đơn giản hoá thành Clear+Add thẳng. "Trừ cọc" (`DepositProductPickerItem` trộn vào `Products`) không đổi hành vi. Fix kèm theo, không liên quan trực tiếp control nhưng phát hiện trong lúc test: (1) checkbox "Hàng KM" dùng `DataGridCheckBoxColumn` bị lỗi kinh điển WPF — click đầu tiên trên 1 cell chưa "current" chỉ chọn cell, không thật sự toggle `IsPromotion` (Tổng tiền hàng không giảm dù tick) — đổi sang `DataGridTemplateColumn` với `CheckBox` thẳng trong `CellTemplate` (luôn tương tác được, không cần "vào edit mode"); (2) cột "Thuế suất" hiện `800%` thay vì `8%` — `ConverterParameter="0\%"` viết trong cú pháp `{Binding ...}` rút gọn bị nuốt mất dấu `\` (ngữ pháp escape của MarkupExtension), khiến `BlankPreserveConverter` nhận `"0%"` (format percent chuẩn .NET tự nhân 100 lần) — sửa bằng cách viết `<DataGridTextColumn.Binding><Binding ConverterParameter="0\%".../></DataGridTextColumn.Binding>` dạng mở rộng (attribute XML thường, không qua luật escape của MarkupExtension); (3) banner lỗi (ví dụ "không đủ tồn kho") không tự ẩn sau khi user sửa/xoá dòng gây lỗi, phải bấm "Ghi sổ" lại mới mất — `OnLinesOrTotalsChanged()` (hook đã có sẵn, chạy mỗi khi Lines đổi) giờ tự `HasError = false` mỗi lần; (4) chọn xong 1 sản phẩm trong `AppSearchableComboBox` (click item) không thấy các cột phụ thuộc (ĐVT/Đơn giá/TK...) tự điền ngay — do DataGrid không tự vẽ lại các cell khác cùng dòng khi dòng đó còn ở trạng thái edit của riêng cell Mã/Tên hàng (dù ViewModel đã set đúng); fix bằng `AppSearchableComboBox` thêm `RoutedEvent SelectionCommittedEvent` (bubble, chỉ bắn khi user click chọn thật — không bắn khi gõ tay), `SalesOrderWindow` bắt event này trên `LinesDataGrid` và gọi `CommitEdit(DataGridEditingUnit.Row, true)` (qua `Dispatcher.BeginInvoke(ContextIdle)` để tránh đụng state máy edit nội bộ DataGrid). Không đổi BE, không cần migration. Known follow-up chưa làm: `SalesReturnWindow` vẫn dùng pattern `ComboBox` cũ giống Sales trước khi sửa (candidate migrate tương tự); 6 màn khác (`SupplierListView`, `ProductListView`, `EmployeeListView`, `WarehouseSettingListView`, `SalesOrderReportFilterWindow`, `BulkCustomerReceiptSearchWindow`) vẫn dùng `DataGridCheckBoxColumn` — có thể mang lỗi tương tự (1) nhưng chưa audit/fix.*
+*Updated 2026-08-22 (Trừ cọc — fix mất khoản trừ khi mở lại chứng từ + tự gợi ý số tiền trừ): phát hiện qua audit sau khi user hỏi lại logic Trừ cọc — lúc TẠO MỚI + in ngay thì tổng thanh toán đã tính đúng (`GrandTotal = TotalPayment + TotalTaxAmount + Σ(dòng Trừ cọc, Amount âm)`), nhưng `PopulateFormFromCurrentAsync` (mở lại 1 chứng từ đã lưu) chỉ nạp lại `SalesOrderLine` thật, không nạp lại `DepositDeduction` đã ghi sổ trước đó (đây là entity riêng, không phải 1 `SalesOrderLine`) — mở lại chứng từ có Trừ cọc sẽ hiện lại tổng TRƯỚC khi trừ (sai), in lại từ màn này cũng in sai theo. Fix: `PopulateFormFromCurrentAsync` gọi thêm `IGetDepositDeductionsUseCase.ExecuteAsync(salesOrderId: CurrentOrder.Id)` (API đã có sẵn, không cần sửa BE), dựng lại 1 dòng "Trừ cọc" cho mỗi `DepositDeduction` tìm được, đánh dấu `IsLocked = true` (property mới trên `SalesOrderLineItem`) — hiển thị đúng số nhưng KHOÁ không cho sửa/xoá (tránh gọi lại `CreateDepositDeductionUseCase` lúc Lưu và tạo bản ghi trùng lặp); `RemoveLine` chặn xoá dòng `IsLocked`, `SalesOrderWindow.xaml` thêm style `DisabledWhenLocked` áp cho đúng 3 cột Mã/Tên hàng/Thành tiền (3 cột duy nhất còn sửa được ở dòng Trừ cọc chưa khoá). Kèm UX cải thiện theo yêu cầu tiếp theo: chọn "Trừ cọc" trong dropdown giờ tự điền sẵn "Thành tiền" gợi ý = `min(số dư còn lại của cọc, TotalPayment + TotalTaxAmount hiện tại)` thay vì để trống — wiring qua `AttachLineHandlers` (helper mới, gộp chung logic PropertyChanged trước đây trùng lặp giữa `AddLine()` và `PopulateFormFromCurrentAsync`), bắt trên `LinkedDeposit` property-changed (không phải `SelectedProduct` — property đó bắn PropertyChanged NGAY khi gán, trước khi nhánh `DepositProductPickerItem` trong setter kịp gán `LinkedDeposit`). Không đổi BE, không cần migration (endpoint deposit-deductions theo `sales_order_id` đã tồn tại từ trước).*
+*Updated 2026-08-22 (popup "Chứng từ bán hàng" — tách "Khách hàng" thành "Mã số KH"/"Tên Khách hàng" tuỳ chỉnh + "Địa chỉ" tuỳ chỉnh + ẩn "Tham chiếu"): thêm `SalesOrder.CustomerNameOverride`/`CustomerAddressOverride` (`string?`, migration 9 + 10 — xem mục EF Migration) — tên/địa chỉ khách hàng hiển thị tuỳ chỉnh riêng cho 1 chứng từ, KHÔNG đổi `CustomerId`/công nợ. `GetSalesOrdersUseCase.MapToDto` (dùng chung bởi Create/Update/GetById/GetAll) trả `customer_name`/`customer_address` đã RESOLVE (`Override ?? Customer.Name/Address`) song song 2 field RAW `customer_name_override`/`customer_address_override` (WPF cần raw để nạp lại đúng ô nhập khi mở lại chứng từ). Chỉ override khi text thực sự khác giá trị thật đang chọn (`ResolveCustomerNameOverride()`/`ResolveCustomerAddressOverride()` ở WPF) — nếu khớp thì gửi `null`, để tên/địa chỉ tự đổi theo nếu khách hàng được sửa lại sau này. WPF: "Khách hàng" tách 2 ô cùng hàng — "Mã số KH" giữ nguyên `AppSearchableComboBox` cũ (set `CustomerId`); "Tên Khách hàng" dùng control MỚI tự viết `Shared/Controls/AppSuggestTextBox` (không sửa `AppSearchableComboBox` chung — control đó tự trả Text về giá trị đã chọn khi rời ô nếu không khớp, phá mất ý override tự do) — gợi ý theo tên khi gõ nhưng KHÔNG tự trả về tên cũ khi rời ô; chọn 1 gợi ý đồng thời đồng bộ lại `SelectedCustomer` qua `CustomerNameSuggestionPickedCommand`. "Địa chỉ" (field mới, `AppTextField` thường — không cần gợi ý) đặt trên "Diễn giải" trong layout. Cả 2 field tự điền từ `Customer.Name`/`Customer.Address` khi chọn khách hàng nhưng cho gõ đè; đổi "Tên Khách hàng" (từ bất kỳ nguồn nào) luôn đè lại "Diễn giải" = `"Bán hàng {tên}"` (giữ hành vi cũ, chỉ đổi nguồn). "Tham chiếu" ẩn khỏi UI popup này (`Visibility="Collapsed"`) theo yêu cầu — field/cột `Reference` ở BE và WPF giữ nguyên, không xoá. In hoá đơn: `SalesOrderPrintWindow` dùng `order.CustomerAddress` (đã resolve) thay `SelectedCustomer.Address` trực tiếp; dòng "Điện thoại" bị ẨN HOÀN TOÀN (không chỉ để trống sau dấu `:`) khi `CustomerNameOverride` có giá trị (tên đã bị đổi khác tên thật) — số điện thoại thật không còn khớp tên hiển thị nên không in ra; áp dụng cho cả in ngay sau khi Ghi sổ và in preview chưa lưu (`BuildPreviewOrderDto` cũng set `CustomerNameOverride`/`CustomerAddressOverride`/`CustomerAddress` để `ShowPrintPreview` biết ẩn SĐT hay không dù chưa gọi BE).*

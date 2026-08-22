@@ -103,6 +103,8 @@ public class CreateSalesOrderUseCase : ICreateSalesOrderUseCase
             AccountingDate = DateTime.SpecifyKind(request.AccountingDate, DateTimeKind.Utc),
             DocumentDate   = DateTime.SpecifyKind(request.DocumentDate,   DateTimeKind.Utc),
             CustomerId     = request.CustomerId,
+            CustomerNameOverride = string.IsNullOrWhiteSpace(request.CustomerNameOverride) ? null : request.CustomerNameOverride.Trim(),
+            CustomerAddressOverride = string.IsNullOrWhiteSpace(request.CustomerAddressOverride) ? null : request.CustomerAddressOverride.Trim(),
             EmployeeId     = request.EmployeeId,
             Description    = request.Description,
             Reference      = request.Reference,

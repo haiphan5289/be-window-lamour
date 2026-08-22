@@ -120,6 +120,8 @@ public class UpdateSalesOrderUseCase : IUpdateSalesOrderUseCase
             order.AccountingDate = DateTime.SpecifyKind(request.AccountingDate, DateTimeKind.Utc);
             order.DocumentDate   = DateTime.SpecifyKind(request.DocumentDate,   DateTimeKind.Utc);
             order.CustomerId     = request.CustomerId;
+            order.CustomerNameOverride = string.IsNullOrWhiteSpace(request.CustomerNameOverride) ? null : request.CustomerNameOverride.Trim();
+            order.CustomerAddressOverride = string.IsNullOrWhiteSpace(request.CustomerAddressOverride) ? null : request.CustomerAddressOverride.Trim();
             order.EmployeeId     = request.EmployeeId;
             order.Description    = request.Description;
             order.Reference      = request.Reference;

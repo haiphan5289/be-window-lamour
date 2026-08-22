@@ -16,6 +16,12 @@ public class SalesOrder
 
     public int       CustomerId { get; set; }
     public Customer  Customer   { get; set; } = null!;
+    // Tên khách hàng hiển thị tuỳ chỉnh cho riêng chứng từ này (khác Customer.Name thật) — null
+    // nghĩa là chưa override, dùng thẳng Customer.Name. Không đổi CustomerId/công nợ liên quan.
+    public string?   CustomerNameOverride { get; set; }
+    // Địa chỉ hiển thị tuỳ chỉnh cho riêng chứng từ này (khác Customer.Address thật) — cùng cơ chế
+    // với CustomerNameOverride, null nghĩa là chưa override, dùng thẳng Customer.Address.
+    public string?   CustomerAddressOverride { get; set; }
 
     public int?      EmployeeId { get; set; }             // NV bán hàng
     public Employee? Employee   { get; set; }

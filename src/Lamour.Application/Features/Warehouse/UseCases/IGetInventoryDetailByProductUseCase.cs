@@ -2,14 +2,12 @@ using Lamour.Application.Features.Warehouse.Dtos;
 
 namespace Lamour.Application.Features.Warehouse.UseCases;
 
-public interface IGetInventorySummaryUseCase
+public interface IGetInventoryDetailByProductUseCase
 {
-    Task<IEnumerable<InventorySummaryItemDto>> ExecuteAsync(
+    Task<InventoryDetailResponseDto?> ExecuteAsync(
+        int productId,
         DateOnly fromDate,
         DateOnly toDate,
         IReadOnlyList<int>? warehouseIds = null,
-        int? categoryId = null,
-        int? productUnitId = null,
-        IReadOnlyList<int>? productIds = null,
         CancellationToken ct = default);
 }

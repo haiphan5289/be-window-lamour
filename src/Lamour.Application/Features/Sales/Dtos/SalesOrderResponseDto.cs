@@ -10,6 +10,11 @@ public class SalesOrderResponseDto
     [JsonPropertyName("document_date")]     public DateTime DocumentDate   { get; set; }
     [JsonPropertyName("customer_id")]       public int      CustomerId     { get; set; }
     [JsonPropertyName("customer_name")]     public string   CustomerName   { get; set; } = "";
+    // Giá trị override thô (null = chưa override) — WPF cần giá trị RAW này (khác CustomerName đã
+    // resolve ở trên) để nạp lại đúng vào ô "Tên Khách hàng" khi mở lại chứng từ để sửa.
+    [JsonPropertyName("customer_name_override")] public string? CustomerNameOverride { get; set; }
+    [JsonPropertyName("customer_address")]  public string   CustomerAddress { get; set; } = "";
+    [JsonPropertyName("customer_address_override")] public string? CustomerAddressOverride { get; set; }
     [JsonPropertyName("employee_id")]       public int?     EmployeeId     { get; set; }
     [JsonPropertyName("employee_name")]     public string?  EmployeeName   { get; set; }
     [JsonPropertyName("description")]       public string?  Description    { get; set; }

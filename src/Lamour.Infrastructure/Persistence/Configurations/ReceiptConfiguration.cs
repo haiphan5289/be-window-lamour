@@ -50,5 +50,10 @@ public class ReceiptEntryConfiguration : IEntityTypeConfiguration<ReceiptEntry>
         builder.Property(x => x.SubjectCode).HasMaxLength(50);
         builder.Property(x => x.SubjectName).HasMaxLength(200);
         builder.Property(x => x.BankAccount).HasMaxLength(100);
+
+        builder.HasOne(x => x.SalesOrder)
+               .WithMany()
+               .HasForeignKey(x => x.SalesOrderId)
+               .OnDelete(DeleteBehavior.Restrict);
     }
 }

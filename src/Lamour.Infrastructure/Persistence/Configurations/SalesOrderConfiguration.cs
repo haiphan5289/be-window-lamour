@@ -15,6 +15,8 @@ public class SalesOrderConfiguration : IEntityTypeConfiguration<SalesOrder>
         builder.Property(x => x.AccountingDate).HasColumnName("accounting_date").IsRequired();
         builder.Property(x => x.DocumentDate).HasColumnName("document_date").IsRequired();
         builder.Property(x => x.CustomerId).HasColumnName("customer_id");
+        builder.Property(x => x.CustomerNameOverride).HasColumnName("customer_name_override").HasMaxLength(200);
+        builder.Property(x => x.CustomerAddressOverride).HasColumnName("customer_address_override").HasMaxLength(500);
         builder.Property(x => x.EmployeeId).HasColumnName("employee_id");
         builder.Property(x => x.Description).HasColumnName("description").HasMaxLength(500);
         builder.Property(x => x.Reference).HasColumnName("reference").HasMaxLength(200);

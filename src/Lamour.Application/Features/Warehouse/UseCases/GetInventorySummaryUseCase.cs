@@ -21,6 +21,7 @@ public class GetInventorySummaryUseCase : IGetInventorySummaryUseCase
         IReadOnlyList<int>? warehouseIds = null,
         int? categoryId = null,
         int? productUnitId = null,
+        IReadOnlyList<int>? productIds = null,
         CancellationToken ct = default)
     {
         _logger.LogInformation("Fetching inventory summary from {From} to {To}, warehouses={WarehouseIds}",
@@ -31,6 +32,8 @@ public class GetInventorySummaryUseCase : IGetInventorySummaryUseCase
             products = products.Where(p => p.CategoryId == categoryId.Value);
         if (productUnitId is not null)
             products = products.Where(p => p.ProductUnitId == productUnitId.Value);
+        if (productIds is { Count: > 0 })
+            products = products.Where(p => productIds.Contains(p.Id));
 
         var imports    = await _repo.GetImportsByProductAsync(fromDate, toDate, warehouseIds, ct);
         var exportQtys = await _repo.GetExportQtyByProductAsync(fromDate, toDate, warehouseIds, ct);

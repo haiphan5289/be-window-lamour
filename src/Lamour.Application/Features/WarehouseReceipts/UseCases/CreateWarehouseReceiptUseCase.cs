@@ -153,6 +153,7 @@ public class CreateWarehouseReceiptUseCase : ICreateWarehouseReceiptUseCase
             ProductName   = l.Product?.Name   ?? "",
             WarehouseId   = l.WarehouseId,
             WarehouseName = l.Warehouse?.Name ?? "",
+            Unit          = l.Product?.Unit ?? "",
             Quantity      = l.Quantity,
             UnitPrice     = l.UnitPrice,
             Amount        = l.Amount,

@@ -48,6 +48,7 @@ public class GetReceiptsUseCase : IGetReceiptsUseCase
             SubjectCode   = e.SubjectCode,
             SubjectName   = e.SubjectName,
             BankAccount   = e.BankAccount,
+            SalesOrderId  = e.SalesOrderId,
         }).ToList(),
     };
 }

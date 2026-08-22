@@ -14,4 +14,9 @@ public class ReceiptEntry
     public string? SubjectCode { get; set; }          // Đối tượng column
     public string? SubjectName { get; set; }          // Tên đối tượng
     public string? BankAccount { get; set; }          // TK ngân hàng
+
+    // Chứng từ bán hàng gốc đang được thu tiền (Phiếu thu hàng loạt khách hàng) — null cho phiếu
+    // thu bình thường không gắn với 1 đơn hàng cụ thể (ThuKhac...).
+    public int?        SalesOrderId { get; set; }
+    public SalesOrder? SalesOrder   { get; set; }
 }
