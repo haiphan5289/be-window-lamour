@@ -67,6 +67,17 @@ public class SalesReturnLineConfiguration : IEntityTypeConfiguration<SalesReturn
         builder.Property(x => x.DiscountAmount).HasColumnName("discount_amount").HasPrecision(18, 2).IsRequired();
         builder.Property(x => x.SalesOrderNumber).HasColumnName("sales_order_number").HasMaxLength(50);
 
+        builder.Property(x => x.TaxRate).HasColumnName("tax_rate").HasPrecision(5, 2).IsRequired().HasDefaultValue(0m);
+        builder.Property(x => x.TaxAmount).HasColumnName("tax_amount").HasPrecision(18, 2).IsRequired().HasDefaultValue(0m);
+        builder.Property(x => x.TaxAccount).HasColumnName("tax_account").HasMaxLength(20).IsRequired().HasDefaultValue("33311");
+
+        builder.Property(x => x.CostAccount).HasColumnName("cost_account").HasMaxLength(20).IsRequired().HasDefaultValue("1561");
+        builder.Property(x => x.CogsAccount).HasColumnName("cogs_account").HasMaxLength(20).IsRequired().HasDefaultValue("632");
+        builder.Property(x => x.CostPrice).HasColumnName("cost_price").HasPrecision(18, 2).IsRequired().HasDefaultValue(0m);
+        builder.Property(x => x.CostAmount).HasColumnName("cost_amount").HasPrecision(18, 2).IsRequired().HasDefaultValue(0m);
+
+        builder.Property(x => x.DepartmentId).HasColumnName("department_id");
+
         builder.HasOne(x => x.Product)
                .WithMany()
                .HasForeignKey(x => x.ProductId)
@@ -76,5 +87,10 @@ public class SalesReturnLineConfiguration : IEntityTypeConfiguration<SalesReturn
                .WithMany()
                .HasForeignKey(x => x.WarehouseId)
                .OnDelete(DeleteBehavior.Restrict);
+
+        builder.HasOne(x => x.Department)
+               .WithMany()
+               .HasForeignKey(x => x.DepartmentId)
+               .OnDelete(DeleteBehavior.SetNull);
     }
 }

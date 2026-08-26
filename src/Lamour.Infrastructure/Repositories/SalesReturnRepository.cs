@@ -18,7 +18,7 @@ public class SalesReturnRepository : ISalesReturnRepository
             .AsNoTracking()
             .Include(r => r.Customer)
             .Include(r => r.Employee)
-            .Include(r => r.Lines)
+            .Include(r => r.Lines).ThenInclude(l => l.Department)
             .AsQueryable();
 
         if (fromDate.HasValue)
@@ -50,7 +50,7 @@ public class SalesReturnRepository : ISalesReturnRepository
             .AsNoTracking()
             .Include(r => r.Customer)
             .Include(r => r.Employee)
-            .Include(r => r.Lines)
+            .Include(r => r.Lines).ThenInclude(l => l.Department)
             .FirstOrDefaultAsync(r => r.Id == id, ct);
 
     public async Task<SalesReturn?> GetByIdTrackedAsync(int id, CancellationToken ct = default)

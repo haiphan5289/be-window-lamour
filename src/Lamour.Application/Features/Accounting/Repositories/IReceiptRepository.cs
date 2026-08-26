@@ -25,6 +25,7 @@ public interface IReceiptRepository
     Task<IEnumerable<(
         int OrderId, string DocumentNumber, DateTime AccountingDate, DateTime DocumentDate,
         int CustomerId, string CustomerCode, string CustomerName, string? Description,
+        decimal GrandTotal, string? PaymentTerms, DateTime? PaymentDueDate,
         decimal RemainingAmount)>> GetOutstandingSalesOrdersAsync(
         DateOnly fromDate, DateOnly toDate, int? employeeId, CancellationToken ct = default);
 }

@@ -3,6 +3,7 @@ using System;
 using Lamour.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
@@ -11,9 +12,11 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace Lamour.Infrastructure.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260826091448_AddSalesReturnTaxCostAndDepartment")]
+    partial class AddSalesReturnTaxCostAndDepartment
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -1076,19 +1079,6 @@ namespace Lamour.Infrastructure.Migrations
                         .HasMaxLength(50)
                         .HasColumnType("character varying(50)");
 
-                    b.Property<int>("PartnerId")
-                        .HasColumnType("integer");
-
-                    b.Property<string>("PartnerName")
-                        .IsRequired()
-                        .HasMaxLength(200)
-                        .HasColumnType("character varying(200)");
-
-                    b.Property<string>("PartnerType")
-                        .IsRequired()
-                        .HasMaxLength(20)
-                        .HasColumnType("character varying(20)");
-
                     b.Property<string>("PayeeName")
                         .IsRequired()
                         .HasMaxLength(200)
@@ -1115,11 +1105,14 @@ namespace Lamour.Infrastructure.Migrations
                         .HasMaxLength(20)
                         .HasColumnType("character varying(20)");
 
+                    b.Property<int>("SupplierId")
+                        .HasColumnType("integer");
+
                     b.HasKey("Id");
 
                     b.HasIndex("PaymentEmployeeId");
 
-                    b.HasIndex("PartnerType", "PartnerId");
+                    b.HasIndex("SupplierId");
 
                     b.ToTable("payments", (string)null);
                 });
@@ -1515,7 +1508,7 @@ namespace Lamour.Infrastructure.Migrations
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("timestamp with time zone");
 
-                    b.Property<int?>("CustomerId")
+                    b.Property<int>("CustomerId")
                         .HasColumnType("integer");
 
                     b.Property<DateTime>("DocumentDate")
@@ -2442,7 +2435,15 @@ namespace Lamour.Infrastructure.Migrations
                         .HasForeignKey("PaymentEmployeeId")
                         .OnDelete(DeleteBehavior.SetNull);
 
+                    b.HasOne("Lamour.Domain.Entities.Supplier", "Supplier")
+                        .WithMany()
+                        .HasForeignKey("SupplierId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
                     b.Navigation("PaymentEmployee");
+
+                    b.Navigation("Supplier");
                 });
 
             modelBuilder.Entity("Lamour.Domain.Entities.PaymentEntry", b =>
@@ -2574,7 +2575,8 @@ namespace Lamour.Infrastructure.Migrations
                     b.HasOne("Lamour.Domain.Entities.Customer", "Customer")
                         .WithMany()
                         .HasForeignKey("CustomerId")
-                        .OnDelete(DeleteBehavior.Restrict);
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
 
                     b.Navigation("CollectorEmployee");
 

@@ -15,8 +15,9 @@ public enum PaymentStatus
 public class Payment
 {
     public int Id { get; set; }
-    public int SupplierId { get; set; }
-    public Supplier Supplier { get; set; } = null!;
+    public PaymentPartnerType PartnerType { get; set; } = PaymentPartnerType.Supplier;   // Loại đối tượng
+    public int PartnerId { get; set; }                          // Id trong bảng Supplier/Customer/Employee tương ứng
+    public string PartnerName { get; set; } = "";                // Tên đối tượng (cache tại thời điểm lưu)
     public string PayeeName { get; set; } = "";                // Người nhận
     public string? Address { get; set; }                        // Địa chỉ
     public PaymentReason PaymentReason { get; set; } = PaymentReason.ChiKhac;

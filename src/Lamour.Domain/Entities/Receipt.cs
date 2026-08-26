@@ -5,8 +5,11 @@ namespace Lamour.Domain.Entities;
 public class Receipt
 {
     public int Id { get; set; }
-    public int CustomerId { get; set; }
-    public Customer Customer { get; set; } = null!;
+    // Null cho "Phiếu thu tiền khách hàng hàng loạt" (1 phiếu, nhiều khách hàng khác nhau — mỗi
+    // dòng hạch toán tự mang khách hàng riêng qua ReceiptEntry.SubjectCode/SubjectName). Non-null
+    // cho phiếu thu 1 khách hàng bình thường (hành vi cũ, không đổi).
+    public int?      CustomerId { get; set; }
+    public Customer? Customer   { get; set; }
     public string PayerName { get; set; } = "";           // Người nộp
     public string? Address { get; set; }                   // Địa chỉ
     public PaymentReason PaymentReason { get; set; } = PaymentReason.ThuKhac;

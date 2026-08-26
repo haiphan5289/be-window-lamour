@@ -13,6 +13,9 @@
 | `POST`   | `/api/v1/accounting/receipts`       | Bearer | Tạo phiếu thu mới |
 | `PUT`    | `/api/v1/accounting/receipts/{id}`  | Bearer | Cập nhật phiếu thu |
 | `DELETE` | `/api/v1/accounting/receipts/{id}`  | Bearer | Xóa phiếu thu |
+| `GET`    | `/api/v1/accounting/receipts/next-code` | Bearer | Số chứng từ "PT" tiếp theo |
+| `GET`    | `/api/v1/accounting/receipts/outstanding-orders` | Bearer | Chứng từ bán hàng còn nợ (popup "Thu tiền khách hàng hàng loạt") |
+| `POST`   | `/api/v1/accounting/receipts/bulk`  | Bearer | Tạo 1 phiếu thu hàng loạt (nhiều khách hàng, xem mục riêng bên dưới) |
 
 ## Request — POST / PUT
 
@@ -134,7 +137,7 @@ src/Lamour.Domain/Entities/Receipt.cs
 | Column               | Type          | Notes                        |
 |----------------------|---------------|------------------------------|
 | `Id`                 | int           | PK                           |
-| `CustomerId`         | int           | FK → Customers (Restrict)    |
+| `CustomerId`         | int?          | FK → Customers (Restrict), **nullable từ 2026-08-26** — null cho "Phiếu thu tiền khách hàng hàng loạt" (xem mục "Phiếu thu hàng loạt" bên dưới), non-null cho phiếu thu 1 khách hàng bình thường |
 | `PayerName`          | string(200)   | Người nộp                    |
 | `Address`            | string?(500)  | Địa chỉ                      |
 | `PaymentReason`      | string(30)    | Enum stored as string        |
@@ -160,9 +163,36 @@ src/Lamour.Domain/Entities/ReceiptEntry.cs
 | `DebitAccount`  | string(20)   | TK Nợ — enum stored as string     |
 | `CreditAccount` | string(20)   | TK Có — enum stored as string     |
 | `Amount`        | decimal(18,2)| Số tiền                           |
-| `SubjectCode`   | string?(50)  | Đối tượng                         |
-| `SubjectName`   | string?(200) | Tên đối tượng                     |
+| `SubjectCode`   | string?(50)  | Đối tượng — dùng làm "Mã khách hàng" per-dòng cho phiếu thu hàng loạt (xem dưới) |
+| `SubjectName`   | string?(200) | Tên đối tượng — "Tên khách hàng" per-dòng, cùng cơ chế trên |
 | `BankAccount`   | string?(100) | TK ngân hàng                      |
+| `SalesOrderId`  | int?         | FK → SalesOrders (Restrict) — chứng từ bán hàng gốc đang thu tiền, null nếu không gắn đơn hàng cụ thể |
+
+---
+
+## Phiếu thu tiền khách hàng hàng loạt (2026-08-26 — so ảnh mẫu MISA)
+
+**Trước 2026-08-26:** `CreateBulkCustomerReceiptUseCase` nhận danh sách `(SalesOrderId, Amount)` đã chọn, **group theo `CustomerId`** rồi gọi `ICreateReceiptUseCase` **1 lần mỗi khách hàng** → N khách hàng khác nhau ra N phiếu thu riêng biệt (do lúc đó `Receipt.CustomerId` là FK bắt buộc, 1 phiếu chỉ gắn được 1 khách hàng).
+
+**Sau 2026-08-26 (khớp ảnh mẫu MISA):** tạo **đúng 1 `Receipt` duy nhất** cho toàn bộ danh sách đã chọn, bất kể có bao nhiêu khách hàng khác nhau:
+
+- `Receipt.CustomerId = null` (đã đổi sang `int?` — xem bảng entity ở trên).
+- `Receipt.PayerName` = tên người nộp/nhân viên thu do user nhập ở popup xác nhận (`request.PayerName`), fallback về tên `CollectorEmployee` nếu bỏ trống, fallback tiếp về `"Thu tiền khách hàng hàng loạt"` nếu cả hai đều không có — **không phải** tên 1 khách hàng cụ thể nào (khớp ảnh mẫu: "Người nộp" = tên nhân viên, không phải tên khách).
+- `Receipt.Reference` = nối các `SalesOrder.DocumentNumber` đã chọn bằng `", "` (tự động, chỉ để xem).
+- Mỗi `ReceiptEntry` tự mang khách hàng riêng qua `SubjectCode`/`SubjectName` (= `SalesOrder.Customer.Code`/`CustomerNameOverride ?? Customer.Name`) — **tái dùng field có sẵn**, không thêm cột `CustomerId` mới trên `ReceiptEntry` (không cần thiết: mọi truy vấn công nợ đều đi qua `ReceiptEntry.SalesOrderId → SalesOrder.CustomerId`, không phụ thuộc `Receipt.CustomerId`/entry-level CustomerId — xem `GetOutstandingSalesOrdersAsync`, hoàn toàn không đổi).
+- 1 `DocumentNumber` duy nhất (gọi `IGetNextReceiptCodeUseCase` đúng 1 lần, không phải 1 lần/khách hàng).
+- Vẫn tái dùng nguyên `ICreateReceiptUseCase` (validate còn nợ per-entry + tạo `CashTransaction` side-effect) — chỉ gọi 1 lần thay vì N lần.
+
+**DTO đổi:**
+- `CreateBulkCustomerReceiptRequestDto` — thêm `payer_name`/`address`/`attachment` (nhập ở popup xác nhận, trước đây các field này không tồn tại vì mỗi Receipt tự lấy `PayerName` = tên khách hàng).
+- `CreateBulkCustomerReceiptResponseDto` — đổi `receipts: ReceiptResponseDto[]` → **`receipt: ReceiptResponseDto`** (1 object, không phải mảng).
+- `OutstandingSalesOrderDto` — thêm `grand_total`/`payment_terms`/`payment_due_date` (lấy thẳng từ `SalesOrder`, phục vụ tab "2. Chứng từ" phía WPF — xem doc WPF).
+
+**Không đổi / cố tình bỏ qua** (không có data model, tránh làm giả):
+- "Số hóa đơn" (invoice number riêng, khác `DocumentNumber`) — `SalesOrder` không có field này.
+- "Tỷ lệ CK (%)"/"Tiền chiết khấu"/"TK chiết khấu" ở tab "2. Chứng từ" — khái niệm chiết khấu thanh toán sớm ở mức chứng từ, khác hẳn `SalesOrderLine.DiscountRate` (chiết khấu theo dòng sản phẩm) đã có sẵn; `SalesOrder` không có field chiết khấu thanh toán sớm ở header.
+- Màn hình danh sách "Thu tiền khách hàng hàng loạt" riêng (sidebar + Kỳ/Trạng thái/Loại) như ảnh mẫu — **không cần xây mới**: mọi phiếu thu hàng loạt vẫn post đúng 1 `CashTransaction` như phiếu thu thường, nên đã tự động hiện trong màn "Sổ Kế Toán Chi Tiết Quỹ Tiền Mặt" (`GetCashLedgerUseCase`) có sẵn — tái dùng hạ tầng đã có thay vì xây trùng lặp UI.
+- Draft/Treo/Confirmed/"Hoàn" lifecycle cho Receipt (kể cả Receipt hàng loạt) — Receipt nói chung (kể cả Phiếu Thu đơn lẻ) chưa được migrate sang state machine kiểu Payment, làm riêng cho hàng loạt sẽ không nhất quán. Đây là known limitation có sẵn, không phải phát sinh mới.
 
 ## Clean Architecture Layers
 

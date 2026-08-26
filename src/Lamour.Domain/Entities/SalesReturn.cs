@@ -62,4 +62,21 @@ public class SalesReturnLine
     public decimal DiscountAmount { get; set; }  // = Amount × DiscountRate / 100
 
     public string? SalesOrderNumber { get; set; }  // Số CT bán hàng (reference per line)
+
+    // Tab "2. Thuế" — denormalized từ Product.VatRate tại thời điểm ghi sổ, giống SalesOrderLine.
+    public decimal TaxRate    { get; set; }             // % thuế GTGT
+    public decimal TaxAmount  { get; set; }              // = (Amount - DiscountAmount) × TaxRate / 100
+    public string  TaxAccount { get; set; } = "33311";   // TK thuế GTGT
+
+    // Tab "3. Giá vốn" — Kho dùng chung WarehouseId ở trên; CostPrice denormalized từ Product.CostPrice.
+    public string  CostAccount { get; set; } = "1561";   // TK kho (giá vốn)
+    public string  CogsAccount { get; set; } = "632";    // TK giá vốn
+    public decimal CostPrice   { get; set; }              // Đơn giá vốn
+    public decimal CostAmount  { get; set; }              // = Quantity × CostPrice
+
+    // Tab "4. Thống kê" — chỉ "Đơn vị" (Department), 6 field còn lại của MISA (Công trình,
+    // Đơn đặt hàng, Hợp đồng bán, Đối tượng THCP, Số khế ước, Mã thống kê) không có master data
+    // trong hệ thống này, bỏ qua theo yêu cầu.
+    public int?         DepartmentId { get; set; }
+    public Department?  Department   { get; set; }
 }

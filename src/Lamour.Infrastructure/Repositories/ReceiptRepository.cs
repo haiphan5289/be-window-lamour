@@ -102,6 +102,7 @@ public class ReceiptRepository : IReceiptRepository
     public async Task<IEnumerable<(
         int OrderId, string DocumentNumber, DateTime AccountingDate, DateTime DocumentDate,
         int CustomerId, string CustomerCode, string CustomerName, string? Description,
+        decimal GrandTotal, string? PaymentTerms, DateTime? PaymentDueDate,
         decimal RemainingAmount)>> GetOutstandingSalesOrdersAsync(
         DateOnly fromDate, DateOnly toDate, int? employeeId, CancellationToken ct = default)
     {
@@ -122,9 +123,11 @@ public class ReceiptRepository : IReceiptRepository
                 o.DocumentDate,
                 o.CustomerId,
                 CustomerCode = o.Customer.Code,
-                CustomerName = o.Customer.Name,
+                CustomerName = o.CustomerNameOverride ?? o.Customer.Name,
                 o.Description,
                 o.GrandTotal,
+                o.PaymentTerms,
+                o.PaymentDueDate,
                 Paid     = _db.ReceiptEntries.Where(e => e.SalesOrderId == o.Id).Sum(e => (decimal?)e.Amount) ?? 0m,
                 Deducted = _db.DepositDeductions.Where(d => d.SalesOrderId == o.Id).Sum(d => (decimal?)d.Amount) ?? 0m,
             })
@@ -134,6 +137,7 @@ public class ReceiptRepository : IReceiptRepository
             .Select(r => (
                 r.Id, r.DocumentNumber, r.AccountingDate, r.DocumentDate,
                 r.CustomerId, r.CustomerCode, r.CustomerName, r.Description,
+                r.GrandTotal, r.PaymentTerms, r.PaymentDueDate,
                 RemainingAmount: r.GrandTotal - r.Paid - r.Deducted))
             .Where(r => r.RemainingAmount > 0m)
             .OrderBy(r => r.AccountingDate).ThenBy(r => r.DocumentNumber);

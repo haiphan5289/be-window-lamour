@@ -15,6 +15,7 @@ public class SalesReturnsController : ControllerBase
     private readonly ICreateSalesReturnUseCase      _create;
     private readonly IUpdateSalesReturnUseCase      _update;
     private readonly IDeleteSalesReturnUseCase      _delete;
+    private readonly ICreateSalesReturnWarehouseReceiptUseCase _createWarehouseReceipt;
 
     public SalesReturnsController(
         IGetSalesReturnsUseCase        getAll,
@@ -22,7 +23,8 @@ public class SalesReturnsController : ControllerBase
         IGetNextSalesReturnCodeUseCase getNextCode,
         ICreateSalesReturnUseCase      create,
         IUpdateSalesReturnUseCase      update,
-        IDeleteSalesReturnUseCase      delete)
+        IDeleteSalesReturnUseCase      delete,
+        ICreateSalesReturnWarehouseReceiptUseCase createWarehouseReceipt)
     {
         _getAll      = getAll;
         _getById     = getById;
@@ -30,6 +32,7 @@ public class SalesReturnsController : ControllerBase
         _create      = create;
         _update      = update;
         _delete      = delete;
+        _createWarehouseReceipt = createWarehouseReceipt;
     }
 
     [HttpGet]
@@ -66,5 +69,12 @@ public class SalesReturnsController : ControllerBase
     {
         await _delete.ExecuteAsync(id, ct);
         return NoContent();
+    }
+
+    [HttpPost("{id:int}/create-warehouse-receipt")]
+    public async Task<IActionResult> CreateWarehouseReceipt(int id, CancellationToken ct)
+    {
+        var result = await _createWarehouseReceipt.ExecuteAsync(id, ct);
+        return Created($"/api/v1/warehouse-receipts/{result.Id}", result);
     }
 }

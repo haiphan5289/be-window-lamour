@@ -4,7 +4,8 @@ namespace Lamour.Application.Features.Accounting.Dtos;
 
 public class UpdatePaymentRequestDto
 {
-    [JsonPropertyName("supplier_id")]           public int      SupplierId          { get; set; }
+    [JsonPropertyName("partner_type")]          public string   PartnerType         { get; set; } = "Supplier";
+    [JsonPropertyName("partner_id")]            public int      PartnerId           { get; set; }
     [JsonPropertyName("payee_name")]            public string   PayeeName           { get; set; } = "";
     [JsonPropertyName("address")]               public string?  Address             { get; set; }
     [JsonPropertyName("payment_reason")]        public string   PaymentReason       { get; set; } = "ChiKhac";

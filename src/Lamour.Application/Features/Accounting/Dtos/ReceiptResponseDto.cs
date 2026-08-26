@@ -5,7 +5,7 @@ namespace Lamour.Application.Features.Accounting.Dtos;
 public class ReceiptResponseDto
 {
     [JsonPropertyName("id")]                      public int      Id                    { get; set; }
-    [JsonPropertyName("customer_id")]             public int      CustomerId            { get; set; }
+    [JsonPropertyName("customer_id")]             public int?     CustomerId            { get; set; }
     [JsonPropertyName("customer_name")]           public string   CustomerName          { get; set; } = "";
     [JsonPropertyName("payer_name")]              public string   PayerName             { get; set; } = "";
     [JsonPropertyName("address")]                 public string?  Address               { get; set; }

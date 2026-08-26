@@ -17,6 +17,7 @@ public class PaymentsController : ControllerBase
     private readonly IDeletePaymentUseCase     _deletePayment;
     private readonly IDuplicatePaymentUseCase  _duplicatePayment;
     private readonly IConfirmPaymentUseCase    _confirmPayment;
+    private readonly IUnconfirmPaymentUseCase  _unconfirmPayment;
     private readonly ISetPaymentTreoUseCase    _setPaymentTreo;
 
     public PaymentsController(
@@ -27,6 +28,7 @@ public class PaymentsController : ControllerBase
         IDeletePaymentUseCase deletePayment,
         IDuplicatePaymentUseCase duplicatePayment,
         IConfirmPaymentUseCase confirmPayment,
+        IUnconfirmPaymentUseCase unconfirmPayment,
         ISetPaymentTreoUseCase setPaymentTreo)
     {
         _getPayments       = getPayments;
@@ -36,6 +38,7 @@ public class PaymentsController : ControllerBase
         _deletePayment     = deletePayment;
         _duplicatePayment  = duplicatePayment;
         _confirmPayment    = confirmPayment;
+        _unconfirmPayment  = unconfirmPayment;
         _setPaymentTreo    = setPaymentTreo;
     }
 
@@ -77,6 +80,10 @@ public class PaymentsController : ControllerBase
     [HttpPost("{id:int}/confirm")]
     public async Task<IActionResult> ConfirmPayment(int id, CancellationToken ct)
         => Ok(await _confirmPayment.ExecuteAsync(id, ct));
+
+    [HttpPost("{id:int}/unconfirm")]
+    public async Task<IActionResult> UnconfirmPayment(int id, CancellationToken ct)
+        => Ok(await _unconfirmPayment.ExecuteAsync(id, ct));
 
     [HttpPost("{id:int}/treo")]
     public async Task<IActionResult> SetPaymentTreo(int id, CancellationToken ct)

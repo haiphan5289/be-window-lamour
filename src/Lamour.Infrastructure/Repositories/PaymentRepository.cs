@@ -14,7 +14,6 @@ public class PaymentRepository : IPaymentRepository
     public async Task<IEnumerable<Payment>> GetAllAsync(CancellationToken ct = default)
         => await _db.Payments
             .AsNoTracking()
-            .Include(p => p.Supplier)
             .Include(p => p.PaymentEmployee)
             .Include(p => p.Entries).ThenInclude(e => e.ExpenseCategory)
             .Include(p => p.Entries).ThenInclude(e => e.DebitAccountSetting)
@@ -41,7 +40,6 @@ public class PaymentRepository : IPaymentRepository
     public async Task<Payment?> GetByIdAsync(int id, CancellationToken ct = default)
         => await _db.Payments
             .AsNoTracking()
-            .Include(p => p.Supplier)
             .Include(p => p.PaymentEmployee)
             .Include(p => p.Entries).ThenInclude(e => e.ExpenseCategory)
             .Include(p => p.Entries).ThenInclude(e => e.DebitAccountSetting)
@@ -50,7 +48,6 @@ public class PaymentRepository : IPaymentRepository
 
     public async Task<Payment?> GetByIdTrackedAsync(int id, CancellationToken ct = default)
         => await _db.Payments
-            .Include(p => p.Supplier)
             .Include(p => p.PaymentEmployee)
             .Include(p => p.Entries).ThenInclude(e => e.ExpenseCategory)
             .Include(p => p.Entries).ThenInclude(e => e.DebitAccountSetting)
@@ -63,7 +60,6 @@ public class PaymentRepository : IPaymentRepository
         await _db.SaveChangesAsync(ct);
 
         // Reload navigations
-        await _db.Entry(payment).Reference(p => p.Supplier).LoadAsync(ct);
         if (payment.PaymentEmployeeId.HasValue)
             await _db.Entry(payment).Reference(p => p.PaymentEmployee).LoadAsync(ct);
         foreach (var entry in payment.Entries)

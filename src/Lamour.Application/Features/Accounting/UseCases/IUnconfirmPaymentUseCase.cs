@@ -1,0 +1,8 @@
+using Lamour.Application.Features.Accounting.Dtos;
+
+namespace Lamour.Application.Features.Accounting.UseCases;
+
+public interface IUnconfirmPaymentUseCase
+{
+    Task<PaymentResponseDto> ExecuteAsync(int id, CancellationToken ct = default);
+}

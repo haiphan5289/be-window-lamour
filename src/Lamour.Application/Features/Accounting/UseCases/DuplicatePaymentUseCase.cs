@@ -27,7 +27,9 @@ public class DuplicatePaymentUseCase : IDuplicatePaymentUseCase
         // Duplicate always starts as a fresh Draft, regardless of the source's status.
         var duplicate = new Payment
         {
-            SupplierId        = source.SupplierId,
+            PartnerType       = source.PartnerType,
+            PartnerId         = source.PartnerId,
+            PartnerName       = source.PartnerName,
             PayeeName         = source.PayeeName,
             Address           = source.Address,
             PaymentReason     = source.PaymentReason,

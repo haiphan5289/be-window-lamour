@@ -1,5 +1,6 @@
 using Lamour.Application.Abstractions;
 using Lamour.Application.Features.Products.Repositories;
+using Lamour.Application.Features.Sales;
 using Lamour.Application.Features.SalesReturn.Dtos;
 using Lamour.Application.Features.SalesReturn.Repositories;
 using Lamour.Application.Features.Warehouse.Repositories;
@@ -71,6 +72,11 @@ public class UpdateSalesReturnUseCase : IUpdateSalesReturnUseCase
                 var amount         = dto.Quantity * dto.UnitPrice;
                 var discountAmount = amount * discountRate / 100m;
 
+                var taxRate    = SalesOrderTaxCalculator.ToPercent(product.VatRate);
+                var taxAmount  = (amount - discountAmount) * taxRate / 100m;
+                var costPrice  = product.CostPrice;
+                var costAmount = dto.Quantity * costPrice;
+
                 newLines.Add(new SalesReturnLineEntity
                 {
                     ProductId        = dto.ProductId,
@@ -87,6 +93,14 @@ public class UpdateSalesReturnUseCase : IUpdateSalesReturnUseCase
                     DiscountRate     = discountRate,
                     DiscountAmount   = discountAmount,
                     SalesOrderNumber = dto.SalesOrderNumber,
+                    TaxRate          = taxRate,
+                    TaxAmount        = taxAmount,
+                    TaxAccount       = string.IsNullOrWhiteSpace(dto.TaxAccount) ? "33311" : dto.TaxAccount,
+                    CostAccount      = string.IsNullOrWhiteSpace(dto.CostAccount) ? "1561" : dto.CostAccount,
+                    CogsAccount      = string.IsNullOrWhiteSpace(dto.CogsAccount) ? "632"  : dto.CogsAccount,
+                    CostPrice        = costPrice,
+                    CostAmount       = costAmount,
+                    DepartmentId     = dto.DepartmentId,
                 });
             }
 

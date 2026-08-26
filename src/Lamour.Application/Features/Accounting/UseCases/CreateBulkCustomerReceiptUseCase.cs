@@ -1,4 +1,5 @@
 using Lamour.Application.Features.Accounting.Dtos;
+using Lamour.Application.Features.Employees.Repositories;
 using Lamour.Application.Features.Sales.Repositories;
 using Lamour.Domain.Entities;
 using Lamour.Domain.Exceptions;
@@ -6,25 +7,28 @@ using Microsoft.Extensions.Logging;
 
 namespace Lamour.Application.Features.Accounting.UseCases;
 
-// "Phiếu thu tiền khách hàng hàng loạt" — nhận danh sách (SalesOrderId, Amount) đã chọn ở popup
-// tìm kiếm, gom theo CustomerId (1 Receipt/khách hàng — khớp Receipt.CustomerId hiện là FK bắt
-// buộc, không đổi schema Receipt), mỗi khách hàng có 1+ dòng nếu chọn nhiều đơn của cùng khách.
-// Tái dùng nguyên ICreateReceiptUseCase cho từng Receipt — validate còn nợ + ghi CashTransaction
-// side-effect đã có sẵn ở đó, không viết lại.
+// "Phiếu thu tiền khách hàng hàng loạt" — khớp ảnh mẫu MISA: tạo ĐÚNG 1 Receipt duy nhất (không
+// group theo CustomerId ra nhiều phiếu như bản trước 2026-08-26), mỗi dòng hạch toán tự mang
+// khách hàng riêng qua ReceiptEntry.SubjectCode/SubjectName (Receipt.CustomerId = null cho phiếu
+// loại này — xem Receipt.cs). Tái dùng nguyên ICreateReceiptUseCase — validate còn nợ + ghi
+// CashTransaction side-effect đã có sẵn ở đó, không viết lại.
 public class CreateBulkCustomerReceiptUseCase : ICreateBulkCustomerReceiptUseCase
 {
     private readonly ISalesOrderRepository      _salesOrderRepo;
+    private readonly IEmployeeRepository        _employeeRepo;
     private readonly ICreateReceiptUseCase      _createReceipt;
     private readonly IGetNextReceiptCodeUseCase _getNextCode;
     private readonly ILogger<CreateBulkCustomerReceiptUseCase> _logger;
 
     public CreateBulkCustomerReceiptUseCase(
         ISalesOrderRepository      salesOrderRepo,
+        IEmployeeRepository        employeeRepo,
         ICreateReceiptUseCase      createReceipt,
         IGetNextReceiptCodeUseCase getNextCode,
         ILogger<CreateBulkCustomerReceiptUseCase> logger)
     {
         _salesOrderRepo = salesOrderRepo;
+        _employeeRepo   = employeeRepo;
         _createReceipt  = createReceipt;
         _getNextCode    = getNextCode;
         _logger         = logger;
@@ -48,40 +52,54 @@ public class CreateBulkCustomerReceiptUseCase : ICreateBulkCustomerReceiptUseCas
             ordersById[line.SalesOrderId] = order;
         }
 
-        var results = new List<ReceiptResponseDto>();
-        foreach (var group in request.Lines.GroupBy(l => ordersById[l.SalesOrderId].CustomerId))
+        var payerName = request.PayerName;
+        if (string.IsNullOrWhiteSpace(payerName))
         {
-            var firstOrder      = ordersById[group.First().SalesOrderId];
-            var documentNumber  = await _getNextCode.ExecuteAsync(ct);
+            var collector = request.CollectorEmployeeId.HasValue
+                ? await _employeeRepo.GetByIdAsync(request.CollectorEmployeeId.Value, ct)
+                : null;
+            payerName = collector?.Name ?? "Thu tiền khách hàng hàng loạt";
+        }
 
-            var createRequest = new CreateReceiptRequestDto
+        var documentNumber = await _getNextCode.ExecuteAsync(ct);
+        var reference       = string.Join(", ", ordersById.Values
+            .Select(o => o.DocumentNumber)
+            .Distinct());
+
+        var createRequest = new CreateReceiptRequestDto
+        {
+            CustomerId          = null,
+            PayerName           = payerName,
+            Address             = request.Address,
+            PaymentReason       = "ThuCongNo",
+            CollectorEmployeeId = request.CollectorEmployeeId,
+            Attachment          = request.Attachment,
+            Reference           = reference,
+            AccountingDate      = request.AccountingDate,
+            DocumentDate        = request.DocumentDate,
+            DocumentNumber      = documentNumber,
+            Entries = request.Lines.Select(l =>
             {
-                CustomerId          = group.Key,
-                PayerName           = firstOrder.Customer.Name,
-                Address             = null,
-                PaymentReason       = "ThuCongNo",
-                CollectorEmployeeId = request.CollectorEmployeeId,
-                AccountingDate      = request.AccountingDate,
-                DocumentDate        = request.DocumentDate,
-                DocumentNumber      = documentNumber,
-                Entries = group.Select(l => new ReceiptEntryDto
+                var order = ordersById[l.SalesOrderId];
+                return new ReceiptEntryDto
                 {
-                    Description   = $"Thu tiền khách hàng - {ordersById[l.SalesOrderId].DocumentNumber}",
+                    Description   = $"Thu tiền khách hàng - {order.DocumentNumber}",
                     DebitAccount  = request.DebitAccount,
                     CreditAccount = "Receivable131",
                     Amount        = l.Amount,
+                    SubjectCode   = order.Customer.Code,
+                    SubjectName   = order.CustomerNameOverride ?? order.Customer.Name,
                     BankAccount   = request.BankAccount,
                     SalesOrderId  = l.SalesOrderId,
-                }).ToList(),
-            };
+                };
+            }).ToList(),
+        };
 
-            var created = await _createReceipt.ExecuteAsync(createRequest, ct);
-            results.Add(created);
-        }
+        var created = await _createReceipt.ExecuteAsync(createRequest, ct);
 
-        _logger.LogInformation("Created {Count} bulk customer receipts covering {LineCount} sales orders",
-            results.Count, request.Lines.Count);
+        _logger.LogInformation("Created bulk customer receipt {DocumentNumber} covering {LineCount} sales orders across {CustomerCount} customers",
+            created.DocumentNumber, request.Lines.Count, ordersById.Values.Select(o => o.CustomerId).Distinct().Count());
 
-        return new CreateBulkCustomerReceiptResponseDto { Receipts = results };
+        return new CreateBulkCustomerReceiptResponseDto { Receipt = created };
     }
 }

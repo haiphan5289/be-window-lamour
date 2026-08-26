@@ -238,6 +238,8 @@ builder.Services.AddScoped<Lamour.Application.Features.Accounting.UseCases.IDupl
                            Lamour.Application.Features.Accounting.UseCases.DuplicatePaymentUseCase>();
 builder.Services.AddScoped<Lamour.Application.Features.Accounting.UseCases.IConfirmPaymentUseCase,
                            Lamour.Application.Features.Accounting.UseCases.ConfirmPaymentUseCase>();
+builder.Services.AddScoped<Lamour.Application.Features.Accounting.UseCases.IUnconfirmPaymentUseCase,
+                           Lamour.Application.Features.Accounting.UseCases.UnconfirmPaymentUseCase>();
 builder.Services.AddScoped<Lamour.Application.Features.Accounting.UseCases.ISetPaymentTreoUseCase,
                            Lamour.Application.Features.Accounting.UseCases.SetPaymentTreoUseCase>();
 
@@ -300,6 +302,8 @@ builder.Services.AddScoped<Lamour.Application.Features.SalesReturn.UseCases.IUpd
                            Lamour.Application.Features.SalesReturn.UseCases.UpdateSalesReturnUseCase>();
 builder.Services.AddScoped<Lamour.Application.Features.SalesReturn.UseCases.IDeleteSalesReturnUseCase,
                            Lamour.Application.Features.SalesReturn.UseCases.DeleteSalesReturnUseCase>();
+builder.Services.AddScoped<Lamour.Application.Features.SalesReturn.UseCases.ICreateSalesReturnWarehouseReceiptUseCase,
+                           Lamour.Application.Features.SalesReturn.UseCases.CreateSalesReturnWarehouseReceiptUseCase>();
 
 // ── Deposits DI ───────────────────────────────────────────────────────────────
 builder.Services.AddScoped<Lamour.Application.Features.Deposits.Repositories.IDepositRepository,

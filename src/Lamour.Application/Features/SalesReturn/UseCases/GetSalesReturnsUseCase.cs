@@ -58,6 +58,15 @@ public class GetSalesReturnsUseCase : IGetSalesReturnsUseCase
             DiscountRate     = l.DiscountRate,
             DiscountAmount   = l.DiscountAmount,
             SalesOrderNumber = l.SalesOrderNumber,
+            TaxRate          = l.TaxRate,
+            TaxAmount        = l.TaxAmount,
+            TaxAccount       = l.TaxAccount,
+            CostAccount      = l.CostAccount,
+            CogsAccount      = l.CogsAccount,
+            CostPrice        = l.CostPrice,
+            CostAmount       = l.CostAmount,
+            DepartmentId     = l.DepartmentId,
+            DepartmentName   = l.Department?.Name,
         }).ToList(),
     };
 }

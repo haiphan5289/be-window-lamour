@@ -10,6 +10,8 @@ public class PaymentConfiguration : IEntityTypeConfiguration<Payment>
     {
         builder.ToTable("payments");
         builder.HasKey(x => x.Id);
+        builder.Property(x => x.PartnerType).HasConversion<string>().HasMaxLength(20).IsRequired();
+        builder.Property(x => x.PartnerName).HasMaxLength(200).IsRequired();
         builder.Property(x => x.PayeeName).HasMaxLength(200).IsRequired();
         builder.Property(x => x.Address).HasMaxLength(500);
         builder.Property(x => x.PaymentReason).HasConversion<string>().HasMaxLength(30).IsRequired();
@@ -23,10 +25,7 @@ public class PaymentConfiguration : IEntityTypeConfiguration<Payment>
         builder.Property(x => x.CreatedAt).IsRequired();
         builder.Property(x => x.ConfirmedAt);
 
-        builder.HasOne(x => x.Supplier)
-               .WithMany()
-               .HasForeignKey(x => x.SupplierId)
-               .OnDelete(DeleteBehavior.Restrict);
+        builder.HasIndex(x => new { x.PartnerType, x.PartnerId });
 
         builder.HasOne(x => x.PaymentEmployee)
                .WithMany()

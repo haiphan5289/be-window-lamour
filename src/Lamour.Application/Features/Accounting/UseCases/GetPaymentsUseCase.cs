@@ -25,8 +25,9 @@ public class GetPaymentsUseCase : IGetPaymentsUseCase
     internal static PaymentResponseDto MapToDto(Domain.Entities.Payment p) => new()
     {
         Id                  = p.Id,
-        SupplierId          = p.SupplierId,
-        SupplierName        = p.Supplier?.Name ?? "",
+        PartnerType         = p.PartnerType.ToString(),
+        PartnerId           = p.PartnerId,
+        PartnerName         = p.PartnerName,
         PayeeName           = p.PayeeName,
         Address             = p.Address,
         PaymentReason       = p.PaymentReason.ToString(),

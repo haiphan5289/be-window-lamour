@@ -1,6 +1,41 @@
 # Phiếu Chi (Payment) — Feature Document (BE + WPF)
 
-> **Branch:** `dev` | **Created:** 2026-04-29 (parallel to Phiếu Thu) | **Major update:** 2026-08-10 (Draft/Confirm lifecycle, TK Nợ/TK Có → Tài khoản kế toán FK, Khoản mục CP link) | **2026-08-11:** thêm trạng thái `Treo` giữa Draft và Confirmed
+> **Branch:** `dev` | **Created:** 2026-04-29 (parallel to Phiếu Thu) | **Major update:** 2026-08-10 (Draft/Confirm lifecycle, TK Nợ/TK Có → Tài khoản kế toán FK, Khoản mục CP link) | **2026-08-11:** thêm trạng thái `Treo` giữa Draft và Confirmed | **2026-08-26:** "Đối tượng" mở rộng đa loại (Supplier/Customer/Employee) + so ảnh mẫu MISA, fix "Hoàn"/seed Khoản mục CP
+
+---
+
+## So ảnh mẫu MISA — các fix bổ sung (2026-08-26, sau khi thêm "Đối tượng" đa loại)
+
+So `PaymentWindow` với ảnh mẫu MISA phát hiện thêm (đã fix hết, trừ các cột đã quyết định bỏ qua từ trước — xem "Known gaps"):
+
+1. **"Hoàn" (Unconfirm) — hoàn toàn chưa có, đã thêm mới.** `IUnconfirmPaymentUseCase`/`UnconfirmPaymentUseCase` (mirror `UnconfirmWarehouseReceiptUseCase`): guard `Status == Confirmed`, xoá `CashTransaction` đã tạo lúc Confirm qua `ICashLedgerRepository.DeleteByPaymentNumberAsync(payment.DocumentNumber)` (method đã có sẵn, chưa ai gọi tới), set `Status = Treo`, `ConfirmedAt = null`. Endpoint mới `POST {id}/unconfirm`.
+2. **Seed "Khoản mục CP" sai/rác — đã seed lại đúng ảnh mẫu.** Migration `SeedExpenseCategories`: insert 8 dòng `01`–`08` (PHÒNG SALES/MARKETING/KHO VẬN/TÀI CHÍNH-KẾ TOÁN/NHÂN SỰ/ĐÀO TẠO/SPA/KHÁC) khớp đúng ảnh mẫu. **Không xoá** dòng rác cũ `id=1, code="111", name="sale"` (dữ liệu người dùng tự tạo qua UI trước đó, không phải seed hệ thống — xoá dữ liệu người dùng không hỏi trước là hành động không nên làm).
+
+Phần còn lại (bỏ combo "Loại đối tượng" thừa, auto-copy Đối tượng xuống dòng hạch toán, thêm cột "Đối tượng" (mã) trong grid, đổi thứ tự cột, context menu Ctrl+Insert/Ctrl+Delete/Ctrl+F trên grid) là các thay đổi WPF-only — xem doc WPF: `desktop-lamour/.../Accounting/docs/phieu-chi.md`.
+
+**Bỏ qua khỏi lần so sánh này:** ảnh "Chứng từ hàng bán bị trả lại" (SalesReturn) gửi kèm không liên quan Phiếu Chi.
+
+---
+
+## "Đối tượng" đa loại (polymorphic) — 2026-08-26
+
+Trước đây "Đối tượng" trên Phiếu Chi **chỉ là Supplier** (`SupplierId` int, FK bắt buộc). Yêu cầu mới: cho phép chọn **Nhà cung cấp / Khách hàng / Nhân viên** làm đối tượng nhận chi.
+
+**Data model — discriminator + cached name** (không dùng 3 cột FK riêng, vì Postgres/EF không hỗ trợ 1 FK trỏ tới nhiều bảng khác nhau):
+
+- `Payment.PartnerType` (`PaymentPartnerType` enum: `Supplier`/`Customer`/`Employee`, lưu `HasConversion<string>()`)
+- `Payment.PartnerId` (int) — Id trong bảng tương ứng với `PartnerType`, **không có FK constraint thật** ở DB (không thể FK đa bảng) — validate ở tầng UseCase
+- `Payment.PartnerName` (string) — tên đối tượng, **cache tại thời điểm Create/Update**, không tự đồng bộ lại nếu tên gốc đổi sau đó (giống cách `SalesReturnLine.CostPrice` cache `Product.CostPrice` — chấp nhận lệch nếu master data đổi sau khi phiếu đã lưu)
+
+`PaymentPartnerResolver` (`UseCases/PaymentPartnerResolver.cs`, static helper dùng chung bởi `CreatePaymentUseCase`/`UpdatePaymentUseCase`): parse `PartnerType`, gọi đúng repository (`ISupplierRepository`/`ICustomerRepository`/`IEmployeeRepository`) theo `PartnerId`, throw `DomainException` nếu không tồn tại, trả về tên để cache vào `PartnerName`.
+
+**Migration** `20260826093257_AddPaymentPartnerType`: rename cột `SupplierId` → `PartnerId` (giữ nguyên giá trị cũ), thêm `PartnerType`/`PartnerName`, backfill bằng SQL thô (`UPDATE payments ... FROM suppliers WHERE s.id = p."PartnerId"`, set `PartnerType = 'Supplier'`) vì mọi phiếu cũ đều là Supplier. Drop FK/index cũ tới `suppliers`, thêm index composite `(PartnerType, PartnerId)`.
+
+**DTO đổi:** `supplier_id`/`supplier_name` → `partner_type`/`partner_id`/`partner_name` trên cả `Create`/`Update`/`Response` DTO (Create/Update không có `partner_name` — BE tự resolve).
+
+**WPF:** "Đối tượng" là **1 ô tìm kiếm chung** (`PartnerItems` = `Suppliers.Concat(Customers).Concat(Employees)`, đều implement `ISearchableItem` sẵn) — **không có** combo "chọn loại đối tượng" riêng, khớp đúng UX ảnh mẫu MISA (gõ mã gì cũng tìm ra, không bắt chọn loại trước). Loại (`PartnerType` gửi lên BE) suy ra từ kiểu runtime của object đã chọn (`ResolvePartnerType`), không cần user chọn. (Bản đầu 2026-08-26 có thêm combo loại riêng — đã bỏ sau khi so ảnh mẫu, xem mục trên.) Xem chi tiết trong doc WPF: `desktop-lamour/.../Accounting/docs/phieu-chi.md`.
+
+**Không đổi:** `PaymentEntry.SubjectCode`/`SubjectName` (cột "Tên đối tượng" ở **dòng hạch toán**, free-text, khác hoàn toàn với "Đối tượng" ở header) — giữ nguyên, không liên quan tới thay đổi này.
 
 ---
 
@@ -73,6 +108,7 @@ Base route: `api/v1/accounting/payments`
 | `POST` | `/{id}/duplicate` | Sao chép — bản mới luôn Draft |
 | `POST` | `/{id}/treo` | **Mới** (2026-08-11) — Draft → Treo, 400 nếu không phải Draft |
 | `POST` | `/{id}/confirm` | Treo → Confirmed (**đổi từ Draft**), tạo `CashTransaction` |
+| `POST` | `/{id}/unconfirm` | **Mới** (2026-08-26) — Confirmed → Treo ("Hoàn"), xoá `CashTransaction`, 400 nếu không phải Confirmed |
 
 ### `PaymentEntryDto` (request + response dùng chung)
 
@@ -209,4 +245,4 @@ Features/HomePage/Accounting/
 
 ---
 
-*Cập nhật lần cuối: 2026-08-10*
+*Cập nhật lần cuối: 2026-08-26*

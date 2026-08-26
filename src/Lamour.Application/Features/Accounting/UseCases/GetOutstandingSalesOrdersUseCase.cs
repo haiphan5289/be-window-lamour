@@ -36,6 +36,9 @@ public class GetOutstandingSalesOrdersUseCase : IGetOutstandingSalesOrdersUseCas
             CustomerName    = r.CustomerName,
             Description     = r.Description,
             RemainingAmount = r.RemainingAmount,
+            GrandTotal      = r.GrandTotal,
+            PaymentTerms    = r.PaymentTerms,
+            PaymentDueDate  = r.PaymentDueDate,
         });
     }
 }

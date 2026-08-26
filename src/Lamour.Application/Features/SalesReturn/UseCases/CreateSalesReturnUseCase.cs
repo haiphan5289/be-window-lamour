@@ -1,5 +1,6 @@
 using Lamour.Application.Abstractions;
 using Lamour.Application.Features.Products.Repositories;
+using Lamour.Application.Features.Sales;
 using Lamour.Application.Features.SalesReturn.Dtos;
 using Lamour.Application.Features.SalesReturn.Repositories;
 using Lamour.Application.Features.Warehouse.Repositories;
@@ -53,6 +54,13 @@ public class CreateSalesReturnUseCase : ICreateSalesReturnUseCase
             var amount         = dto.Quantity * dto.UnitPrice;
             var discountAmount = amount * discountRate / 100m;
 
+            // Thuế + giá vốn: BE luôn tự tính từ Product tại thời điểm ghi sổ, bỏ qua tax_rate/
+            // cost_price client gửi lên — giống hệt cách SalesOrder xử lý TaxRate/TaxAmount.
+            var taxRate    = SalesOrderTaxCalculator.ToPercent(product.VatRate);
+            var taxAmount  = (amount - discountAmount) * taxRate / 100m;
+            var costPrice  = product.CostPrice;
+            var costAmount = dto.Quantity * costPrice;
+
             lines.Add(new SalesReturnLineEntity
             {
                 ProductId        = dto.ProductId,
@@ -69,6 +77,14 @@ public class CreateSalesReturnUseCase : ICreateSalesReturnUseCase
                 DiscountRate     = discountRate,
                 DiscountAmount   = discountAmount,
                 SalesOrderNumber = dto.SalesOrderNumber,
+                TaxRate          = taxRate,
+                TaxAmount        = taxAmount,
+                TaxAccount       = string.IsNullOrWhiteSpace(dto.TaxAccount) ? "33311" : dto.TaxAccount,
+                CostAccount      = string.IsNullOrWhiteSpace(dto.CostAccount) ? "1561" : dto.CostAccount,
+                CogsAccount      = string.IsNullOrWhiteSpace(dto.CogsAccount) ? "632"  : dto.CogsAccount,
+                CostPrice        = costPrice,
+                CostAmount       = costAmount,
+                DepartmentId     = dto.DepartmentId,
             });
         }
 
