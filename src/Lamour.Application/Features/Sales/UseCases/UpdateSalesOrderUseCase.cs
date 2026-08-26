@@ -42,8 +42,7 @@ public class UpdateSalesOrderUseCase : IUpdateSalesOrderUseCase
         var order = await _repo.GetByIdTrackedAsync(id, ct)
             ?? throw new DomainException($"Sales order with id {id} not found.");
 
-        if (request.Lines.Count == 0)
-            throw new DomainException("At least one line item is required.");
+        // "Ít nhất 1 dòng" không còn bắt buộc ở BE (2026-08-25) — xem CreateSalesOrderUseCase.
 
         await _uow.BeginAsync(ct);
         try

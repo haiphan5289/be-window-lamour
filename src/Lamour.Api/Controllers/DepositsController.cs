@@ -45,8 +45,8 @@ public class DepositsController : ControllerBase
         => Ok(new { code = await _getNextCode.ExecuteAsync(ct) });
 
     [HttpGet("by-customer/{customerId:int}")]
-    public async Task<IActionResult> GetByCustomer(int customerId, CancellationToken ct)
-        => Ok(await _getByCustomer.ExecuteAsync(customerId, ct));
+    public async Task<IActionResult> GetByCustomer(int customerId, [FromQuery] int? exclude_sales_order_id, CancellationToken ct)
+        => Ok(await _getByCustomer.ExecuteAsync(customerId, exclude_sales_order_id, ct));
 
     [HttpGet("{id:int}")]
     public async Task<IActionResult> GetById(int id, CancellationToken ct)

@@ -48,7 +48,7 @@ public class DepositDeductionsController : ControllerBase
     public async Task<IActionResult> Create([FromBody] CreateDepositDeductionRequestDto request, CancellationToken ct)
     {
         var result = await _create.ExecuteAsync(request, ct);
-        return Created($"/api/v1/deposit-deductions/{result.Id}", result);
+        return StatusCode(StatusCodes.Status201Created, result);
     }
 
     [HttpDelete("{id:int}")]

@@ -15,10 +15,10 @@ public class GetDepositsByCustomerUseCase : IGetDepositsByCustomerUseCase
         _logger = logger;
     }
 
-    public async Task<IEnumerable<DepositResponseDto>> ExecuteAsync(int customerId, CancellationToken ct = default)
+    public async Task<IEnumerable<DepositResponseDto>> ExecuteAsync(int customerId, int? excludeSalesOrderId = null, CancellationToken ct = default)
     {
         _logger.LogInformation("Fetching deposits with remaining balance for customer {CustomerId}", customerId);
-        var deposits = await _repo.GetByCustomerIdAsync(customerId, ct);
+        var deposits = await _repo.GetByCustomerIdAsync(customerId, excludeSalesOrderId, ct);
         return deposits.Select(GetDepositsUseCase.MapToDto);
     }
 }

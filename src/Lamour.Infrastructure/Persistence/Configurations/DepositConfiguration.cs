@@ -42,5 +42,15 @@ public class DepositConfiguration : IEntityTypeConfiguration<Deposit>
         builder.HasIndex(x => x.AccountingDate);
         builder.HasIndex(x => x.DocumentNumber).IsUnique();
         builder.HasIndex(x => x.SourceSalesOrderId);
+
+        // Concurrency token dùng cột hệ thống `xmin` của PostgreSQL — chặn lost-update khi
+        // 2 request trừ cọc (CreateDepositDeductionUseCase) chạy đồng thời trên cùng 1 Deposit.
+        // Không phải cột thật do BE tạo ra — Postgres tự sinh/cập nhật `xmin` trên mỗi row,
+        // EF chỉ đọc lại và thêm vào WHERE của UPDATE để phát hiện ghi đè.
+        builder.Property<uint>("xmin")
+               .HasColumnName("xmin")
+               .HasColumnType("xid")
+               .ValueGeneratedOnAddOrUpdate()
+               .IsConcurrencyToken();
     }
 }

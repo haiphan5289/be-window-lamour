@@ -39,8 +39,10 @@ public class CreateSalesOrderUseCase : ICreateSalesOrderUseCase
     public async Task<SalesOrderResponseDto> ExecuteAsync(
         CreateSalesOrderRequestDto request, CancellationToken ct = default)
     {
-        if (request.Lines.Count == 0)
-            throw new DomainException("At least one line item is required.");
+        // "Ít nhất 1 dòng" không còn bắt buộc ở BE (2026-08-25): chứng từ có thể chỉ dùng để trừ
+        // cọc (Lines[] rỗng, gọi CreateDepositDeductionUseCase riêng ngay sau khi đơn được tạo) —
+        // xem SalesOrderViewModel.SaveAsync, vốn vẫn chặn phía client nếu không có SP thật lẫn
+        // dòng Trừ cọc nào.
 
         // Validate products, stock, and build lines
         var stockErrors = new List<string>();

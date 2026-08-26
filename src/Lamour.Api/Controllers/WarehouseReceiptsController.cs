@@ -14,17 +14,23 @@ public class WarehouseReceiptsController : ControllerBase
     private readonly IGetWarehouseReceiptByIdUseCase _getById;
     private readonly ICreateWarehouseReceiptUseCase  _create;
     private readonly IConfirmWarehouseReceiptUseCase _confirm;
+    private readonly IUpdateWarehouseReceiptUseCase  _update;
+    private readonly IUnconfirmWarehouseReceiptUseCase _unconfirm;
 
     public WarehouseReceiptsController(
         IGetWarehouseReceiptsUseCase getAll,
         IGetWarehouseReceiptByIdUseCase getById,
         ICreateWarehouseReceiptUseCase create,
-        IConfirmWarehouseReceiptUseCase confirm)
+        IConfirmWarehouseReceiptUseCase confirm,
+        IUpdateWarehouseReceiptUseCase update,
+        IUnconfirmWarehouseReceiptUseCase unconfirm)
     {
-        _getAll  = getAll;
-        _getById = getById;
-        _create  = create;
-        _confirm = confirm;
+        _getAll    = getAll;
+        _getById   = getById;
+        _create    = create;
+        _confirm   = confirm;
+        _update    = update;
+        _unconfirm = unconfirm;
     }
 
     [HttpGet]
@@ -53,6 +59,21 @@ public class WarehouseReceiptsController : ControllerBase
     public async Task<IActionResult> Confirm(int id, CancellationToken ct)
     {
         var result = await _confirm.ExecuteAsync(id, ct);
+        return Ok(result);
+    }
+
+    [HttpPut("{id:int}")]
+    public async Task<IActionResult> Update(
+        int id, [FromBody] UpdateWarehouseReceiptRequestDto request, CancellationToken ct)
+    {
+        var result = await _update.ExecuteAsync(id, request, ct);
+        return Ok(result);
+    }
+
+    [HttpPost("{id:int}/unconfirm")]
+    public async Task<IActionResult> Unconfirm(int id, CancellationToken ct)
+    {
+        var result = await _unconfirm.ExecuteAsync(id, ct);
         return Ok(result);
     }
 }

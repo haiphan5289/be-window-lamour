@@ -30,50 +30,65 @@ public class CreateDepositDeductionUseCase : ICreateDepositDeductionUseCase
         _logger         = logger;
     }
 
-    public async Task<DepositDeductionResponseDto> ExecuteAsync(
+    public async Task<IEnumerable<DepositDeductionResponseDto>> ExecuteAsync(
         CreateDepositDeductionRequestDto request, CancellationToken ct = default)
     {
-        var deposit = await _depositRepo.GetByIdTrackedAsync(request.DepositId, ct)
-            ?? throw new NotFoundException($"Deposit {request.DepositId} not found.");
-
         var salesOrder = await _salesOrderRepo.GetByIdAsync(request.SalesOrderId, ct)
             ?? throw new NotFoundException($"Sales order {request.SalesOrderId} not found.");
 
         if (request.Amount <= 0)
             throw new DomainException("Số tiền trừ cọc phải lớn hơn 0.");
 
-        if (request.Amount > deposit.RemainingBalance)
-            throw new DomainException("Số tiền trừ cọc vượt quá số dư còn lại.");
+        var eligibleDeposits = (await _depositRepo.GetEligibleForDeductionAsync(
+            salesOrder.CustomerId, request.SalesOrderId, ct)).ToList();
+
+        var totalAvailable = eligibleDeposits.Sum(d => d.RemainingBalance);
+        if (request.Amount > totalAvailable)
+            throw new DomainException("Số tiền trừ cọc vượt quá tổng số dư cọc còn lại của khách hàng.");
 
         await _uow.BeginAsync(ct);
         try
         {
-            var nextNum = await _deductionRepo.GetNextCodeNumberAsync(ct);
+            var results = new List<DepositDeductionResponseDto>();
+            var remainingToAllocate = request.Amount;
 
-            var deduction = new DepositDeduction
+            foreach (var deposit in eligibleDeposits)
             {
-                DocumentNumber = $"TC{nextNum:D5}",
-                DepositId      = deposit.Id,
-                SalesOrderId   = salesOrder.Id,
-                Amount         = request.Amount,
-                AccountingDate = DateTime.SpecifyKind(request.AccountingDate, DateTimeKind.Utc),
-                DocumentDate   = DateTime.SpecifyKind(request.DocumentDate,   DateTimeKind.Utc),
-                Description    = request.Description,
-                CreatedAt      = DateTime.UtcNow,
-            };
+                if (remainingToAllocate <= 0)
+                    break;
 
-            var saved = await _deductionRepo.AddAsync(deduction, ct);
+                var slice = Math.Min(remainingToAllocate, deposit.RemainingBalance);
 
-            deposit.RemainingBalance -= request.Amount;
-            deposit.Status = deposit.RemainingBalance == 0 ? DepositStatus.Depleted : DepositStatus.Active;
-            await _depositRepo.UpdateAsync(deposit, ct);
+                var nextNum = await _deductionRepo.GetNextCodeNumberAsync(ct);
+
+                var deduction = new DepositDeduction
+                {
+                    DocumentNumber = $"TC{nextNum:D5}",
+                    DepositId      = deposit.Id,
+                    SalesOrderId   = salesOrder.Id,
+                    Amount         = slice,
+                    AccountingDate = DateTime.SpecifyKind(request.AccountingDate, DateTimeKind.Utc),
+                    DocumentDate   = DateTime.SpecifyKind(request.DocumentDate,   DateTimeKind.Utc),
+                    Description    = request.Description,
+                    CreatedAt      = DateTime.UtcNow,
+                };
+
+                var saved = await _deductionRepo.AddAsync(deduction, ct);
+
+                deposit.RemainingBalance -= slice;
+                deposit.Status = deposit.RemainingBalance == 0 ? DepositStatus.Depleted : DepositStatus.Active;
+                await _depositRepo.UpdateAsync(deposit, ct);
+
+                results.Add(GetDepositDeductionsUseCase.MapToDto(saved));
+                remainingToAllocate -= slice;
+            }
 
             await _uow.CommitAsync(ct);
 
-            _logger.LogInformation("Created DepositDeduction {DocumentNumber} for deposit {DepositId}, sales order {SalesOrderId}",
-                saved.DocumentNumber, deposit.Id, salesOrder.Id);
+            _logger.LogInformation("Created {Count} DepositDeduction rows totaling {Amount} for sales order {SalesOrderId}",
+                results.Count, request.Amount, salesOrder.Id);
 
-            return GetDepositDeductionsUseCase.MapToDto(saved);
+            return results;
         }
         catch
         {

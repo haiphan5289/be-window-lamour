@@ -1,5 +1,6 @@
 using Lamour.Application.Features.Deposits.Repositories;
 using Lamour.Domain.Entities;
+using Lamour.Domain.Exceptions;
 using Lamour.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 
@@ -38,13 +39,21 @@ public class DepositRepository : IDepositRepository
             .Include(d => d.Deductions).ThenInclude(x => x.SalesOrder).ThenInclude(o => o.Employee)
             .FirstOrDefaultAsync(d => d.Id == id, ct);
 
-    public async Task<IEnumerable<Deposit>> GetByCustomerIdAsync(int customerId, CancellationToken ct = default)
+    public async Task<IEnumerable<Deposit>> GetByCustomerIdAsync(int customerId, int? excludeSalesOrderId = null, CancellationToken ct = default)
         => await _db.Deposits
             .AsNoTracking()
             .Include(d => d.Customer)
             .Include(d => d.SourceSalesOrder)
             .Where(d => d.CustomerId == customerId && d.RemainingBalance > 0)
+            .Where(d => excludeSalesOrderId == null || d.SourceSalesOrderId != excludeSalesOrderId)
             .OrderByDescending(d => d.CreatedAt)
+            .ToListAsync(ct);
+
+    public async Task<IEnumerable<Deposit>> GetEligibleForDeductionAsync(int customerId, int? excludeSalesOrderId = null, CancellationToken ct = default)
+        => await _db.Deposits
+            .Where(d => d.CustomerId == customerId && d.RemainingBalance > 0)
+            .Where(d => excludeSalesOrderId == null || d.SourceSalesOrderId != excludeSalesOrderId)
+            .OrderBy(d => d.CreatedAt)
             .ToListAsync(ct);
 
     public async Task<Deposit?> GetBySourceSalesOrderIdAsync(int salesOrderId, CancellationToken ct = default)
@@ -66,7 +75,15 @@ public class DepositRepository : IDepositRepository
     public async Task UpdateAsync(Deposit deposit, CancellationToken ct = default)
     {
         _db.Deposits.Update(deposit);
-        await _db.SaveChangesAsync(ct);
+        try
+        {
+            await _db.SaveChangesAsync(ct);
+        }
+        catch (DbUpdateConcurrencyException)
+        {
+            throw new DomainException(
+                $"Cọc {deposit.DocumentNumber} vừa được cập nhật bởi giao dịch khác, vui lòng tải lại và thử lại.");
+        }
     }
 
     public async Task DeleteAsync(Deposit deposit, CancellationToken ct = default)

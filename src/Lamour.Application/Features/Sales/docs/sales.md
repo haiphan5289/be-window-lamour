@@ -29,7 +29,7 @@
 | Rule | Description |
 |------|-------------|
 | Số chứng từ | Prefix `XK`, format `XK{5 digits}` (XK00001...) — sinh tại WPF client |
-| Ít nhất 1 line | Đơn hàng phải có ít nhất 1 dòng chi tiết — `DomainException` nếu vi phạm |
+| Ít nhất 1 line (nới lỏng 2026-08-25) | BE không còn chặn `Lines.Count == 0` — chứng từ có thể chỉ dùng để trừ cọc (không có dòng sản phẩm thật nào), cần số chứng từ XK để gắn với lần trừ cọc thay vì số TC từ màn Đặt Cọc/Trừ Cọc riêng. WPF (`SalesOrderViewModel.SaveAsync`) vẫn chặn Ghi sổ nếu **cả** sản phẩm thật lẫn dòng Trừ cọc đều không có |
 | Hàng còn kinh doanh | Chỉ cho phép `IsActive = true` — `DomainException` nếu sản phẩm đã ngưng |
 | Stock guard | Trước khi trừ kho: kiểm tra **tất cả** lines. Nếu bất kỳ sản phẩm nào không đủ kho → gom tất cả lỗi thành 1 message rồi throw `DomainException` — không dừng sớm |
 | Trừ tồn kho | Khi tạo/cập nhật: trừ `StockQuantity` cho mỗi line không phải khuyến mại |

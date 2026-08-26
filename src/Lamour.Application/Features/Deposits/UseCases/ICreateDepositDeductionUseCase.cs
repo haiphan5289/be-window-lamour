@@ -4,5 +4,5 @@ namespace Lamour.Application.Features.Deposits.UseCases;
 
 public interface ICreateDepositDeductionUseCase
 {
-    Task<DepositDeductionResponseDto> ExecuteAsync(CreateDepositDeductionRequestDto request, CancellationToken ct = default);
+    Task<IEnumerable<DepositDeductionResponseDto>> ExecuteAsync(CreateDepositDeductionRequestDto request, CancellationToken ct = default);
 }
