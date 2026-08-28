@@ -16,7 +16,7 @@ public class WarehouseTransactionResponseDto
     [JsonPropertyName("delivery_or_receiver")] public string?  DeliveryOrReceiver { get; set; } // Người giao/Người nhận — chỉ có ở Nhập kho
     [JsonPropertyName("object_name")]          public string?  ObjectName        { get; set; } // Đối tượng — Khách hàng/Nhà cung cấp
     [JsonPropertyName("has_sales_order")]      public bool     HasSalesOrder     { get; set; } // Đã lập CT bán hàng — luôn true ở dòng Xuất kho
-    [JsonPropertyName("is_held")]              public bool     IsHeld            { get; set; } // Chứng từ bán hàng đang Treo — luôn false ở dòng Nhập kho
+    [JsonPropertyName("is_held")]              public bool     IsHeld            { get; set; } // Xuất kho: Chứng từ bán hàng đang Treo. Nhập kho: phiếu chưa ghi sổ (Draft, kể cả sau khi Bỏ ghi)
     [JsonPropertyName("ledger_date")]          public DateTime LedgerDate        { get; set; } // Ngày ghi sổ kho — dùng CreatedAt (không có field riêng)
     [JsonPropertyName("document_type_label")]  public string   DocumentTypeLabel { get; set; } = "";
     [JsonPropertyName("lines")]                public List<WarehouseTransactionLineDto> Lines { get; set; } = new();

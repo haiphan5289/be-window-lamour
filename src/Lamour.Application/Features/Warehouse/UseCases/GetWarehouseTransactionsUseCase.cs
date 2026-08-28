@@ -83,6 +83,11 @@ public class GetWarehouseTransactionsUseCase : IGetWarehouseTransactionsUseCase
         DeliveryOrReceiver = r.DeliveryPerson,
         ObjectName         = r.Customer?.Name ?? r.Supplier?.Name,
         HasSalesOrder      = false,
+        // Phiếu nhập kho "Bỏ ghi" (UnconfirmWarehouseReceiptUseCase) đưa Status về Draft — không có
+        // trạng thái Treo riêng như SalesOrder, nhưng ý nghĩa với người dùng là như nhau ("chưa ghi
+        // sổ chính thức"), nên tô cùng màu cảnh báo IsHeld. Trước đây hardcode false nên dòng Nhập
+        // kho ở Draft (kể cả sau khi Bỏ ghi) không bao giờ đổi màu — đây chính là bug được báo cáo.
+        IsHeld             = r.Status != WarehouseReceiptStatus.Confirmed,
         LedgerDate         = r.CreatedAt,
         DocumentTypeLabel  = "Nhập kho",
         Lines = r.Lines.Select(l => new WarehouseTransactionLineDto
