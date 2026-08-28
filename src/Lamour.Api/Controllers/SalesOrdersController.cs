@@ -20,6 +20,7 @@ public class SalesOrdersController : ControllerBase
     private readonly IHoldSalesOrderUseCase         _hold;
     private readonly IGetSalesOrderReportUseCase    _report;
     private readonly IGetSalesOrderSummaryReportUseCase _summaryReport;
+    private readonly IDuplicateSalesOrderUseCase    _duplicate;
 
     public SalesOrdersController(
         IGetSalesOrdersUseCase        getAll,
@@ -30,7 +31,8 @@ public class SalesOrdersController : ControllerBase
         IDeleteSalesOrderUseCase      delete,
         IHoldSalesOrderUseCase        hold,
         IGetSalesOrderReportUseCase   report,
-        IGetSalesOrderSummaryReportUseCase summaryReport)
+        IGetSalesOrderSummaryReportUseCase summaryReport,
+        IDuplicateSalesOrderUseCase   duplicate)
     {
         _getAll        = getAll;
         _getById       = getById;
@@ -41,6 +43,7 @@ public class SalesOrdersController : ControllerBase
         _hold          = hold;
         _report        = report;
         _summaryReport = summaryReport;
+        _duplicate     = duplicate;
     }
 
     [HttpGet]
@@ -113,4 +116,11 @@ public class SalesOrdersController : ControllerBase
     [HttpPut("{id:int}/hold")]
     public async Task<IActionResult> Hold(int id, CancellationToken ct)
         => Ok(await _hold.ExecuteAsync(id, ct));
+
+    [HttpPost("{id:int}/duplicate")]
+    public async Task<IActionResult> Duplicate(int id, CancellationToken ct)
+    {
+        var result = await _duplicate.ExecuteAsync(id, ct);
+        return Created($"/api/v1/sales-orders/{result.Id}", result);
+    }
 }

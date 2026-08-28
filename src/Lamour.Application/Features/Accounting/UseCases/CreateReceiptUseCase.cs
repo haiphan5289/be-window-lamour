@@ -102,6 +102,10 @@ public class CreateReceiptUseCase : ICreateReceiptUseCase
             DebitAmount    = totalAmount,
             CreditAmount   = 0m,
             PersonName     = saved.PayerName,
+            PaymentReason  = paymentReason.ToString(),
+            DocumentType   = saved.CustomerId is null
+                ? "Phiếu thu tiền mặt khách hàng hàng loạt"
+                : "Phiếu thu tiền mặt khách hàng",
             CreatedAt      = DateTime.UtcNow,
         };
 

@@ -13,5 +13,7 @@ public class CashTransaction
     public decimal DebitAmount { get; set; }         // Nợ (tiền vào - PT)
     public decimal CreditAmount { get; set; }        // Có (tiền ra - PC)
     public string? PersonName { get; set; }          // Người nhận/Người nộp
+    public string? PaymentReason { get; set; }       // Lý do thu/chi — Domain.Enums.PaymentReason as string
+    public string DocumentType { get; set; } = "";   // Loại chứng từ (VD: "Phiếu chi", "Phiếu thu tiền mặt khách hàng")
     public DateTime CreatedAt { get; set; }
 }

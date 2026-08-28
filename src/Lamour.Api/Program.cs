@@ -286,6 +286,8 @@ builder.Services.AddScoped<Lamour.Application.Features.Sales.UseCases.IGetSalesO
                            Lamour.Application.Features.Sales.UseCases.GetSalesOrderReportUseCase>();
 builder.Services.AddScoped<Lamour.Application.Features.Sales.UseCases.IGetSalesOrderSummaryReportUseCase,
                            Lamour.Application.Features.Sales.UseCases.GetSalesOrderSummaryReportUseCase>();
+builder.Services.AddScoped<Lamour.Application.Features.Sales.UseCases.IDuplicateSalesOrderUseCase,
+                           Lamour.Application.Features.Sales.UseCases.DuplicateSalesOrderUseCase>();
 
 // ── SalesReturn DI ────────────────────────────────────────────────────────────
 builder.Services.AddScoped<Lamour.Application.Features.SalesReturn.Repositories.ISalesReturnRepository,

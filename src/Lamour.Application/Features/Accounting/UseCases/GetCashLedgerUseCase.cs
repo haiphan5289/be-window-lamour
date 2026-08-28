@@ -43,24 +43,34 @@ public class GetCashLedgerUseCase : IGetCashLedgerUseCase
                 CounterAccount = t.CounterAccount,
                 DebitAmount    = t.DebitAmount,
                 CreditAmount   = t.CreditAmount,
+                Amount         = t.DebitAmount != 0m ? t.DebitAmount : t.CreditAmount,
                 PersonName     = t.PersonName,
+                PaymentReason  = t.PaymentReason,
+                DocumentType   = t.DocumentType,
                 Status         = "Confirmed",
             })
             .Concat(unconfirmedPayments
                 .Where(p => p.Entries.Count > 0)
-                .Select(p => new CashLedgerEntryDto
+                .Select(p =>
                 {
-                    AccountingDate = p.AccountingDate,
-                    DocumentDate   = p.DocumentDate,
-                    ReceiptNumber  = null,
-                    PaymentNumber  = p.DocumentNumber,
-                    Description    = p.PayeeName,
-                    Account        = "111",
-                    CounterAccount = p.Entries.First().DebitAccountSetting.Code,
-                    DebitAmount    = 0m,
-                    CreditAmount   = p.Entries.Sum(e => e.Amount),
-                    PersonName     = p.PayeeName,
-                    Status         = p.Status.ToString(),
+                    var totalAmount = p.Entries.Sum(e => e.Amount);
+                    return new CashLedgerEntryDto
+                    {
+                        AccountingDate = p.AccountingDate,
+                        DocumentDate   = p.DocumentDate,
+                        ReceiptNumber  = null,
+                        PaymentNumber  = p.DocumentNumber,
+                        Description    = p.PayeeName,
+                        Account        = "111",
+                        CounterAccount = p.Entries.First().DebitAccountSetting.Code,
+                        DebitAmount    = 0m,
+                        CreditAmount   = totalAmount,
+                        Amount         = totalAmount,
+                        PersonName     = p.PayeeName,
+                        PaymentReason  = p.PaymentReason.ToString(),
+                        DocumentType   = "Phiếu chi",
+                        Status         = p.Status.ToString(),
+                    };
                 }))
             .OrderBy(e => e.AccountingDate)
             .ToList();

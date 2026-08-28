@@ -94,6 +94,10 @@ public class UpdateReceiptUseCase : IUpdateReceiptUseCase
             DebitAmount    = totalAmount,
             CreditAmount   = 0m,
             PersonName     = receipt.PayerName,
+            PaymentReason  = paymentReason.ToString(),
+            DocumentType   = receipt.CustomerId is null
+                ? "Phiếu thu tiền mặt khách hàng hàng loạt"
+                : "Phiếu thu tiền mặt khách hàng",
             CreatedAt      = DateTime.UtcNow,
         }, ct);
 

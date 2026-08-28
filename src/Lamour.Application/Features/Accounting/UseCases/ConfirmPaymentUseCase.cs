@@ -48,6 +48,8 @@ public class ConfirmPaymentUseCase : IConfirmPaymentUseCase
             DebitAmount    = 0m,
             CreditAmount   = totalAmount,  // Payment decreases cash
             PersonName     = payment.PayeeName,
+            PaymentReason  = payment.PaymentReason.ToString(),
+            DocumentType   = "Phiếu chi",
             CreatedAt      = DateTime.UtcNow,
         }, ct);
 
