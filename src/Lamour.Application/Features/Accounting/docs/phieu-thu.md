@@ -122,9 +122,13 @@ Khi **tạo** hoặc **cập nhật** Receipt, tự động sync 1 row `CashTran
 | `DebitAmount`   | tổng `entries.Sum(e => e.Amount)`                            |
 | `CreditAmount`  | `0`                                                          |
 | `PersonName`    | `receipt.PayerName`                                          |
+| `PaymentReason` | `receipt.PaymentReason` (string?, thêm 2026-08-28)           |
+| `DocumentType`  | `"Phiếu thu"` (thêm 2026-08-28)                               |
 
 **Update flow**: xóa CT cũ theo `DocumentNumber` cũ → tạo CT mới với data mới.
 **Delete flow**: xóa CT theo `DocumentNumber` → xóa Receipt.
+
+**`PaymentReason`/`DocumentType` (2026-08-28):** thêm 2 cột lên `CashTransaction` (migration `AddCashTransactionReasonAndDocType`) để màn "Sổ Kế Toán Chi Tiết Quỹ Tiền Mặt" (`GetCashLedgerUseCase`/`CashLedgerEntryDto`) hiển thị được "Lý do thu/chi" và "Loại chứng từ" ngay trên danh sách gộp — trước đó 2 field này chỉ có trên `Receipt`/`Payment` riêng, không denormalize xuống `CashTransaction` nên bên gộp Draft/Treo/Confirmed không có cách nào hiển thị thống nhất. `CreateReceiptUseCase`/`UpdateReceiptUseCase` set `PaymentReason = receipt.PaymentReason`, `DocumentType = "Phiếu thu"` khi ghi `CashTransaction`. Xem [`phieu-chi.md`](phieu-chi.md) cho phía Payment (`ConfirmPaymentUseCase`, `DocumentType = "Phiếu chi"`) và `desktop-lamour/.../Accounting/docs/phieu-thu.md` cho phần WPF (cột mới + click-để-xem/sửa/xóa trên `AccountingView`).
 
 ## Domain Entities
 

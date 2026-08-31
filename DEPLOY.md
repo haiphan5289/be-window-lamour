@@ -66,12 +66,21 @@ Copy thư mục `publish/api-win/` lên `D:\app-lamour\LamourApi\api-win\` trên
 
 ### WPF (Windows, chạy trên UTM)
 
-```bat
+> ⚠️ Luôn đủ 3 lệnh theo đúng thứ tự **sync → publish → zip**. Thiếu `Compress-Archive` (hoặc chạy
+> trước `dotnet publish`) thì `desktop-win-new.zip` không xuất hiện lại trên Mac, hoặc chứa nhầm
+> build cũ — xem chi tiết ở mục "Quy trình update build chuẩn" bên dưới. **Không copy tay
+> `publish\desktop-win\` sang máy đích** — luôn đi qua bước zip này.
+
+```powershell
 cd C:\projects\desktop-lamour
+.\sync.ps1
+
 dotnet publish src\DesktopLamour -r win-x64 --self-contained true -c Release -o publish\desktop-win
+
+Compress-Archive -Path "C:\projects\desktop-lamour\publish\desktop-win\*" -DestinationPath "Z:\publish\desktop-win-new.zip" -Force
 ```
 
-Copy thư mục `publish\desktop-win\` lên `D:\app-lamour\LamourDesktop\desktop-win\`.
+Zip xuất hiện lại trên Mac tại `desktop-lamour/publish/desktop-win-new.zip` (qua `Z:\` map) — giải nén rồi copy vào `D:\app-lamour\LamourDesktop\desktop-win\` trên máy đích.
 
 ---
 

@@ -181,6 +181,17 @@ Màn hình "Sổ Kế Toán Chi Tiết Quỹ Tiền Mặt" (`AccountingView.xaml
 
 ---
 
+## Sổ Kế Toán Chi Tiết Quỹ Tiền Mặt — cột "Lý do thu/chi"/"Loại chứng từ" + click-để-Xem (2026-08-28)
+
+Theo yêu cầu "cái chỗ quỹ bấm vào xem để xem chi tiết bên trong không được" — trước đây `AccountingView` không có cách nào click 1 dòng để mở lại đúng Receipt/Payment gốc.
+
+- `CashTransaction` thêm 2 cột `PaymentReason` (`string?`) / `DocumentType` (`string`, mặc định `""`) — migration `AddCashTransactionReasonAndDocType`. `ConfirmPaymentUseCase` set `PaymentReason = payment.PaymentReason.ToString()`, `DocumentType = "Phiếu chi"` khi tạo `CashTransaction` lúc Ghi số (mirror `CreateReceiptUseCase`/`UpdateReceiptUseCase` phía Phiếu thu — xem [`phieu-thu.md`](phieu-thu.md)). `GetCashLedgerUseCase` map thêm 2 field này cho cả nhánh `Confirmed` (đọc thẳng từ `CashTransaction`) lẫn nhánh Draft/Treo payment ảo (`PaymentReason = p.PaymentReason.ToString()`, `DocumentType = "Phiếu chi"`) — nhất quán dù dòng đã ghi số hay chưa.
+- `CashLedgerEntryDto` thêm `payment_reason`/`document_type`; WPF `AccountingView.xaml` thêm 2 cột tương ứng (dùng `PaymentReasonDisplayConverter` có sẵn) — đồng thời cắt bớt 1 số cột kỹ thuật ít dùng (Nợ/Có/Trạng thái tài khoản/TK đối ứng riêng lẻ) để nhường chỗ, gộp hiển thị qua "Số tiền" 1 cột duy nhất.
+- **Click-để-Xem**: `AccountingViewModel` thêm `SelectedEntry`/`ViewEntryCommand` (`CanExecute` chỉ khi có `SelectedEntry`) — dựa vào `ReceiptNumber`/`PaymentNumber` khác rỗng trên dòng đang chọn để biết mở `ReceiptWindow` hay `PaymentWindow`. Cả 2 Window thêm property `InitialDocumentNumber` (set trước `ShowDialog()`, đọc trong `OnContentRendered`) — `ReceiptViewModel`/`PaymentViewModel` thêm method public `NavigateToReceiptByDocumentNumber`/`NavigateToPaymentByDocumentNumber` để tìm đúng bản ghi trong list đã load và chọn sẵn, tái dùng nguyên cơ chế Sửa/Xóa đã có trên 2 Window đó — không viết thêm luồng riêng. `AccountingView.xaml` bind `SelectedItem` 2 chiều + `MouseDoubleClick` + nút "👁 Xem" gọi cùng command.
+- Không cần EF migration thêm cho phần WPF (chỉ đổi UI/binding). BE + WPF build 0 lỗi mỗi bước.
+
+---
+
 ## WPF Client (`desktop-lamour`)
 
 ### UI — khớp lại theo ảnh mẫu MISA (2026-08-10)
