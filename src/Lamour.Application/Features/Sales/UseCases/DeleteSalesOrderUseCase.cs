@@ -3,6 +3,7 @@ using Lamour.Application.Features.Deposits.Repositories;
 using Lamour.Application.Features.Products.Repositories;
 using Lamour.Application.Features.Sales.Repositories;
 using Lamour.Application.Features.Warehouse.Repositories;
+using Lamour.Domain.Entities;
 using Lamour.Domain.Exceptions;
 using Microsoft.Extensions.Logging;
 
@@ -43,19 +44,25 @@ public class DeleteSalesOrderUseCase : IDeleteSalesOrderUseCase
         {
             await SalesOrderDepositHelper.GuardAndDeleteLinkedDepositAsync(_depositRepo, id, ct);
 
-            // Restore stock for non-promotion lines
-            foreach (var line in order.Lines.Where(l => !l.IsPromotion))
+            // Restore stock for non-promotion lines — CHỈ khi đơn đang Normal (đã từng trừ kho
+            // thật lúc Create/Update). Đơn đang Treo chưa từng trừ kho (xem HoldSalesOrderUseCase/
+            // CreateSalesOrderUseCase — 2026-09-01) nên xóa 1 đơn Treo không cần hoàn tác gì, hoàn
+            // vô điều kiện như trước sẽ cộng dư tồn kho không có thật.
+            if (order.Status == SalesOrderStatus.Normal)
             {
-                var product = await _productRepo.GetByIdTrackedAsync(line.ProductId, ct);
-                if (product is not null && product.IsDepositProduct)
-                    continue; // "Đặt cọc" không phải hàng tồn kho thật
-
-                if (product is not null)
+                foreach (var line in order.Lines.Where(l => !l.IsPromotion))
                 {
-                    product.StockQuantity += line.Quantity;
-                    await _productRepo.UpdateAsync(product, ct);
+                    var product = await _productRepo.GetByIdTrackedAsync(line.ProductId, ct);
+                    if (product is not null && product.IsDepositProduct)
+                        continue; // "Đặt cọc" không phải hàng tồn kho thật
+
+                    if (product is not null)
+                    {
+                        product.StockQuantity += line.Quantity;
+                        await _productRepo.UpdateAsync(product, ct);
+                    }
+                    await _stockRepo.AdjustQuantityAsync(line.ProductId, line.WarehouseId!.Value, line.Quantity, ct);
                 }
-                await _stockRepo.AdjustQuantityAsync(line.ProductId, line.WarehouseId!.Value, line.Quantity, ct);
             }
 
             await _repo.DeleteAsync(order, ct);

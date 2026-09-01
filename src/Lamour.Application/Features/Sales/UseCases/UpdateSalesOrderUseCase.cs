@@ -44,22 +44,31 @@ public class UpdateSalesOrderUseCase : IUpdateSalesOrderUseCase
 
         // "Ít nhất 1 dòng" không còn bắt buộc ở BE (2026-08-25) — xem CreateSalesOrderUseCase.
 
+        // 2026-09-01: "Ghi sổ" (Update) LUÔN đưa đơn về Normal — nếu đơn ĐANG Treo, tồn kho CHƯA
+        // từng bị trừ cho các dòng cũ (xem HoldSalesOrderUseCase/CreateSalesOrderUseCase), nên
+        // KHÔNG được hoàn kho cũ ở bước dưới (sẽ cộng dư tồn kho không có thật) — lần Ghi sổ này
+        // chính là lần đầu tiên đơn thật sự "hoàn thành" và trừ kho.
+        var wasHeld = order.Status == SalesOrderStatus.Held;
+
         await _uow.BeginAsync(ct);
         try
         {
-            // Restore stock from old lines
-            foreach (var oldLine in order.Lines.Where(l => !l.IsPromotion))
+            // Restore stock from old lines — chỉ khi đơn cũ đã Normal (đã từng trừ kho thật).
+            if (!wasHeld)
             {
-                var product = await _productRepo.GetByIdTrackedAsync(oldLine.ProductId, ct);
-                if (product is not null && product.IsDepositProduct)
-                    continue; // "Đặt cọc" không phải hàng tồn kho thật
-
-                if (product is not null)
+                foreach (var oldLine in order.Lines.Where(l => !l.IsPromotion))
                 {
-                    product.StockQuantity += oldLine.Quantity;
-                    await _productRepo.UpdateAsync(product, ct);
+                    var product = await _productRepo.GetByIdTrackedAsync(oldLine.ProductId, ct);
+                    if (product is not null && product.IsDepositProduct)
+                        continue; // "Đặt cọc" không phải hàng tồn kho thật
+
+                    if (product is not null)
+                    {
+                        product.StockQuantity += oldLine.Quantity;
+                        await _productRepo.UpdateAsync(product, ct);
+                    }
+                    await _stockRepo.AdjustQuantityAsync(oldLine.ProductId, oldLine.WarehouseId!.Value, oldLine.Quantity, ct);
                 }
-                await _stockRepo.AdjustQuantityAsync(oldLine.ProductId, oldLine.WarehouseId!.Value, oldLine.Quantity, ct);
             }
 
             // Build new lines — validate stock against restored quantities
@@ -142,7 +151,9 @@ public class UpdateSalesOrderUseCase : IUpdateSalesOrderUseCase
 
             await _repo.UpdateAsync(order, ct);
 
-            // Apply stock for new non-promotion lines
+            // Apply stock for new non-promotion lines — LUÔN chạy (không điều kiện theo wasHeld):
+            // đơn luôn kết thúc ở Normal (hoàn thành) sau bước này, dù trước đó là Normal (re-sync
+            // sau khi sửa) hay Held (lần đầu thật sự trừ kho khi hoàn thành).
             foreach (var line in newLines.Where(l => !l.IsPromotion))
             {
                 var product = await _productRepo.GetByIdTrackedAsync(line.ProductId, ct);

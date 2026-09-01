@@ -37,6 +37,8 @@ public class GetReceiptsUseCase : IGetReceiptsUseCase
         AccountingDate        = r.AccountingDate,
         DocumentDate          = r.DocumentDate,
         DocumentNumber        = r.DocumentNumber,
+        Status                = r.Status.ToString(),
+        ConfirmedAt           = r.ConfirmedAt,
         CreatedAt             = r.CreatedAt,
         Entries               = r.Entries.Select(e => new ReceiptEntryDto
         {

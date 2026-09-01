@@ -16,6 +16,8 @@
 | `GET`    | `/api/v1/accounting/receipts/next-code` | Bearer | Số chứng từ "PT" tiếp theo |
 | `GET`    | `/api/v1/accounting/receipts/outstanding-orders` | Bearer | Chứng từ bán hàng còn nợ (popup "Thu tiền khách hàng hàng loạt") |
 | `POST`   | `/api/v1/accounting/receipts/bulk`  | Bearer | Tạo 1 phiếu thu hàng loạt (nhiều khách hàng, xem mục riêng bên dưới) |
+| `POST`   | `/api/v1/accounting/receipts/{id}/confirm`   | Bearer | "Ghi sổ" — Draft → Confirmed, post `CashTransaction` (2026-09-01) |
+| `POST`   | `/api/v1/accounting/receipts/{id}/unconfirm` | Bearer | "Bỏ ghi" — Confirmed → Draft, xóa `CashTransaction` (2026-09-01) |
 
 ## Request — POST / PUT
 
@@ -51,6 +53,7 @@
 - `document_number` required
 - `payment_reason` phải là enum hợp lệ: `ThuKhac`, `ThuTienHang`, `ThuCongNo`
 - `debit_account` / `credit_account` phải là enum hợp lệ: `Cash111`, `Bank112`, `Receivable131`, `Payroll334`
+- **PUT chỉ cho phép khi `status = Draft`** (2026-09-01) — `DomainException` nếu đã `Confirmed` ("Chỉ chứng từ ở trạng thái Nháp mới được sửa. Bỏ ghi trước khi sửa.")
 
 ## Response — 201 Created / 200 OK
 
@@ -69,6 +72,8 @@
   "accounting_date": "2026-04-29T00:00:00Z",
   "document_date": "2026-04-29T00:00:00Z",
   "document_number": "PT00067",
+  "status": "Draft",
+  "confirmed_at": null,
   "created_at": "2026-04-29T08:00:00Z",
   "entries": [
     {
@@ -109,7 +114,12 @@ Không có auto-generate hay sequence trên BE.
 
 ## Side Effect — CashTransaction (Quỹ Tiền Mặt)
 
-Khi **tạo** hoặc **cập nhật** Receipt, tự động sync 1 row `CashTransaction`:
+> **Đã đổi (2026-09-01):** Trước đây `CashTransaction` được sync ngay khi **tạo**/**cập nhật**
+> Receipt. Nay side-effect này **chỉ xảy ra khi Confirm/Unconfirm** ("Ghi sổ"/"Bỏ ghi") — giống
+> hệt pattern của `Payment`. Xem mục "Draft/Confirmed Status Workflow" bên dưới.
+
+Khi **Confirm** ("Ghi sổ") 1 Receipt đang `Draft`, tạo mới 1 row `CashTransaction` (không sync lại
+khi Update nữa vì Update chỉ được phép ở trạng thái `Draft`, thứ chưa từng có `CashTransaction`):
 
 | Field           | Value                                                        |
 |-----------------|--------------------------------------------------------------|
@@ -117,18 +127,23 @@ Khi **tạo** hoặc **cập nhật** Receipt, tự động sync 1 row `CashTran
 | `DocumentDate`  | `receipt.DocumentDate`                                       |
 | `ReceiptNumber` | `receipt.DocumentNumber`                                     |
 | `Description`   | `receipt.PayerName` (chỉ tên người nộp, không có prefix)     |
-| `Account`       | `"111"` (tiền mặt)                                           |
+| `Account`       | TK Nợ của entry đầu tiên → mapped "111"/"112"/"131"/"334"   |
 | `CounterAccount`| TK Có của entry đầu tiên → mapped "111"/"112"/"131"/"334"   |
 | `DebitAmount`   | tổng `entries.Sum(e => e.Amount)`                            |
 | `CreditAmount`  | `0`                                                          |
 | `PersonName`    | `receipt.PayerName`                                          |
 | `PaymentReason` | `receipt.PaymentReason` (string?, thêm 2026-08-28)           |
-| `DocumentType`  | `"Phiếu thu"` (thêm 2026-08-28)                               |
+| `DocumentType`  | `"Phiếu thu tiền mặt khách hàng"` (hoặc `"...hàng loạt"` nếu `CustomerId == null`) |
 
-**Update flow**: xóa CT cũ theo `DocumentNumber` cũ → tạo CT mới với data mới.
-**Delete flow**: xóa CT theo `DocumentNumber` → xóa Receipt.
+**Confirm flow** (`ConfirmReceiptUseCase`): validate `Status == Draft` → tạo `CashTransaction` →
+`Status = Confirmed`, `ConfirmedAt = DateTime.UtcNow`.
+**Unconfirm flow** (`UnconfirmReceiptUseCase`): validate `Status == Confirmed` → xóa
+`CashTransaction` theo `DocumentNumber` (`ICashLedgerRepository.DeleteByReceiptNumberAsync`) →
+`Status = Draft`, `ConfirmedAt = null`.
+**Delete flow**: chỉ cho phép khi `Draft` (chưa từng có `CashTransaction`) → xóa thẳng Receipt,
+không còn bước xóa `CashTransaction`.
 
-**`PaymentReason`/`DocumentType` (2026-08-28):** thêm 2 cột lên `CashTransaction` (migration `AddCashTransactionReasonAndDocType`) để màn "Sổ Kế Toán Chi Tiết Quỹ Tiền Mặt" (`GetCashLedgerUseCase`/`CashLedgerEntryDto`) hiển thị được "Lý do thu/chi" và "Loại chứng từ" ngay trên danh sách gộp — trước đó 2 field này chỉ có trên `Receipt`/`Payment` riêng, không denormalize xuống `CashTransaction` nên bên gộp Draft/Treo/Confirmed không có cách nào hiển thị thống nhất. `CreateReceiptUseCase`/`UpdateReceiptUseCase` set `PaymentReason = receipt.PaymentReason`, `DocumentType = "Phiếu thu"` khi ghi `CashTransaction`. Xem [`phieu-chi.md`](phieu-chi.md) cho phía Payment (`ConfirmPaymentUseCase`, `DocumentType = "Phiếu chi"`) và `desktop-lamour/.../Accounting/docs/phieu-thu.md` cho phần WPF (cột mới + click-để-xem/sửa/xóa trên `AccountingView`).
+**`PaymentReason`/`DocumentType` (2026-08-28):** thêm 2 cột lên `CashTransaction` (migration `AddCashTransactionReasonAndDocType`) để màn "Sổ Kế Toán Chi Tiết Quỹ Tiền Mặt" (`GetCashLedgerUseCase`/`CashLedgerEntryDto`) hiển thị được "Lý do thu/chi" và "Loại chứng từ" ngay trên danh sách gộp — trước đó 2 field này chỉ có trên `Receipt`/`Payment` riêng, không denormalize xuống `CashTransaction` nên bên gộp Draft/Treo/Confirmed không có cách nào hiển thị thống nhất. `ConfirmReceiptUseCase` set `PaymentReason = receipt.PaymentReason`, `DocumentType = "Phiếu thu tiền mặt khách hàng"` khi ghi `CashTransaction` (trước 2026-09-01 do `CreateReceiptUseCase`/`UpdateReceiptUseCase` đảm nhiệm, nay chuyển sang `ConfirmReceiptUseCase`). Xem [`phieu-chi.md`](phieu-chi.md) cho phía Payment (`ConfirmPaymentUseCase`, `DocumentType = "Phiếu chi"`) và `desktop-lamour/.../Accounting/docs/phieu-thu.md` cho phần WPF (cột mới + click-để-xem/sửa/xóa trên `AccountingView`).
 
 ## Domain Entities
 
@@ -151,6 +166,8 @@ src/Lamour.Domain/Entities/Receipt.cs
 | `AccountingDate`     | datetime      | Ngày hạch toán (UTC)         |
 | `DocumentDate`       | datetime      | Ngày chứng từ (UTC)          |
 | `DocumentNumber`     | string(50)    | Số chứng từ — user input     |
+| `Status`             | int           | `ReceiptStatus`: `Draft=0` (default), `Confirmed=1` — thêm 2026-09-01 |
+| `ConfirmedAt`        | datetime?     | UTC, set khi Confirm, null lại khi Unconfirm — thêm 2026-09-01 |
 | `CreatedAt`          | datetime      | UTC                          |
 
 ### ReceiptEntry
@@ -195,19 +212,27 @@ src/Lamour.Domain/Entities/ReceiptEntry.cs
 **Không đổi / cố tình bỏ qua** (không có data model, tránh làm giả):
 - "Số hóa đơn" (invoice number riêng, khác `DocumentNumber`) — `SalesOrder` không có field này.
 - "Tỷ lệ CK (%)"/"Tiền chiết khấu"/"TK chiết khấu" ở tab "2. Chứng từ" — khái niệm chiết khấu thanh toán sớm ở mức chứng từ, khác hẳn `SalesOrderLine.DiscountRate` (chiết khấu theo dòng sản phẩm) đã có sẵn; `SalesOrder` không có field chiết khấu thanh toán sớm ở header.
-- Màn hình danh sách "Thu tiền khách hàng hàng loạt" riêng (sidebar + Kỳ/Trạng thái/Loại) như ảnh mẫu — **không cần xây mới**: mọi phiếu thu hàng loạt vẫn post đúng 1 `CashTransaction` như phiếu thu thường, nên đã tự động hiện trong màn "Sổ Kế Toán Chi Tiết Quỹ Tiền Mặt" (`GetCashLedgerUseCase`) có sẵn — tái dùng hạ tầng đã có thay vì xây trùng lặp UI.
-- Draft/Treo/Confirmed/"Hoàn" lifecycle cho Receipt (kể cả Receipt hàng loạt) — Receipt nói chung (kể cả Phiếu Thu đơn lẻ) chưa được migrate sang state machine kiểu Payment, làm riêng cho hàng loạt sẽ không nhất quán. Đây là known limitation có sẵn, không phải phát sinh mới.
+- Màn hình danh sách "Thu tiền khách hàng hàng loạt" riêng (sidebar + Kỳ/Trạng thái/Loại) như ảnh mẫu — **không cần xây mới**: mọi phiếu thu hàng loạt vẫn post đúng 1 `CashTransaction` như phiếu thu thường khi Confirm, nên đã tự động hiện trong màn "Sổ Kế Toán Chi Tiết Quỹ Tiền Mặt" (`GetCashLedgerUseCase`) có sẵn — tái dùng hạ tầng đã có thay vì xây trùng lặp UI.
+
+> **2026-09-01:** mục "Draft/Treo/Confirmed/'Hoàn' lifecycle cho Receipt" note ở trên đã lỗi thời —
+> xem mục "Draft/Confirmed Status Workflow" bên dưới. `CreateBulkCustomerReceiptUseCase` tái dùng
+> nguyên `ICreateReceiptUseCase` nên tự động thừa hưởng hành vi Create-luôn-Draft mới, **không cần
+> đổi gì** ở file này. Lưu ý: phía WPF client cho luồng "Thu tiền khách hàng hàng loạt" sẽ cần thêm
+> bước gọi Confirm sau khi Create để phiếu thu hàng loạt thực sự lên Sổ Kế Toán — việc này nằm
+> ngoài phạm vi BE task này, cần wiring riêng ở `desktop-lamour`.
 
 ## Clean Architecture Layers
 
 ```
-ReceiptsController              GET/POST/PUT/DELETE /api/v1/accounting/receipts
-        ↓
+ReceiptsController              GET/POST/PUT/DELETE + POST /{id}/confirm + /{id}/unconfirm
+        ↓                       /api/v1/accounting/receipts
 IGetReceiptsUseCase             / GetReceiptsUseCase
 IGetReceiptByIdUseCase          / GetReceiptByIdUseCase
-ICreateReceiptUseCase           / CreateReceiptUseCase  (+ CashTransaction side effect)
-IUpdateReceiptUseCase           / UpdateReceiptUseCase
-IDeleteReceiptUseCase           / DeleteReceiptUseCase  (+ CashTransaction cleanup)
+ICreateReceiptUseCase           / CreateReceiptUseCase   (Status = Draft, no CashTransaction)
+IUpdateReceiptUseCase           / UpdateReceiptUseCase   (chỉ khi Draft, no CashTransaction)
+IDeleteReceiptUseCase           / DeleteReceiptUseCase   (chỉ khi Draft, no CashTransaction)
+IConfirmReceiptUseCase          / ConfirmReceiptUseCase     (Draft → Confirmed, + CashTransaction)
+IUnconfirmReceiptUseCase        / UnconfirmReceiptUseCase   (Confirmed → Draft, − CashTransaction)
         ↓
 IReceiptRepository              GetAllAsync, GetByIdAsync, GetByIdTrackedAsync
                                 AddAsync, UpdateAsync, DeleteAsync
@@ -221,14 +246,14 @@ CashLedgerRepository            EF Core + AppDbContext
 
 ```
 src/Lamour.Domain/
-  Entities/Receipt.cs
+  Entities/Receipt.cs             (+ ReceiptStatus enum, + Status/ConfirmedAt — 2026-09-01)
   Entities/ReceiptEntry.cs
   Enums/PaymentReason.cs
   Enums/AccountCode.cs
 
 src/Lamour.Application/Features/Accounting/
   Dtos/ReceiptEntryDto.cs
-  Dtos/ReceiptResponseDto.cs
+  Dtos/ReceiptResponseDto.cs      (+ status/confirmed_at — 2026-09-01)
   Dtos/CreateReceiptRequestDto.cs
   Dtos/UpdateReceiptRequestDto.cs
   Repositories/IReceiptRepository.cs
@@ -237,17 +262,81 @@ src/Lamour.Application/Features/Accounting/
   UseCases/ICreateReceiptUseCase.cs + CreateReceiptUseCase.cs
   UseCases/IUpdateReceiptUseCase.cs + UpdateReceiptUseCase.cs
   UseCases/IDeleteReceiptUseCase.cs + DeleteReceiptUseCase.cs
+  UseCases/IConfirmReceiptUseCase.cs + ConfirmReceiptUseCase.cs      (new — 2026-09-01)
+  UseCases/IUnconfirmReceiptUseCase.cs + UnconfirmReceiptUseCase.cs  (new — 2026-09-01)
 
 src/Lamour.Infrastructure/
-  Persistence/Configurations/ReceiptConfiguration.cs  (Receipt + ReceiptEntry)
+  Persistence/Configurations/ReceiptConfiguration.cs  (Receipt + ReceiptEntry; Status/ConfirmedAt mapping — 2026-09-01)
   Repositories/ReceiptRepository.cs
   Migrations/..._RebuildReceipts.cs
+  Migrations/..._ReceiptStatus.cs  (new — 2026-09-01)
 
 src/Lamour.Api/
-  Controllers/ReceiptsController.cs  (new)
+  Controllers/ReceiptsController.cs  (+ confirm/unconfirm actions — 2026-09-01)
   Controllers/AccountingController.cs  (trimmed — only GetCashLedger remains)
-  Program.cs  (DI updated)
+  Program.cs  (DI updated — 2026-09-01)
 ```
+
+## Draft/Confirmed Status Workflow (2026-09-01)
+
+Trước 2026-09-01, Receipt **không có** khái niệm status: `CashTransaction` được post ngay khi
+Create, và tự re-sync (xóa cũ + tạo mới) mỗi lần Update, và xóa khi Delete. Nay đổi sang mirror
+đúng pattern của `Payment` (`PaymentStatus.Draft/Treo/Confirmed`) và `SalesReturn`
+(`SalesReturnStatus.Draft/Confirmed`) — riêng Receipt chỉ có 2 state như `SalesReturn`, không có
+"Treo" ở giữa như `Payment`:
+
+- `ReceiptStatus.Draft = 0` (mặc định khi tạo), `Confirmed = 1`.
+- `Receipt.ConfirmedAt` — `DateTime?`, set khi Confirm, `null` lại khi Unconfirm.
+- **Create** (`CreateReceiptUseCase`) — tạo mới ở `Status = Draft` (property default), **không**
+  còn tạo `CashTransaction`.
+- **Update** (`UpdateReceiptUseCase`) — chỉ cho phép khi `Status == Draft`
+  (`DomainException("Chỉ chứng từ ở trạng thái Nháp mới được sửa. Bỏ ghi trước khi sửa.")` nếu
+  đã `Confirmed`); replace toàn bộ `Entries`, **không** còn xóa/tạo lại `CashTransaction`.
+- **Delete** (`DeleteReceiptUseCase`) — chỉ cho phép khi `Status == Draft`
+  (`DomainException("Chỉ chứng từ ở trạng thái Nháp mới được xóa. Bỏ ghi trước khi xóa.")` nếu
+  đã `Confirmed`); **không** còn xóa `CashTransaction` (Draft chưa từng có).
+- **Confirm** (`POST /{id}/confirm`, "Ghi sổ", `ConfirmReceiptUseCase`) — validate
+  `Status == Draft` (`DomainException("Chỉ chứng từ ở trạng thái Nháp mới có thể ghi sổ.")` nếu
+  không) → tạo `CashTransaction` (field-mapping y hệt logic cũ từng nằm ở `CreateReceiptUseCase`,
+  chỉ chuyển thời điểm thực thi) → `Status = Confirmed`, `ConfirmedAt = DateTime.UtcNow`.
+- **Unconfirm** (`POST /{id}/unconfirm`, "Bỏ ghi", `UnconfirmReceiptUseCase`) — validate
+  `Status == Confirmed` (`DomainException("Chỉ chứng từ đã ghi sổ mới có thể bỏ ghi.")` nếu
+  không) → xóa `CashTransaction` theo `DocumentNumber`
+  (`ICashLedgerRepository.DeleteByReceiptNumberAsync`) → `Status = Draft`, `ConfirmedAt = null`.
+- Cả `ConfirmReceiptUseCase`/`UnconfirmReceiptUseCase` **không** dùng `IUnitOfWork` — mirror đúng
+  convention hiện có của `ConfirmPaymentUseCase`/`UnconfirmPaymentUseCase` (module Accounting
+  không dùng `IUnitOfWork` cho Receipt/Payment, khác với module SalesReturn có dùng).
+
+**Backfill dữ liệu cũ:** rows Receipt đã tồn tại trước migration được backfill là `Confirmed` qua
+column-level default của EF migration
+(`HasDefaultValue(ReceiptStatus.Confirmed)` trong `ReceiptConfiguration.cs`) — vì chúng đã được
+post `CashTransaction` tại thời điểm Create theo hành vi cũ, không cần fix data thủ công và không
+được phép re-confirm (sẽ double-post cash-ledger).
+
+**Gotcha `HasSentinel`:** `ReceiptStatus.Draft == 0` trùng CLR default của property — nếu không có
+`HasSentinel((ReceiptStatus)(-1))`, EF Core coi giá trị `Draft` là "chưa set" và tự thay bằng column
+default (`Confirmed`) khi INSERT, khiến mọi Receipt mới tạo bị lưu nhầm thành `Confirmed`. Comment
+đầy đủ nằm trong `ReceiptConfiguration.cs` (copy nguyên lý từ `SalesReturnConfiguration.cs`, nơi
+gotcha này từng xảy ra lần đầu).
+
+**Endpoints mới:**
+- `POST /api/v1/accounting/receipts/{id}/confirm` — "Ghi sổ", trả `ReceiptResponseDto` (200)
+- `POST /api/v1/accounting/receipts/{id}/unconfirm` — "Bỏ ghi", trả `ReceiptResponseDto` (200)
+
+`status` trong response DTO là **string** (`Status.ToString()` — `"Draft"` | `"Confirmed"`), cùng
+convention với `PaymentResponseDto`/`SalesReturnResponseDto`, **không phải** số nguyên.
+
+**`CreateBulkCustomerReceiptUseCase` không cần đổi gì** — tái dùng nguyên `ICreateReceiptUseCase`
+nên tự động thừa hưởng hành vi Create-luôn-Draft mới (grep-confirmed, xem mục "Phiếu thu tiền
+khách hàng hàng loạt" ở trên). **Lưu ý cho phần WPF client:** luồng "Thu tiền khách hàng hàng
+loạt" hiện chỉ gọi Create — sau thay đổi này, phiếu thu hàng loạt sẽ dừng ở `Draft` và **không**
+tự động lên Sổ Kế Toán nữa; WPF cần thêm bước gọi `POST /{id}/confirm` ngay sau khi Create để giữ
+nguyên hành vi cũ (post cash-ledger ngay). Việc wiring này nằm ngoài phạm vi BE task, cần làm riêng
+ở `desktop-lamour`.
+
+Migration: `ReceiptStatus` (`src/Lamour.Infrastructure/Migrations/`).
+
+---
 
 ## Removed (replaced by this rebuild)
 

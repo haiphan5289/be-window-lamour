@@ -10,16 +10,13 @@ namespace Lamour.Application.Features.Accounting.UseCases;
 public class CreateReceiptUseCase : ICreateReceiptUseCase
 {
     private readonly IReceiptRepository     _repo;
-    private readonly ICashLedgerRepository  _cashRepo;
     private readonly ILogger<CreateReceiptUseCase> _logger;
 
     public CreateReceiptUseCase(
         IReceiptRepository repo,
-        ICashLedgerRepository cashRepo,
         ILogger<CreateReceiptUseCase> logger)
     {
         _repo     = repo;
-        _cashRepo = cashRepo;
         _logger   = logger;
     }
 
@@ -79,37 +76,8 @@ public class CreateReceiptUseCase : ICreateReceiptUseCase
 
         var saved = await _repo.AddAsync(receipt, ct);
 
-        // Auto-create CashTransaction
-        var totalAmount  = entries.Sum(e => e.Amount);
-        var counterAccount = entries.Count > 0
-            ? MapAccountCodeToString(entries[0].CreditAccount)
-            : "131";
-        // Account theo TK Nợ thực tế của dòng đầu (Cash111/Bank112) — trước đây hardcode "111" nên
-        // phiếu thu chọn Bank112 vẫn bị ghi nhầm vào sổ quỹ tiền mặt thay vì tiền gửi ngân hàng.
-        var account = entries.Count > 0
-            ? MapAccountCodeToString(entries[0].DebitAccount)
-            : "111";
-
-        var cashTx = new CashTransaction
-        {
-            AccountingDate = saved.AccountingDate,
-            DocumentDate   = saved.DocumentDate,
-            ReceiptNumber  = saved.DocumentNumber,
-            PaymentNumber  = null,
-            Description    = saved.PayerName,
-            Account        = account,
-            CounterAccount = counterAccount,
-            DebitAmount    = totalAmount,
-            CreditAmount   = 0m,
-            PersonName     = saved.PayerName,
-            PaymentReason  = paymentReason.ToString(),
-            DocumentType   = saved.CustomerId is null
-                ? "Phiếu thu tiền mặt khách hàng hàng loạt"
-                : "Phiếu thu tiền mặt khách hàng",
-            CreatedAt      = DateTime.UtcNow,
-        };
-
-        await _cashRepo.AddAsync(cashTx, ct);
+        // Draft receipt has no cash-ledger effect yet — CashTransaction is now posted only on
+        // Confirm ("Ghi sổ"), mirroring Payment/SalesReturn. See ConfirmReceiptUseCase.
 
         _logger.LogInformation("Created Receipt {DocumentNumber} for customer {CustomerId}",
             saved.DocumentNumber, saved.CustomerId);

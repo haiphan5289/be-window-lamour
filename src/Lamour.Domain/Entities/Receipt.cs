@@ -2,6 +2,12 @@ using Lamour.Domain.Enums;
 
 namespace Lamour.Domain.Entities;
 
+public enum ReceiptStatus
+{
+    Draft     = 0,
+    Confirmed = 1,
+}
+
 public class Receipt
 {
     public int Id { get; set; }
@@ -20,6 +26,8 @@ public class Receipt
     public DateTime AccountingDate { get; set; }           // Ngày hạch toán
     public DateTime DocumentDate { get; set; }             // Ngày chứng từ
     public string DocumentNumber { get; set; } = "";       // Số chứng từ — user input
+    public ReceiptStatus Status      { get; set; } = ReceiptStatus.Draft;
+    public DateTime?     ConfirmedAt { get; set; }
     public DateTime CreatedAt { get; set; }
     public ICollection<ReceiptEntry> Entries { get; set; } = new List<ReceiptEntry>();
 }

@@ -1,4 +1,5 @@
 using Lamour.Application.Features.Accounting.Repositories;
+using Lamour.Domain.Entities;
 using Lamour.Domain.Exceptions;
 using Microsoft.Extensions.Logging;
 
@@ -7,16 +8,13 @@ namespace Lamour.Application.Features.Accounting.UseCases;
 public class DeleteReceiptUseCase : IDeleteReceiptUseCase
 {
     private readonly IReceiptRepository     _repo;
-    private readonly ICashLedgerRepository  _cashRepo;
     private readonly ILogger<DeleteReceiptUseCase> _logger;
 
     public DeleteReceiptUseCase(
         IReceiptRepository repo,
-        ICashLedgerRepository cashRepo,
         ILogger<DeleteReceiptUseCase> logger)
     {
         _repo     = repo;
-        _cashRepo = cashRepo;
         _logger   = logger;
     }
 
@@ -25,9 +23,10 @@ public class DeleteReceiptUseCase : IDeleteReceiptUseCase
         var receipt = await _repo.GetByIdAsync(id, ct)
             ?? throw new NotFoundException($"Receipt with id {id} not found.");
 
-        // Delete associated CashTransaction by DocumentNumber
-        if (!string.IsNullOrWhiteSpace(receipt.DocumentNumber))
-            await _cashRepo.DeleteByReceiptNumberAsync(receipt.DocumentNumber, ct);
+        if (receipt.Status != ReceiptStatus.Draft)
+            throw new DomainException("Chỉ chứng từ ở trạng thái Nháp mới được xóa. Bỏ ghi trước khi xóa.");
+
+        // Draft receipt never had a CashTransaction — nothing to clean up here anymore.
 
         await _repo.DeleteAsync(receipt, ct);
 

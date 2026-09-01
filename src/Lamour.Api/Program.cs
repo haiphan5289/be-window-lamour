@@ -214,6 +214,10 @@ builder.Services.AddScoped<Lamour.Application.Features.Accounting.UseCases.IUpda
                            Lamour.Application.Features.Accounting.UseCases.UpdateReceiptUseCase>();
 builder.Services.AddScoped<Lamour.Application.Features.Accounting.UseCases.IDeleteReceiptUseCase,
                            Lamour.Application.Features.Accounting.UseCases.DeleteReceiptUseCase>();
+builder.Services.AddScoped<Lamour.Application.Features.Accounting.UseCases.IConfirmReceiptUseCase,
+                           Lamour.Application.Features.Accounting.UseCases.ConfirmReceiptUseCase>();
+builder.Services.AddScoped<Lamour.Application.Features.Accounting.UseCases.IUnconfirmReceiptUseCase,
+                           Lamour.Application.Features.Accounting.UseCases.UnconfirmReceiptUseCase>();
 builder.Services.AddScoped<Lamour.Application.Features.Accounting.UseCases.IGetNextReceiptCodeUseCase,
                            Lamour.Application.Features.Accounting.UseCases.GetNextReceiptCodeUseCase>();
 builder.Services.AddScoped<Lamour.Application.Features.Accounting.UseCases.IGetOutstandingSalesOrdersUseCase,

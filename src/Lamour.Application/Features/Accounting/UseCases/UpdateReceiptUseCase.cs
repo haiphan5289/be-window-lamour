@@ -10,16 +10,13 @@ namespace Lamour.Application.Features.Accounting.UseCases;
 public class UpdateReceiptUseCase : IUpdateReceiptUseCase
 {
     private readonly IReceiptRepository     _repo;
-    private readonly ICashLedgerRepository  _cashRepo;
     private readonly ILogger<UpdateReceiptUseCase> _logger;
 
     public UpdateReceiptUseCase(
         IReceiptRepository repo,
-        ICashLedgerRepository cashRepo,
         ILogger<UpdateReceiptUseCase> logger)
     {
         _repo     = repo;
-        _cashRepo = cashRepo;
         _logger   = logger;
     }
 
@@ -29,10 +26,11 @@ public class UpdateReceiptUseCase : IUpdateReceiptUseCase
         var receipt = await _repo.GetByIdTrackedAsync(id, ct)
             ?? throw new NotFoundException($"Receipt with id {id} not found.");
 
+        if (receipt.Status != ReceiptStatus.Draft)
+            throw new DomainException("Chỉ chứng từ ở trạng thái Nháp mới được sửa. Bỏ ghi trước khi sửa.");
+
         if (!Enum.TryParse<PaymentReason>(request.PaymentReason, out var paymentReason))
             throw new DomainException($"Invalid payment_reason '{request.PaymentReason}'.");
-
-        var oldDocumentNumber = receipt.DocumentNumber;
 
         // Update header fields
         receipt.CustomerId          = request.CustomerId;
@@ -70,36 +68,8 @@ public class UpdateReceiptUseCase : IUpdateReceiptUseCase
 
         await _repo.UpdateAsync(receipt, ct);
 
-        // Sync CashTransaction: delete old, create new with updated data
-        if (!string.IsNullOrWhiteSpace(oldDocumentNumber))
-            await _cashRepo.DeleteByReceiptNumberAsync(oldDocumentNumber, ct);
-
-        var totalAmount    = receipt.Entries.Sum(e => e.Amount);
-        var counterAccount = receipt.Entries.Count > 0
-            ? CreateReceiptUseCase.MapAccountCodeToString(receipt.Entries.First().CreditAccount)
-            : "131";
-        var account = receipt.Entries.Count > 0
-            ? CreateReceiptUseCase.MapAccountCodeToString(receipt.Entries.First().DebitAccount)
-            : "111";
-
-        await _cashRepo.AddAsync(new CashTransaction
-        {
-            AccountingDate = receipt.AccountingDate,
-            DocumentDate   = receipt.DocumentDate,
-            ReceiptNumber  = receipt.DocumentNumber,
-            PaymentNumber  = null,
-            Description    = receipt.PayerName,
-            Account        = account,
-            CounterAccount = counterAccount,
-            DebitAmount    = totalAmount,
-            CreditAmount   = 0m,
-            PersonName     = receipt.PayerName,
-            PaymentReason  = paymentReason.ToString(),
-            DocumentType   = receipt.CustomerId is null
-                ? "Phiếu thu tiền mặt khách hàng hàng loạt"
-                : "Phiếu thu tiền mặt khách hàng",
-            CreatedAt      = DateTime.UtcNow,
-        }, ct);
+        // Draft receipt never had a CashTransaction — nothing to sync here anymore. Cash-ledger
+        // posting now happens only on Confirm ("Ghi sổ"). See ConfirmReceiptUseCase.
 
         _logger.LogInformation("Updated Receipt {Id} ({DocumentNumber})", id, receipt.DocumentNumber);
 

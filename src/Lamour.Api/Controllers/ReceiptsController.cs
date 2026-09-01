@@ -15,6 +15,8 @@ public class ReceiptsController : ControllerBase
     private readonly ICreateReceiptUseCase    _createReceipt;
     private readonly IUpdateReceiptUseCase    _updateReceipt;
     private readonly IDeleteReceiptUseCase    _deleteReceipt;
+    private readonly IConfirmReceiptUseCase   _confirmReceipt;
+    private readonly IUnconfirmReceiptUseCase _unconfirmReceipt;
     private readonly IGetNextReceiptCodeUseCase        _getNextCode;
     private readonly IGetOutstandingSalesOrdersUseCase _getOutstandingOrders;
     private readonly ICreateBulkCustomerReceiptUseCase _createBulkReceipt;
@@ -25,6 +27,8 @@ public class ReceiptsController : ControllerBase
         ICreateReceiptUseCase createReceipt,
         IUpdateReceiptUseCase updateReceipt,
         IDeleteReceiptUseCase deleteReceipt,
+        IConfirmReceiptUseCase confirmReceipt,
+        IUnconfirmReceiptUseCase unconfirmReceipt,
         IGetNextReceiptCodeUseCase getNextCode,
         IGetOutstandingSalesOrdersUseCase getOutstandingOrders,
         ICreateBulkCustomerReceiptUseCase createBulkReceipt)
@@ -34,6 +38,8 @@ public class ReceiptsController : ControllerBase
         _createReceipt  = createReceipt;
         _updateReceipt  = updateReceipt;
         _deleteReceipt  = deleteReceipt;
+        _confirmReceipt        = confirmReceipt;
+        _unconfirmReceipt      = unconfirmReceipt;
         _getNextCode           = getNextCode;
         _getOutstandingOrders  = getOutstandingOrders;
         _createBulkReceipt     = createBulkReceipt;
@@ -66,6 +72,14 @@ public class ReceiptsController : ControllerBase
         await _deleteReceipt.ExecuteAsync(id, ct);
         return NoContent();
     }
+
+    [HttpPost("{id:int}/confirm")]
+    public async Task<IActionResult> ConfirmReceipt(int id, CancellationToken ct)
+        => Ok(await _confirmReceipt.ExecuteAsync(id, ct));
+
+    [HttpPost("{id:int}/unconfirm")]
+    public async Task<IActionResult> UnconfirmReceipt(int id, CancellationToken ct)
+        => Ok(await _unconfirmReceipt.ExecuteAsync(id, ct));
 
     [HttpGet("next-code")]
     public async Task<IActionResult> GetNextCode(CancellationToken ct)
