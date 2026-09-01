@@ -1,6 +1,6 @@
 # Sales Returns — Feature Document (BE)
 
-> **Jira:** — | **Branch:** `dev` | **Generated:** 2026-06-13 | **Last updated:** 2026-06-13
+> **Jira:** — | **Branch:** `dev` | **Generated:** 2026-06-13 | **Last updated:** 2026-08-31
 
 ---
 
@@ -8,18 +8,20 @@
 
 > API quản lý chứng từ hàng bán bị trả lại (Sales Return Documents) cho hệ thống Lamour Spa & Cosmetics.
 
-- **Goal:** Cung cấp CRUD API cho module Chứng từ hàng bán bị trả lại, tự động hoàn tồn kho khi tạo/sửa/xóa chứng từ.
-- **User story:** As a Lamour admin, I want to manage sales return documents via a REST API so that the WPF desktop client can create, update, and delete return records with automatic stock restoration.
+- **Goal:** Cung cấp CRUD API cho module Chứng từ hàng bán bị trả lại, với workflow Draft/Confirmed ("Ghi sổ"/"Bỏ ghi") — tồn kho chỉ bị tác động khi Confirm, không phải khi Create.
+- **User story:** As a Lamour admin, I want to manage sales return documents via a REST API so that the WPF desktop client can create, update, delete, and confirm/unconfirm return records with stock restoration happening only on confirmation.
 - **Acceptance criteria:**
   - [x] `GET /api/v1/sales-returns` trả danh sách tất cả chứng từ kèm lines
   - [x] `GET /api/v1/sales-returns/{id}` trả chi tiết một chứng từ
-  - [x] `POST /api/v1/sales-returns` tạo mới, cộng tồn kho cho từng line
-  - [x] `PUT /api/v1/sales-returns/{id}` cập nhật, hoàn kho cũ rồi cộng kho mới
-  - [x] `DELETE /api/v1/sales-returns/{id}` xóa, trừ lại tồn kho đã hoàn
+  - [x] `POST /api/v1/sales-returns` tạo mới ở trạng thái `Draft` — KHÔNG tác động tồn kho
+  - [x] `PUT /api/v1/sales-returns/{id}` cập nhật — chỉ cho phép khi `Draft`, replace toàn bộ lines, không tính lại tồn kho
+  - [x] `DELETE /api/v1/sales-returns/{id}` xóa — chỉ cho phép khi `Draft`, không cần hoàn tác tồn kho
+  - [x] `POST /api/v1/sales-returns/{id}/confirm` ("Ghi sổ") — cộng tồn kho cho từng line, chuyển `Draft` → `Confirmed`
+  - [x] `POST /api/v1/sales-returns/{id}/unconfirm` ("Bỏ ghi") — trừ lại tồn kho (two-pass validate trước), chuyển `Confirmed` → `Draft`
   - [x] `GET /api/v1/sales-returns/next-code` trả số chứng từ tiếp theo dạng `BTL{5 digits}`
   - [x] `return_type` lưu vào DB: 0=GiảmTrừCôngNợ, 1=TrảLạiTiềnMặt
-  - [x] DB transaction: Create/Update/Delete dùng `IUnitOfWork` — rollback khi lỗi
-  - [x] Không có Status/Confirm workflow — tạo xong là hoàn thành
+  - [x] DB transaction: Create/Update/Delete/Confirm/Unconfirm dùng `IUnitOfWork` — rollback khi lỗi
+  - [x] Status/Confirm workflow: `SalesReturnStatus.Draft=0`, `Confirmed=1` — mirror `WarehouseReceiptStatus`
 
 ---
 
@@ -33,15 +35,16 @@
 | Tính Amount | `Amount = Quantity × UnitPrice` (gross — trước chiết khấu) |
 | Tính DiscountAmount | `DiscountAmount = Amount × DiscountRate / 100` — BE clamp `Math.Max(0, Math.Min(100, rate))` |
 | Tổng tiền | `TotalAmount = SUM(line.Amount)`, `TotalDiscount = SUM(line.DiscountAmount)`, `TotalPayment = TotalAmount − TotalDiscount` |
-| Hoàn tồn kho khi tạo | Cộng `StockQuantity` cho mỗi line khi tạo chứng từ |
-| Trừ lại tồn kho khi xóa | Trừ `StockQuantity` cho mỗi line khi xóa chứng từ |
-| Sửa chứng từ | Hoàn kho cũ (−old_qty) trước, rồi cộng kho mới (+new_qty) |
+| Trạng thái | `Draft` (mặc định khi tạo) → `Confirmed` (sau khi Ghi sổ) → có thể Bỏ ghi về lại `Draft` |
+| Ghi sổ (Confirm) | Cộng `StockQuantity` cho mỗi line — chỉ cho phép khi đang `Draft` |
+| Bỏ ghi (Unconfirm) | Trừ lại `StockQuantity` cho mỗi line — chỉ cho phép khi đang `Confirmed`; two-pass validate tồn kho đủ trước khi trừ |
+| Sửa chứng từ | Chỉ cho phép khi `Draft` — `DomainException` nếu đã `Confirmed` (phải Bỏ ghi trước) |
+| Xóa chứng từ | Chỉ cho phép khi `Draft` — `DomainException` nếu đã `Confirmed` (phải Bỏ ghi trước) |
 | Denormalize | `ProductCode`, `ProductName` được copy vào line tại thời điểm tạo |
 | TK mặc định | `ReturnAccount = "5212"`, `DebtAccount = "131"`, `DiscountAccount = "5211"` |
 | return_type | `ReduceDebt = 0` (Giảm trừ công nợ), `CashRefund = 1` (Trả lại tiền mặt) |
-| Không có Status | Không có Confirm workflow — tạo xong là final |
 | DateTime UTC | Lưu `DateTime.UtcNow`, WPF convert sang local time khi hiển thị |
-| DB Transaction | Mỗi mutation UseCase dùng `IUnitOfWork.BeginAsync` → `CommitAsync` hoặc `RollbackAsync` |
+| DB Transaction | Mỗi mutation UseCase (Create/Update/Delete/Confirm/Unconfirm) dùng `IUnitOfWork.BeginAsync` → `CommitAsync` hoặc `RollbackAsync` |
 
 ---
 
@@ -51,7 +54,7 @@
 
 | Layer | File | Role |
 |-------|------|------|
-| Controller | [`Lamour.Api/Controllers/SalesReturnsController.cs`](../../../../Lamour.Api/Controllers/SalesReturnsController.cs) | HTTP entry point, 6 actions |
+| Controller | [`Lamour.Api/Controllers/SalesReturnsController.cs`](../../../../Lamour.Api/Controllers/SalesReturnsController.cs) | HTTP entry point, 8 actions (incl. confirm/unconfirm) |
 | Abstraction | [`Lamour.Application/Abstractions/IUnitOfWork.cs`](../../../Abstractions/IUnitOfWork.cs) | DB transaction interface |
 | Infrastructure | [`Lamour.Infrastructure/Persistence/UnitOfWork.cs`](../../../../Lamour.Infrastructure/Persistence/UnitOfWork.cs) | `IDbContextTransaction` implementation |
 | UseCase | [`UseCases/GetSalesReturnsUseCase.cs`](../UseCases/GetSalesReturnsUseCase.cs) | Fetch & map tất cả chứng từ; chứa `internal static MapToDto()` |
@@ -148,6 +151,8 @@ graph TD
 | `POST` | `/api/v1/sales-returns` | `CreateSalesReturnRequestDto` | `SalesReturnResponseDto` (201) |
 | `PUT` | `/api/v1/sales-returns/{id}` | `UpdateSalesReturnRequestDto` | `SalesReturnResponseDto` (200) |
 | `DELETE` | `/api/v1/sales-returns/{id}` | — | 204 No Content |
+| `POST` | `/api/v1/sales-returns/{id}/confirm` | — | `SalesReturnResponseDto` (200) — "Ghi sổ" |
+| `POST` | `/api/v1/sales-returns/{id}/unconfirm` | — | `SalesReturnResponseDto` (200) — "Bỏ ghi" |
 
 ### Request — Create / Update
 ```json
@@ -198,9 +203,13 @@ graph TD
   "total_discount": 1575000,
   "total_payment": 2925000,
   "created_at": "2026-06-13T08:00:00Z",
+  "status": "Draft",
+  "confirmed_at": null,
   "lines": [ ... ]
 }
 ```
+
+`status`: `"Draft"` | `"Confirmed"` (string — cùng convention `Status.ToString()` như `PaymentResponseDto`/`WarehouseReceiptResponseDto`, không phải số nguyên).
 
 `return_type` values: `0` = GiảmTrừCôngNợ, `1` = TrảLạiTiềnMặt
 
@@ -208,11 +217,15 @@ graph TD
 
 ## Stock Restoration Pattern
 
-Ngược với SalesOrder (trừ kho khi tạo), SalesReturn **cộng kho** khi tạo:
+> **Đã đổi (2026-08-31):** Trước đây SalesReturn cộng kho ngay khi Create (và hoàn tác khi
+> Update/Delete). Nay stock effect **chỉ xảy ra khi Confirm/Unconfirm** — giống hệt pattern của
+> `WarehouseReceipt`/`Payment`. Create/Update/Delete không còn đụng tới `StockQuantity` nữa.
+
+Ngược với SalesOrder (trừ kho khi tạo), SalesReturn **cộng kho khi Confirm** ("Ghi sổ"):
 
 ```csharp
-// Create — cộng kho
-foreach (var line in lines)
+// ConfirmSalesReturnUseCase — cộng kho (chỉ cho phép khi đang Draft)
+foreach (var line in salesReturn.Lines)
 {
     var product = await _productRepo.GetByIdTrackedAsync(line.ProductId, ct);
     if (product is not null)
@@ -220,27 +233,34 @@ foreach (var line in lines)
         product.StockQuantity += line.Quantity;  // ← cộng
         await _productRepo.UpdateAsync(product, ct);
     }
+    await _stockRepo.AdjustQuantityAsync(line.ProductId, line.WarehouseId, line.Quantity, ct);
 }
+salesReturn.Status      = SalesReturnStatus.Confirmed;
+salesReturn.ConfirmedAt = DateTime.UtcNow;
 
-// Delete — trừ lại kho
+// UnconfirmSalesReturnUseCase — trừ lại kho (chỉ cho phép khi đang Confirmed)
+// Two-pass: validate tồn đủ cho TẤT CẢ lines trước, rồi mới trừ — tránh trừ dở dang
 foreach (var line in salesReturn.Lines)
 {
     var product = await _productRepo.GetByIdTrackedAsync(line.ProductId, ct);
-    if (product is not null)
-    {
-        product.StockQuantity -= line.Quantity;  // ← trừ lại
-        await _productRepo.UpdateAsync(product, ct);
-    }
+    if (product.StockQuantity < line.Quantity)
+        throw new DomainException($"Không thể bỏ ghi vì tồn kho hiện tại của hàng hóa '{product.Name}' không đủ để hoàn tác...");
 }
-
-// Update — hoàn kho cũ rồi cộng kho mới
-// Step 1: undo old lines (−old_qty)
-foreach (var oldLine in existing.Lines)
-    product.StockQuantity -= oldLine.Quantity;
-// Step 2: apply new lines (+new_qty)
-foreach (var newLine in lines)
-    product.StockQuantity += newLine.Quantity;
+foreach (var line in salesReturn.Lines)
+{
+    var product = await _productRepo.GetByIdTrackedAsync(line.ProductId, ct);
+    product.StockQuantity -= line.Quantity;  // ← trừ lại
+    await _productRepo.UpdateAsync(product, ct);
+    await _stockRepo.AdjustQuantityAsync(line.ProductId, line.WarehouseId, -line.Quantity, ct);
+}
+salesReturn.Status      = SalesReturnStatus.Draft;
+salesReturn.ConfirmedAt = null;
 ```
+
+Create/Update/Delete không còn thao tác tồn kho:
+- **Create** — tạo mới, `Status = Draft` (property default), không cộng kho.
+- **Update** — chỉ cho phép khi `Draft` (`DomainException` nếu `Confirmed`); replace toàn bộ `Lines` (Clear + Add), không tính lại tồn kho vì Draft chưa từng tác động kho.
+- **Delete** — chỉ cho phép khi `Draft` (`DomainException` nếu `Confirmed`); không cần hoàn tác tồn kho.
 
 ---
 
@@ -288,6 +308,8 @@ builder.Services.AddScoped<IGetNextSalesReturnCodeUseCase, GetNextSalesReturnCod
 builder.Services.AddScoped<ICreateSalesReturnUseCase, CreateSalesReturnUseCase>();
 builder.Services.AddScoped<IUpdateSalesReturnUseCase, UpdateSalesReturnUseCase>();
 builder.Services.AddScoped<IDeleteSalesReturnUseCase, DeleteSalesReturnUseCase>();
+builder.Services.AddScoped<IConfirmSalesReturnUseCase, ConfirmSalesReturnUseCase>();
+builder.Services.AddScoped<IUnconfirmSalesReturnUseCase, UnconfirmSalesReturnUseCase>();
 ```
 
 ---
@@ -327,6 +349,17 @@ Module: `Features/HomePage/SalesReturn/`
 DI registered in `HomeServiceCollectionExtensions.cs` with `AddHttpClient<ISalesReturnService, SalesReturnService>`.
 
 > **2026-08-28**: popup `SalesReturnWindow` trải qua redesign toàn diện (layout theo ảnh mẫu MISA, workflow "Ghi sổ → In Hoá Đơn" tự động, workflow "Lập PN → In Phiếu Nhập Kho", loạt fix bug "dòng trống vẫn hiện dữ liệu mặc định", fix "NV bán hàng" không tự liên kết) — thuần WPF-side, không đổi API contract nào ở trên. Xem doc riêng mới tạo: [`desktop-lamour/.../SalesReturn/docs/sales-return.md`](../../../../../../desktop-lamour/src/DesktopLamour/Features/HomePage/SalesReturn/docs/sales-return.md).
+
+> **2026-08-31**: Thêm Draft/Confirmed status workflow cho BE (mirror `WarehouseReceiptStatus`) —
+> `SalesReturnStatus.Draft=0` / `Confirmed=1` + `ConfirmedAt`, 2 endpoint mới `POST
+> /api/v1/sales-returns/{id}/confirm` ("Ghi sổ") và `POST /api/v1/sales-returns/{id}/unconfirm`
+> ("Bỏ ghi"). Stock effect (`StockQuantity += / -= line.Quantity`) chuyển từ Create sang Confirm;
+> Update/Delete giờ yêu cầu `Status == Draft` (`DomainException` nếu đã Confirmed — phải Bỏ ghi
+> trước). Rows đã tồn tại trước migration được backfill là `Confirmed` qua column-level default
+> của EF migration (`HasDefaultValue(SalesReturnStatus.Confirmed)` + `HasSentinel(-1)` — xem comment
+> trong `SalesReturnConfiguration.cs`), vì chúng đã được cộng kho tại thời điểm Create theo hành vi
+> cũ — không cần fix data thủ công. Migration: `SalesReturnStatus`
+> (`src/Lamour.Infrastructure/Migrations/`).
 
 ---
 

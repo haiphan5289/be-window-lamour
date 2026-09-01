@@ -108,19 +108,9 @@ public class CreateSalesReturnUseCase : ICreateSalesReturnUseCase
         await _uow.BeginAsync(ct);
         try
         {
+            // Draft/Confirmed workflow: stock effect is applied only on Confirm ("Ghi sổ"), not
+            // here on Create. New records start as Draft (see SalesReturn.Status property default).
             var saved = await _repo.AddAsync(salesReturn, ct);
-
-            // Restore stock — items returned means stock increases
-            foreach (var line in lines)
-            {
-                var product = await _productRepo.GetByIdTrackedAsync(line.ProductId, ct);
-                if (product is not null)
-                {
-                    product.StockQuantity += line.Quantity;
-                    await _productRepo.UpdateAsync(product, ct);
-                }
-                await _stockRepo.AdjustQuantityAsync(line.ProductId, line.WarehouseId, line.Quantity, ct);
-            }
 
             await _uow.CommitAsync(ct);
 

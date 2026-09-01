@@ -221,6 +221,18 @@ If WPF login not yet wired → temporarily comment out `[Authorize]` on controll
 
 ---
 
+## After WIRE — Mention `/ct-ui-consistency-review`
+
+Any new screen/grid/toolbar this skill just wired (list view, form popup, DataGrid columns) is a fresh surface for the exact visual-consistency drift `/ct-ui-consistency-review` exists to catch — missing column borders, a star-width column silently blocking horizontal scroll, or a toolbar/control that doesn't match the app's `AppColor`/`AppButton` palette. **After finishing Phase 3 (WIRE), always add one short line mentioning `/ct-ui-consistency-review` as an optional next step** — do not auto-invoke it, just surface it so the user can choose:
+
+```
+💡 Nếu màn hình mới có DataGrid/toolbar, chạy `/ct-ui-consistency-review` để rà border/scroll/màu sắc khớp toàn app.
+```
+
+This is a *mention*, not a chained invocation — never run `/ct-ui-consistency-review` automatically as part of this skill.
+
+---
+
 ## Environment Quick Reference
 
 | Setting | Value |
@@ -346,6 +358,8 @@ PRIORITY: Low
 > 1. `dotnet run --project src/Lamour.Api` trên MacBook
 > 2. `.\sync.ps1` trên UTM Terminal 2
 > 3. WPF app tự reload → load data từ BE API ✓
+>
+> 💡 Màn danh sách Suppliers vừa wire có DataGrid mới — chạy `/ct-ui-consistency-review` nếu muốn rà border/scroll/màu sắc khớp toàn app.
 
 ---
 
@@ -362,3 +376,4 @@ PRIORITY: Low
 - [ ] `dotnet run --project src/Lamour.Api` on MacBook
 - [ ] `.\sync.ps1` on UTM Terminal 2
 - [ ] WPF loads real data from BE ✓
+- [ ] Mention `/ct-ui-consistency-review` as an optional next step if a new screen/DataGrid/toolbar was wired (do not auto-invoke)

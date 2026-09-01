@@ -3,7 +3,7 @@ using Lamour.Application.Features.Products.Repositories;
 using Lamour.Application.Features.Sales;
 using Lamour.Application.Features.SalesReturn.Dtos;
 using Lamour.Application.Features.SalesReturn.Repositories;
-using Lamour.Application.Features.Warehouse.Repositories;
+using Lamour.Domain.Entities;
 using Lamour.Domain.Exceptions;
 using Microsoft.Extensions.Logging;
 
@@ -16,20 +16,17 @@ public class UpdateSalesReturnUseCase : IUpdateSalesReturnUseCase
 {
     private readonly ISalesReturnRepository _repo;
     private readonly IProductRepository     _productRepo;
-    private readonly IProductWarehouseStockRepository _stockRepo;
     private readonly IUnitOfWork            _uow;
     private readonly ILogger<UpdateSalesReturnUseCase> _logger;
 
     public UpdateSalesReturnUseCase(
         ISalesReturnRepository repo,
         IProductRepository productRepo,
-        IProductWarehouseStockRepository stockRepo,
         IUnitOfWork uow,
         ILogger<UpdateSalesReturnUseCase> logger)
     {
         _repo        = repo;
         _productRepo = productRepo;
-        _stockRepo   = stockRepo;
         _uow         = uow;
         _logger      = logger;
     }
@@ -40,25 +37,18 @@ public class UpdateSalesReturnUseCase : IUpdateSalesReturnUseCase
         var salesReturn = await _repo.GetByIdTrackedAsync(id, ct)
             ?? throw new DomainException($"Sales return with id {id} not found.");
 
+        if (salesReturn.Status != SalesReturnStatus.Draft)
+            throw new DomainException("Chỉ chứng từ ở trạng thái Nháp mới được sửa. Bỏ ghi trước khi sửa.");
+
         if (request.Lines.Count == 0)
             throw new DomainException("At least one line item is required.");
 
         await _uow.BeginAsync(ct);
         try
         {
-            // Undo old lines: stock goes back down (undo the return)
-            foreach (var oldLine in salesReturn.Lines)
-            {
-                var product = await _productRepo.GetByIdTrackedAsync(oldLine.ProductId, ct);
-                if (product is not null)
-                {
-                    product.StockQuantity -= oldLine.Quantity;
-                    await _productRepo.UpdateAsync(product, ct);
-                }
-                await _stockRepo.AdjustQuantityAsync(oldLine.ProductId, oldLine.WarehouseId, -oldLine.Quantity, ct);
-            }
-
-            // Build new lines
+            // Chứng từ còn Draft chưa từng tác động tồn kho (chỉ Confirm mới cộng kho), nên
+            // replace toàn bộ dòng hàng không cần hoàn tác/tính lại tồn kho gì — mirror
+            // UpdateWarehouseReceiptUseCase.
             var newLines = new List<SalesReturnLineEntity>();
             foreach (var dto in request.Lines)
             {
@@ -115,21 +105,12 @@ public class UpdateSalesReturnUseCase : IUpdateSalesReturnUseCase
             salesReturn.TotalAmount    = newLines.Sum(l => l.Amount);
             salesReturn.TotalDiscount  = newLines.Sum(l => l.DiscountAmount);
             salesReturn.TotalPayment   = newLines.Sum(l => l.Amount) - newLines.Sum(l => l.DiscountAmount);
-            salesReturn.Lines          = newLines;
+
+            salesReturn.Lines.Clear();
+            foreach (var newLine in newLines)
+                salesReturn.Lines.Add(newLine);
 
             await _repo.UpdateAsync(salesReturn, ct);
-
-            // Apply new lines: restore stock for new returned items
-            foreach (var line in newLines)
-            {
-                var product = await _productRepo.GetByIdTrackedAsync(line.ProductId, ct);
-                if (product is not null)
-                {
-                    product.StockQuantity += line.Quantity;
-                    await _productRepo.UpdateAsync(product, ct);
-                }
-                await _stockRepo.AdjustQuantityAsync(line.ProductId, line.WarehouseId, line.Quantity, ct);
-            }
 
             await _uow.CommitAsync(ct);
 

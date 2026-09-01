@@ -6,10 +6,19 @@ public enum SalesReturnType
     CashRefund  = 1,  // Trả lại tiền mặt
 }
 
+public enum SalesReturnStatus
+{
+    Draft     = 0,
+    Confirmed = 1,
+}
+
 public class SalesReturn
 {
     public int    Id             { get; set; }
     public string DocumentNumber { get; set; } = "";  // BTL prefix
+
+    public SalesReturnStatus Status      { get; set; } = SalesReturnStatus.Draft;
+    public DateTime?         ConfirmedAt { get; set; }
 
     public DateTime AccountingDate { get; set; }
     public DateTime DocumentDate   { get; set; }

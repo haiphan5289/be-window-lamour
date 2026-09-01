@@ -306,6 +306,10 @@ builder.Services.AddScoped<Lamour.Application.Features.SalesReturn.UseCases.IDel
                            Lamour.Application.Features.SalesReturn.UseCases.DeleteSalesReturnUseCase>();
 builder.Services.AddScoped<Lamour.Application.Features.SalesReturn.UseCases.ICreateSalesReturnWarehouseReceiptUseCase,
                            Lamour.Application.Features.SalesReturn.UseCases.CreateSalesReturnWarehouseReceiptUseCase>();
+builder.Services.AddScoped<Lamour.Application.Features.SalesReturn.UseCases.IConfirmSalesReturnUseCase,
+                           Lamour.Application.Features.SalesReturn.UseCases.ConfirmSalesReturnUseCase>();
+builder.Services.AddScoped<Lamour.Application.Features.SalesReturn.UseCases.IUnconfirmSalesReturnUseCase,
+                           Lamour.Application.Features.SalesReturn.UseCases.UnconfirmSalesReturnUseCase>();
 
 // ── Deposits DI ───────────────────────────────────────────────────────────────
 builder.Services.AddScoped<Lamour.Application.Features.Deposits.Repositories.IDepositRepository,

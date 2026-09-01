@@ -42,6 +42,8 @@ public class GetSalesReturnsUseCase : IGetSalesReturnsUseCase
         TotalDiscount  = sr.TotalDiscount,
         TotalPayment   = sr.TotalPayment,
         CreatedAt      = sr.CreatedAt,
+        Status         = sr.Status.ToString(),
+        ConfirmedAt    = sr.ConfirmedAt,
         Lines          = sr.Lines.Select(l => new SalesReturnLineDto
         {
             Id               = l.Id,
