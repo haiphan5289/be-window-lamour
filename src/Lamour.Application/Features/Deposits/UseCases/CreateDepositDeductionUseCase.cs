@@ -40,7 +40,7 @@ public class CreateDepositDeductionUseCase : ICreateDepositDeductionUseCase
             throw new DomainException("Số tiền trừ cọc phải lớn hơn 0.");
 
         var eligibleDeposits = (await _depositRepo.GetEligibleForDeductionAsync(
-            salesOrder.CustomerId, request.SalesOrderId, ct)).ToList();
+            salesOrder.CustomerId, ct)).ToList();
 
         var totalAvailable = eligibleDeposits.Sum(d => d.RemainingBalance);
         if (request.Amount > totalAvailable)

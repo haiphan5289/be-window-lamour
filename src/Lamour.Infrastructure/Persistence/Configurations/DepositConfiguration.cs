@@ -33,15 +33,8 @@ public class DepositConfiguration : IEntityTypeConfiguration<Deposit>
                .HasForeignKey(x => x.EmployeeId)
                .OnDelete(DeleteBehavior.SetNull);
 
-        builder.Property(x => x.SourceSalesOrderId).HasColumnName("source_sales_order_id");
-        builder.HasOne(x => x.SourceSalesOrder)
-               .WithMany()
-               .HasForeignKey(x => x.SourceSalesOrderId)
-               .OnDelete(DeleteBehavior.Restrict);
-
         builder.HasIndex(x => x.AccountingDate);
         builder.HasIndex(x => x.DocumentNumber).IsUnique();
-        builder.HasIndex(x => x.SourceSalesOrderId);
 
         // Concurrency token dùng cột hệ thống `xmin` của PostgreSQL — chặn lost-update khi
         // 2 request trừ cọc (CreateDepositDeductionUseCase) chạy đồng thời trên cùng 1 Deposit.

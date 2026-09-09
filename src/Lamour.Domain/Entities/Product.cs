@@ -55,7 +55,8 @@ public class Product
     public string?         SpecialGoodsType        { get; set; }
     public decimal         LatestPurchasePrice     { get; set; }
     public bool            IsPromotionalGood       { get; set; }
-    // Sản phẩm đại diện cho việc "Đặt cọc" — dòng dùng sản phẩm này trong Sales Order sẽ tự động
-    // tạo/đồng bộ 1 Deposit ngầm gắn với đơn hàng đó (xem SalesOrderDepositHelper).
+    // Sản phẩm đại diện cho việc "Đặt cọc" — dòng dùng sản phẩm này trong Sales Order được loại
+    // khỏi toàn bộ validate/điều chỉnh tồn kho (giống dòng khuyến mại) và ẩn cột Đơn giá/CK/Thuế
+    // suất khi in hóa đơn. KHÔNG còn tự tạo Deposit — phiếu cọc chỉ tạo thủ công qua màn Đặt Cọc.
     public bool            IsDepositProduct        { get; set; }
 }

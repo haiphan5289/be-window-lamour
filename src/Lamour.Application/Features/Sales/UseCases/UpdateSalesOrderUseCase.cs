@@ -1,5 +1,4 @@
 using Lamour.Application.Abstractions;
-using Lamour.Application.Features.Deposits.Repositories;
 using Lamour.Application.Features.Products.Repositories;
 using Lamour.Application.Features.Sales;
 using Lamour.Application.Features.Sales.Dtos;
@@ -16,7 +15,6 @@ public class UpdateSalesOrderUseCase : IUpdateSalesOrderUseCase
     private readonly ISalesOrderRepository _repo;
     private readonly IProductRepository    _productRepo;
     private readonly IProductWarehouseStockRepository _stockRepo;
-    private readonly IDepositRepository    _depositRepo;
     private readonly IUnitOfWork           _uow;
     private readonly ILogger<UpdateSalesOrderUseCase> _logger;
 
@@ -24,14 +22,12 @@ public class UpdateSalesOrderUseCase : IUpdateSalesOrderUseCase
         ISalesOrderRepository repo,
         IProductRepository productRepo,
         IProductWarehouseStockRepository stockRepo,
-        IDepositRepository depositRepo,
         IUnitOfWork uow,
         ILogger<UpdateSalesOrderUseCase> logger)
     {
         _repo        = repo;
         _productRepo = productRepo;
         _stockRepo   = stockRepo;
-        _depositRepo = depositRepo;
         _uow         = uow;
         _logger      = logger;
     }
@@ -74,7 +70,6 @@ public class UpdateSalesOrderUseCase : IUpdateSalesOrderUseCase
             // Build new lines — validate stock against restored quantities
             var stockErrors = new List<string>();
             var newLines = new List<SalesOrderLine>();
-            decimal depositLinesAmount = 0;
             foreach (var dto in request.Lines)
             {
                 var product = await _productRepo.GetByIdAsync(dto.ProductId, ct);
@@ -116,9 +111,6 @@ public class UpdateSalesOrderUseCase : IUpdateSalesOrderUseCase
                     ReceivableAccount = string.IsNullOrWhiteSpace(dto.ReceivableAccount) ? "131" : dto.ReceivableAccount,
                     RevenueAccount    = string.IsNullOrWhiteSpace(dto.RevenueAccount) ? "511" : dto.RevenueAccount,
                 });
-
-                if (product.IsDepositProduct)
-                    depositLinesAmount += amount;
             }
 
             if (stockErrors.Count > 0)
@@ -167,8 +159,6 @@ public class UpdateSalesOrderUseCase : IUpdateSalesOrderUseCase
                 }
                 await _stockRepo.AdjustQuantityAsync(line.ProductId, line.WarehouseId!.Value, -line.Quantity, ct);
             }
-
-            await SalesOrderDepositHelper.SyncAsync(_depositRepo, order, depositLinesAmount, ct);
 
             await _uow.CommitAsync(ct);
 

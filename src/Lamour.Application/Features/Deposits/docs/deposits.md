@@ -1,6 +1,22 @@
 # Đặt Cọc (Deposit) — Feature Document (BE)
 
-> **Jira:** — | **Branch:** `dev` | **Generated:** 2026-08-09 | **Updated:** 2026-08-15 (Deposit có thể tự sinh từ 1 dòng sản phẩm "Đặt cọc" trong Sales Order — xem changelog cuối file)
+> **Jira:** — | **Branch:** `dev` | **Generated:** 2026-08-09 | **Updated:** 2026-09-08 (**gỡ hẳn cầu nối Sales Order ↔ Deposit** — xem "Update — 2026-09-08" ngay dưới) | 2026-08-15 (Deposit có thể tự sinh từ 1 dòng sản phẩm "Đặt cọc" trong Sales Order — nay đã gỡ)
+
+---
+
+## Update — 2026-09-08: Gỡ hẳn liên kết Chứng từ bán hàng ↔ Đặt cọc / Trừ cọc
+
+Toàn bộ cầu nối tự động giữa **Chứng từ bán hàng (XK)** và **Đặt cọc / Trừ cọc** đã bị gỡ. Đặt cọc và Trừ cọc giờ **không liên quan gì tới nhau** ngoài việc một lần Trừ cọc vẫn phải gắn 1 `sales_order_id` (bản chất nghiệp vụ — trừ cọc cho đơn nào).
+
+**Đã gỡ:**
+- **Auto-tạo Deposit từ dòng SP "Đặt cọc" trên XK** — xóa `SalesOrderDepositHelper`; `Create/Update/DeleteSalesOrderUseCase` không còn inject `IDepositRepository`, không còn tạo/đồng bộ/xóa Deposit theo đơn. Thêm 1 dòng SP `IsDepositProduct = true` vào XK giờ **không sinh phiếu cọc nào** — phiếu cọc **chỉ** tạo thủ công qua màn Đặt Cọc (`POST /api/v1/deposits`).
+- **Field `Deposit.SourceSalesOrderId` / cột `deposits.source_sales_order_id`** — xóa hẳn (entity, `DepositConfiguration`, FK + index, DTO `source_sales_order_id` / `source_sales_order_document_number`). Migration `DecoupleDepositFromSalesOrder` (DROP FK + index + column). Dữ liệu Deposit cũ giữ nguyên, chỉ mất cột link → hành xử y hệt cọc tạo thủ công.
+- **Self-exclusion khi Trừ cọc** — `GetEligibleForDeductionAsync` / `GetByCustomerIdAsync` bỏ tham số `excludeSalesOrderId`; `GET /deposits/by-customer/{id}` bỏ query `exclude_sales_order_id`. Trừ cọc phân bổ FIFO trên **mọi** Deposit còn số dư của khách, không loại trừ đơn nào.
+- Xóa `IDepositRepository.GetBySourceSalesOrderIdAsync`.
+
+**Giữ nguyên:** `Product.IsDepositProduct` + `SalesOrderLine.IsDepositProduct` (vẫn loại dòng khỏi validate/điều chỉnh tồn kho + ẩn cột Đơn giá/CK/Thuế suất khi in — độc lập với phiếu cọc); `DepositDeduction.SalesOrderId` (FK Restrict); engine Deposit/DepositDeduction thủ công (2026-08-09).
+
+> Các rule/changelog nói về "Deposit tự sinh từ Sales Order" bên dưới **không còn hiệu lực** — giữ lại để tra lịch sử.
 
 ---
 
@@ -83,7 +99,7 @@ HTTP POST /api/v1/deposit-deductions
   → ICreateDepositDeductionUseCase.ExecuteAsync()
   → ISalesOrderRepository.GetByIdAsync(sales_order_id)         ← 404 nếu không có; lấy CustomerId
   → guard: amount > 0                                          ← 400 nếu vi phạm
-  → IDepositRepository.GetEligibleForDeductionAsync(customerId, excludeSalesOrderId: sales_order_id)
+  → IDepositRepository.GetEligibleForDeductionAsync(customerId)
                                                                 ← các Deposit còn số dư, FIFO theo CreatedAt tăng dần
   → guard: amount <= Σ RemainingBalance                        ← 400 nếu vượt tổng số dư (all-or-nothing)
   → IUnitOfWork.BeginAsync()
@@ -139,7 +155,7 @@ graph TD
 | `GET` | `/api/v1/deposits` | — | `DepositResponseDto[]` |
 | `GET` | `/api/v1/deposits/{id}` | — | `DepositResponseDto` (200) / 404 |
 | `GET` | `/api/v1/deposits/next-code` | — | `{ "code": "DC00001" }` (200) |
-| `GET` | `/api/v1/deposits/by-customer/{customerId}?exclude_sales_order_id=` | — (query `exclude_sales_order_id` optional) | `DepositResponseDto[]` (chỉ cọc `RemainingBalance > 0`, loại cọc có `SourceSalesOrderId == exclude_sales_order_id` nếu param được truyền) |
+| `GET` | `/api/v1/deposits/by-customer/{customerId}` | — | `DepositResponseDto[]` (chỉ cọc `RemainingBalance > 0` của khách) |
 | `POST` | `/api/v1/deposits` | `CreateDepositRequestDto` | `DepositResponseDto` (201) |
 | `PUT` | `/api/v1/deposits/{id}` | `UpdateDepositRequestDto` | `DepositResponseDto` (200) / 400 nếu đã bị trừ / 404 |
 | `DELETE` | `/api/v1/deposits/{id}` | — | 204 / 400 nếu đã bị trừ / 404 |

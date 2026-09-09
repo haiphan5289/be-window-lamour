@@ -12,6 +12,7 @@ namespace Lamour.Application.Features.SalesReturn.UseCases;
 using SalesReturnEntity     = Lamour.Domain.Entities.SalesReturn;
 using SalesReturnLineEntity = Lamour.Domain.Entities.SalesReturnLine;
 using SalesReturnTypeEnum   = Lamour.Domain.Entities.SalesReturnType;
+using SalesReturnStatusEnum = Lamour.Domain.Entities.SalesReturnStatus;
 
 public class CreateSalesReturnUseCase : ICreateSalesReturnUseCase
 {
@@ -98,6 +99,10 @@ public class CreateSalesReturnUseCase : ICreateSalesReturnUseCase
             Description    = request.Description,
             Reference      = request.Reference,
             ReturnType     = (SalesReturnTypeEnum)request.ReturnType,
+            // Không còn vòng đời Nháp → Ghi sổ: chứng từ vừa lưu là đã ghi sổ ngay (giống Chứng từ
+            // bán hàng), tồn kho cộng luôn ở dưới trong cùng transaction này.
+            Status         = SalesReturnStatusEnum.Confirmed,
+            ConfirmedAt    = DateTime.UtcNow,
             TotalAmount    = lines.Sum(l => l.Amount),
             TotalDiscount  = lines.Sum(l => l.DiscountAmount),
             TotalPayment   = lines.Sum(l => l.Amount) - lines.Sum(l => l.DiscountAmount),
@@ -108,9 +113,20 @@ public class CreateSalesReturnUseCase : ICreateSalesReturnUseCase
         await _uow.BeginAsync(ct);
         try
         {
-            // Draft/Confirmed workflow: stock effect is applied only on Confirm ("Ghi sổ"), not
-            // here on Create. New records start as Draft (see SalesReturn.Status property default).
             var saved = await _repo.AddAsync(salesReturn, ct);
+
+            // Hàng bán bị trả lại → nhập lại kho: cộng tồn kho cho từng dòng (trước đây nằm ở
+            // ConfirmSalesReturnUseCase, nay gộp vào Create vì đã bỏ bước Ghi sổ riêng).
+            foreach (var line in saved.Lines)
+            {
+                var product = await _productRepo.GetByIdTrackedAsync(line.ProductId, ct);
+                if (product is not null)
+                {
+                    product.StockQuantity += line.Quantity;
+                    await _productRepo.UpdateAsync(product, ct);
+                }
+                await _stockRepo.AdjustQuantityAsync(line.ProductId, line.WarehouseId, line.Quantity, ct);
+            }
 
             await _uow.CommitAsync(ct);
 

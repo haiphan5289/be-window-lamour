@@ -8,6 +8,9 @@ public enum SalesReturnType
 
 public enum SalesReturnStatus
 {
+    // Draft (0) không còn được dùng — bỏ vòng đời Nháp → Ghi sổ (2026-09-07). Mọi chứng từ
+    // trả hàng vừa lưu đã là Confirmed và cộng tồn kho ngay (xem CreateSalesReturnUseCase).
+    // Vẫn giữ member để không phải viết migration đổi kiểu cột / backfill dữ liệu cũ.
     Draft     = 0,
     Confirmed = 1,
 }
@@ -17,7 +20,7 @@ public class SalesReturn
     public int    Id             { get; set; }
     public string DocumentNumber { get; set; } = "";  // BTL prefix
 
-    public SalesReturnStatus Status      { get; set; } = SalesReturnStatus.Draft;
+    public SalesReturnStatus Status      { get; set; } = SalesReturnStatus.Confirmed;
     public DateTime?         ConfirmedAt { get; set; }
 
     public DateTime AccountingDate { get; set; }

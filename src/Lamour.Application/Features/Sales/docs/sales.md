@@ -1,6 +1,6 @@
 # Sales Orders — Feature Document (BE)
 
-> **Jira:** — | **Branch:** `dev` | **Generated:** 2026-05-01 | **Last updated:** 2026-09-01 (tồn kho chỉ bị tác động khi đơn ở Normal/hoàn thành — Treo không còn trừ/giữ kho, xem mục "Update — 2026-09-01" cuối file) | 2026-08-09 (fix bug: Sửa đơn Treo + Ghi sổ không đổi status về Normal)
+> **Jira:** — | **Branch:** `dev` | **Generated:** 2026-05-01 | **Last updated:** 2026-09-08 (**gỡ hẳn cầu nối Sales Order ↔ Đặt cọc/Trừ cọc** — `Create/Update/DeleteSalesOrderUseCase` không còn tạo/đồng bộ/xóa `Deposit` theo đơn, không còn inject `IDepositRepository`; xóa `SalesOrderDepositHelper`. Dòng SP `IsDepositProduct` vẫn loại khỏi tồn kho + ẩn cột khi in, nhưng KHÔNG còn sinh phiếu cọc — chi tiết ở `Deposits/docs/deposits.md` mục "Update — 2026-09-08") | 2026-09-01 (tồn kho chỉ bị tác động khi đơn ở Normal/hoàn thành — Treo không còn trừ/giữ kho, xem mục "Update — 2026-09-01" cuối file) | 2026-08-09 (fix bug: Sửa đơn Treo + Ghi sổ không đổi status về Normal)
 
 ---
 

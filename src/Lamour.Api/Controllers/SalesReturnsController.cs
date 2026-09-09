@@ -16,8 +16,6 @@ public class SalesReturnsController : ControllerBase
     private readonly IUpdateSalesReturnUseCase      _update;
     private readonly IDeleteSalesReturnUseCase      _delete;
     private readonly ICreateSalesReturnWarehouseReceiptUseCase _createWarehouseReceipt;
-    private readonly IConfirmSalesReturnUseCase     _confirmSalesReturn;
-    private readonly IUnconfirmSalesReturnUseCase   _unconfirmSalesReturn;
 
     public SalesReturnsController(
         IGetSalesReturnsUseCase        getAll,
@@ -26,9 +24,7 @@ public class SalesReturnsController : ControllerBase
         ICreateSalesReturnUseCase      create,
         IUpdateSalesReturnUseCase      update,
         IDeleteSalesReturnUseCase      delete,
-        ICreateSalesReturnWarehouseReceiptUseCase createWarehouseReceipt,
-        IConfirmSalesReturnUseCase     confirmSalesReturn,
-        IUnconfirmSalesReturnUseCase   unconfirmSalesReturn)
+        ICreateSalesReturnWarehouseReceiptUseCase createWarehouseReceipt)
     {
         _getAll      = getAll;
         _getById     = getById;
@@ -37,8 +33,6 @@ public class SalesReturnsController : ControllerBase
         _update      = update;
         _delete      = delete;
         _createWarehouseReceipt = createWarehouseReceipt;
-        _confirmSalesReturn     = confirmSalesReturn;
-        _unconfirmSalesReturn   = unconfirmSalesReturn;
     }
 
     [HttpGet]
@@ -83,12 +77,4 @@ public class SalesReturnsController : ControllerBase
         var result = await _createWarehouseReceipt.ExecuteAsync(id, ct);
         return Created($"/api/v1/warehouse-receipts/{result.Id}", result);
     }
-
-    [HttpPost("{id:int}/confirm")]
-    public async Task<IActionResult> ConfirmSalesReturn(int id, CancellationToken ct)
-        => Ok(await _confirmSalesReturn.ExecuteAsync(id, ct));
-
-    [HttpPost("{id:int}/unconfirm")]
-    public async Task<IActionResult> UnconfirmSalesReturn(int id, CancellationToken ct)
-        => Ok(await _unconfirmSalesReturn.ExecuteAsync(id, ct));
 }

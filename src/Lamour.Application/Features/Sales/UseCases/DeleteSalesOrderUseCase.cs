@@ -1,5 +1,4 @@
 using Lamour.Application.Abstractions;
-using Lamour.Application.Features.Deposits.Repositories;
 using Lamour.Application.Features.Products.Repositories;
 using Lamour.Application.Features.Sales.Repositories;
 using Lamour.Application.Features.Warehouse.Repositories;
@@ -14,7 +13,6 @@ public class DeleteSalesOrderUseCase : IDeleteSalesOrderUseCase
     private readonly ISalesOrderRepository _repo;
     private readonly IProductRepository    _productRepo;
     private readonly IProductWarehouseStockRepository _stockRepo;
-    private readonly IDepositRepository    _depositRepo;
     private readonly IUnitOfWork           _uow;
     private readonly ILogger<DeleteSalesOrderUseCase> _logger;
 
@@ -22,14 +20,12 @@ public class DeleteSalesOrderUseCase : IDeleteSalesOrderUseCase
         ISalesOrderRepository repo,
         IProductRepository productRepo,
         IProductWarehouseStockRepository stockRepo,
-        IDepositRepository depositRepo,
         IUnitOfWork uow,
         ILogger<DeleteSalesOrderUseCase> logger)
     {
         _repo        = repo;
         _productRepo = productRepo;
         _stockRepo   = stockRepo;
-        _depositRepo = depositRepo;
         _uow         = uow;
         _logger      = logger;
     }
@@ -42,8 +38,6 @@ public class DeleteSalesOrderUseCase : IDeleteSalesOrderUseCase
         await _uow.BeginAsync(ct);
         try
         {
-            await SalesOrderDepositHelper.GuardAndDeleteLinkedDepositAsync(_depositRepo, id, ct);
-
             // Restore stock for non-promotion lines — CHỈ khi đơn đang Normal (đã từng trừ kho
             // thật lúc Create/Update). Đơn đang Treo chưa từng trừ kho (xem HoldSalesOrderUseCase/
             // CreateSalesOrderUseCase — 2026-09-01) nên xóa 1 đơn Treo không cần hoàn tác gì, hoàn

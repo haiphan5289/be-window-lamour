@@ -1,6 +1,28 @@
 # Sales Returns — Feature Document (BE)
 
-> **Jira:** — | **Branch:** `dev` | **Generated:** 2026-06-13 | **Last updated:** 2026-08-31
+> **Jira:** — | **Branch:** `dev` | **Generated:** 2026-06-13 | **Last updated:** 2026-09-07 (bỏ hẳn vòng đời Nháp → Ghi sổ — xem "Update — 2026-09-07" ngay dưới)
+
+---
+
+## Update — 2026-09-07: bỏ hẳn vòng đời Nháp → Ghi sổ
+
+Theo yêu cầu, chứng từ hàng bán bị trả lại không còn trạng thái **Nháp**. Mọi chứng từ vừa lưu
+là **đã ghi sổ** ngay và cộng tồn kho luôn trong cùng transaction — hành vi giống Chứng từ bán hàng.
+
+| Thành phần | Trước | Sau |
+|---|---|---|
+| `CreateSalesReturnUseCase` | Lưu `Draft`, chưa cộng kho | Lưu `Confirmed` + `ConfirmedAt` + **cộng tồn kho** cho mỗi dòng |
+| `UpdateSalesReturnUseCase` | Chặn nếu `Status != Draft` | Không chặn; **rút lại tồn kho dòng cũ (two-pass kiểm tra đủ tồn) → cộng lại theo dòng mới** (mirror `UpdateSalesOrderUseCase`) |
+| `DeleteSalesReturnUseCase` | Chặn nếu `Status != Draft` | Không chặn; **rút lại tồn kho** (two-pass) trước khi xóa |
+| `ConfirmSalesReturnUseCase` / `UnconfirmSalesReturnUseCase` + interfaces | Có | **Đã xóa** |
+| `SalesReturnsController` | `POST /{id}/confirm`, `POST /{id}/unconfirm` | **Đã xóa 2 endpoint** (còn lại: GET/POST/PUT/DELETE + `/next-code` + `/create-warehouse-receipt`) |
+| `Program.cs` | 2 dòng DI cho Confirm/Unconfirm | Đã xóa |
+| `SalesReturn.Status` (entity) | default `Draft` | default `Confirmed` (enum `Draft=0` giữ lại để **không cần migration**) |
+| `SalesReturnResponseDto.status` | `"Draft"` \| `"Confirmed"` | luôn `"Confirmed"` (field giữ nguyên trong JSON) |
+
+**Không có EF migration** — chỉ đổi default C# + comment; `dotnet ef migrations has-pending-model-changes` = no changes. Cột `status` / `confirmed_at` giữ nguyên trong DB.
+
+Workflow "Lập PN" (`CreateSalesReturnWarehouseReceiptUseCase`) không đổi — nó vốn không cộng kho.
 
 ---
 

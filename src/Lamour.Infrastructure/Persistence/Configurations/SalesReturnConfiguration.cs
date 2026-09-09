@@ -13,22 +13,14 @@ public class SalesReturnConfiguration : IEntityTypeConfiguration<SalesReturn>
         builder.Property(x => x.Id).HasColumnName("id");
         builder.Property(x => x.DocumentNumber).HasColumnName("document_number").HasMaxLength(50).IsRequired();
 
-        // Column-level default is Confirmed (NOT Draft) — this ONLY affects the EF migration's
-        // backfill of ALREADY-EXISTING rows. Those rows were created under the OLD behavior,
-        // where stock was applied immediately at Create time, so they must be marked Confirmed
-        // (never re-processed by a future Confirm action). All NEW rows going forward have
-        // Status explicitly set to Draft in C# by CreateSalesReturnUseCase (the entity's
-        // property default `= SalesReturnStatus.Draft`), so this column default never actually
-        // applies to new inserts — it only backfills historical data during migration. Do NOT
-        // "fix" this to Draft — that would silently mark pre-existing (already stock-applied)
-        // rows as Draft, allowing them to be Confirmed again and double-applying their stock effect.
+        // Vòng đời Nháp → Ghi sổ đã bị bỏ (2026-09-07): mọi chứng từ trả hàng luôn = Confirmed
+        // và cộng tồn kho ngay lúc Create (xem CreateSalesReturnUseCase). Column default Confirmed
+        // + entity property default Confirmed → dữ liệu cũ lẫn mới đều Confirmed.
         //
-        // HasSentinel(-1) is REQUIRED here: SalesReturnStatus.Draft == 0 (the CLR default for the
-        // enum). Without an explicit sentinel, EF Core treats any property whose value equals the
-        // CLR default as "unset" and substitutes the column default (Confirmed) on INSERT instead
-        // of sending the actual value — meaning every brand-new Draft row would silently be
-        // persisted as Confirmed. Setting the sentinel to an out-of-range value (-1, never a real
-        // Status) makes EF treat Draft (0) as a real, explicitly-assigned value that must be sent.
+        // HasSentinel(-1) giữ lại: SalesReturnStatus.Draft == 0 là CLR default của enum. Không có
+        // sentinel, EF coi property == CLR default là "chưa gán" và thay bằng column default khi
+        // INSERT. Đặt sentinel ra ngoài vùng giá trị thật (-1) để mọi giá trị Status thật (kể cả
+        // 0) đều được gửi nguyên vẹn.
         builder.Property(x => x.Status).HasColumnName("status").HasConversion<int>().IsRequired()
                .HasDefaultValue(SalesReturnStatus.Confirmed)
                .HasSentinel((SalesReturnStatus)(-1));
