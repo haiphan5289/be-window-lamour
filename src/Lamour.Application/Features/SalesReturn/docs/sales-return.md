@@ -1,14 +1,49 @@
 # Sales Returns — Feature Document (BE)
 
 > **Jira:** — | **Branch:** `dev` | **Generated:** 2026-06-13 | **Last updated:** 2026-09-11 (cùng
-> ngày, mục mới nhất) — **bug nghiêm trọng**: `GetSalesReturnsUseCase.MapToDto` thiếu field
-> `WarehouseId` khi map ra response, khiến API luôn trả `warehouse_id: 0` cho MỌI dòng của MỌI chứng
-> từ (không liên quan gì tới việc Kho có bị ngưng hoạt động hay không) — xem "Bug fix — 2026-09-11:
-> warehouse_id luôn trả về 0..." ngay dưới. Trước đó cùng ngày: **ĐẢO NGƯỢC quyết định 2026-09-10**:
-> "Cất" = "Ghi sổ" ngay (1 lần bấm, không còn qua Treo trung gian) — xem "Update — 2026-09-11: Cất =
-> Ghi sổ ngay" (đè lên mô tả "2 lần bấm" ở mục "Update — 2026-09-10", mục đó nay chỉ còn giá trị lịch
-> sử). Trước đó cùng ngày: export HTML tĩnh của Review Artifact + đánh dấu điểm xác nhận #3 đã fix;
-> 2026-09-09 thêm validate Kho tồn tại ở Create/Update.
+> ngày, mục mới nhất) — **gộp "Nháp" (Draft) và "Treo" (Held) thành 1 trạng thái duy nhất "Treo"**,
+> theo yêu cầu, sau khi rà code xác nhận không còn guard nghiệp vụ nào (BE lẫn WPF) phân biệt 2 giá
+> trị này — chỉ khác label hiển thị. Áp dụng đồng bộ cho cả SalesOrder — xem "Update — 2026-09-11:
+> gộp Nháp + Treo thành 1" ngay dưới. Trước đó cùng ngày: bug `GetSalesReturnsUseCase.MapToDto` thiếu
+> field `WarehouseId` (API luôn trả `warehouse_id: 0`) — xem "Bug fix — 2026-09-11: warehouse_id
+> luôn trả về 0...". Trước đó cùng ngày: **ĐẢO NGƯỢC quyết định 2026-09-10**: "Cất" = "Ghi sổ" ngay
+> (1 lần bấm, không còn qua Treo trung gian) — xem "Update — 2026-09-11: Cất = Ghi sổ ngay". Trước
+> đó cùng ngày: export HTML tĩnh của Review Artifact + đánh dấu điểm xác nhận #3 đã fix; 2026-09-09
+> thêm validate Kho tồn tại ở Create/Update.
+
+---
+
+## Update — 2026-09-11: gộp "Nháp" (Draft) và "Treo" (Held) thành 1 trạng thái duy nhất "Treo"
+
+Theo yêu cầu ("gộp status nháp & treo thành 1"), xác nhận phạm vi qua nhiều vòng `AskUserQuestion`
+sau khi rà toàn bộ code (BE + WPF) để chắc chắn không bỏ sót chỗ nào thật sự còn phân biệt 2 trạng
+thái này. Kết quả rà: **BE không có bất kỳ guard nào từng check `Status == Held` hay
+`Status == Draft` riêng lẻ** — mọi UseCase chỉ dựa vào `== Confirmed`/`!= Confirmed`; Held và Draft
+đã được đối xử giống hệt nhau trong mọi rule nghiệp vụ từ trước (chỉ khác label hiển thị ở WPF).
+
+**Quyết định đã xác nhận:**
+- Tên gọi chung: **"Treo"** (bỏ hẳn chữ "Nháp") — khác với đề xuất ban đầu của AI ("Nháp"), user chọn
+  giữ "Treo".
+- Dữ liệu cũ: **migrate hẳn** (không chỉ gộp ở tầng hiển thị) — 3 chứng từ đang Draft trong DB được
+  chuyển sang Held qua migration mới, không giữ giá trị Draft nào trong DB nữa.
+- Phạm vi: áp dụng đồng bộ cho **cả SalesOrder** (không chỉ SalesReturn như request gốc nêu tên).
+
+| Thành phần | Trước | Sau (2026-09-11) |
+|---|---|---|
+| `UnconfirmSalesReturnUseCase` ("Bỏ ghi") | Đưa chứng từ về `Status = Draft` | Đưa về **`Status = Held`** |
+| `UnconfirmSalesOrderUseCase` ("Bỏ ghi") | Đưa đơn về `Status = Draft` (2) | Đưa về **`Status = Held`** (1) |
+| Migration mới `MergeSalesReturnDraftIntoHeld` | — | `UPDATE sales_returns SET status = 2 WHERE status = 0` — chuyển 3 chứng từ đang Draft sang Held. `Down()` KHÔNG revert (không thể phân biệt an toàn dòng nào vốn dĩ đã là Held từ trước migration) |
+| `sales_orders` — có cần migration? | — | **Không** — kiểm `psql` trước khi làm: 0 dòng đang ở Draft(2), chỉ có Normal(0)/Held(1), không có gì để migrate |
+| Enum `SalesReturnStatus.Draft`/`SalesOrderStatus.Draft` | — | **Giữ nguyên giá trị enum** (không xoá member, tránh breaking change/tương thích ngược) — chỉ không còn code nào GÁN MỚI giá trị này; mọi nơi ĐỌC Status coi Draft và Held là như nhau |
+
+Verify: `dotnet build` 0 lỗi, `dotnet test` 6/6 pass. `dotnet ef database update` áp dụng thành công,
+`psql` xác nhận `sales_returns` chỉ còn 2 giá trị status: `1` (Confirmed, 23 dòng) và `2` (Held, 7
+dòng — 4 vốn đã Held + 3 vừa migrate từ Draft), không còn dòng nào ở `0` (Draft). **Chưa restart BE
+process** (user tự quản lý — cần tự `dotnet run --project src/Lamour.Api` lại để nạp code mới).
+**Chưa test thật trên UTM.**
+
+Chi tiết thay đổi phía WPF (StatusLabel, StatusOptions, RowStyle, IsHeld) ở
+`desktop-lamour/.../SalesReturn/docs/sales-return.md` và `Sales/docs/sales.md` mục cùng tên.
 
 ---
 
@@ -670,6 +705,31 @@ DI registered in `HomeServiceCollectionExtensions.cs` with `AddHttpClient<ISales
 - Khác với SalesOrder: không có `IsPromotion` flag — tất cả lines đều ảnh hưởng tồn kho
 - `Amount` = gross (qty × price), khác với SalesOrder nơi `Amount` = net (sau CK)
 - `Số CT bán hàng` (`sales_order_number`) là free-text per line — không có FK ràng buộc với bảng `sales_orders`
+
+---
+
+## Update — 2026-09-11: Bug fix "In Phiếu Nhập Kho ra sản phẩm cũ sau khi sửa chứng từ"
+
+**Triệu chứng**: Sau khi Ghi sổ 1 chứng từ trả hàng, bấm "In" → PN được lập tự động (`CreateSalesReturnWarehouseReceiptUseCase`). Nếu sau đó user mở lại chứng từ và **sửa** (thêm dòng mới / đổi số lượng, sản phẩm...), bấm "In" lại vẫn ra PN **cũ** — dòng hàng không khớp chứng từ hiện tại.
+
+**Root cause**: `CreateSalesReturnWarehouseReceiptUseCase.ExecuteAsync` coi PN là 1 bản chụp (snapshot) dựng 1 lần duy nhất — hễ tìm thấy PN nào có `ReceiptType == ReturnedGoods && Reference == DocumentNumber` là ném `DomainException` (đã lập rồi) hoặc (ở WPF `PrintAsync`) tái dùng luôn, không có bước nào so lại dữ liệu hiện tại của chứng từ với PN đã lập.
+
+**Đã cân nhắc & loại**:
+- *Update PN theo Unconfirm→Update→Reconfirm*: `UnconfirmWarehouseReceiptUseCase` trừ lại `Product.StockQuantity` không điều kiện — PN loại `ReturnedGoods` này vốn KHÔNG cộng kho khi lập (xem workflow "Lập PN" ở dưới), gọi Unconfirm sẽ trừ kho sai.
+- *Sửa trực tiếp entity lấy từ `GetAllAsync`*: repo này dùng `AsNoTracking()` — sửa xong `SaveChangesAsync` không có tác dụng gì.
+- *Xoá PN cũ, lập lại*: chưa có API xoá `WarehouseReceipt` nào trong app — không tự thêm API xoá chỉ cho use case này.
+
+**Fix đã chọn** (đã hỏi & được xác nhận: "Tự động lập lại PN mới nếu dữ liệu lệch"):
+- Thêm cột `WarehouseReceipt.IsSuperseded` (bool, default false) — chỉ có ý nghĩa với PN loại `ReturnedGoods` tự lập từ SalesReturn.
+- `CreateSalesReturnWarehouseReceiptUseCase.ExecuteAsync`: tìm PN đang hiệu lực (`!IsSuperseded`) khớp `Reference`; so **chữ ký dòng hàng** (`ProductId:WarehouseId:Quantity`, sắp thứ tự) giữa PN đó và chứng từ hiện tại —
+  - khớp → tái dùng nguyên PN cũ (hành vi cũ, không đổi số PN).
+  - lệch → nạp lại PN cũ qua `GetByIdAsync` (tracked), đánh dấu `IsSuperseded = true`, `SaveChangesAsync`, rồi lập PN **mới** (số PN mới) khớp đúng dữ liệu hiện tại. PN cũ **không bị xoá** — giữ lại cho đối chiếu/audit, chỉ ẩn khỏi lần tìm tiếp theo.
+- `WarehouseReceiptResponseDto` (BE + WPF): thêm field `is_superseded`.
+- WPF `SalesReturnViewModel.PrintAsync`: bỏ hẳn bước tự `FindExistingWarehouseReceiptAsync` trước khi gọi Create — giờ gọi thẳng `_createWarehouseReceipt.ExecuteAsync`, để BE tự quyết định tái dùng/supersede+tạo mới. `FindExistingWarehouseReceiptAsync` (vẫn dùng bởi lệnh "Lập PN" cũ, đã gỡ khỏi UI nhưng code còn tồn tại) lọc thêm `!IsSuperseded`.
+
+**Đánh đổi đã chấp nhận**: số PN (`ReceiptNumber`) sẽ đổi mỗi lần dữ liệu chứng từ trả hàng bị sửa sau khi đã lập PN — chấp nhận vì ưu tiên luôn in đúng dữ liệu hiện tại.
+
+**Migration**: `AddIsSupersededToWarehouseReceipt` (cột `warehouse_receipts.is_superseded boolean NOT NULL DEFAULT FALSE`).
 
 ---
 

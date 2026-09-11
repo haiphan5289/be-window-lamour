@@ -3,11 +3,12 @@ namespace Lamour.Domain.Entities;
 public enum SalesOrderStatus
 {
     Normal  = 0,  // Ghi sổ — mặc định khi tạo đơn
-    Held    = 1,  // Treo đơn
-    // "Bỏ ghi" (2026-09-09) — khác "Treo": Treo dùng cho 1 đơn CHƯA hoàn chỉnh (tồn kho chưa từng
-    // trừ); Draft dùng khi 1 đơn ĐÃ Normal (đã trừ kho) bị đảo lại có chủ đích qua
-    // UnconfirmSalesOrderUseCase (đã hoàn tồn kho). Update luôn đưa đơn về lại Normal (mirror
-    // UnconfirmSalesReturnUseCase/UpdateSalesReturnUseCase) — không có nút "Ghi sổ" riêng để quay lại.
+    Held    = 1,  // Treo đơn — 2026-09-11: giờ là trạng thái "chưa Ghi sổ" DUY NHẤT (gộp với Draft,
+                  // xem SalesReturnStatus.Held cho bối cảnh đầy đủ). UnconfirmSalesOrderUseCase
+                  // ("Bỏ ghi") giờ luôn đưa đơn về Held thay vì Draft.
+    // Draft — GIỮ LẠI giá trị enum để tương thích ngược (dữ liệu cũ/serialize), nhưng từ 2026-09-11
+    // KHÔNG còn code nào gán mới giá trị này nữa — mọi nơi đọc Status coi Draft và Held là như nhau
+    // (xem SalesOrderViewModel.IsHeld, SalesOrderListItem.StatusLabel).
     Draft   = 2,
 }
 

@@ -45,6 +45,7 @@ public class WarehouseReceiptConfiguration : IEntityTypeConfiguration<WarehouseR
         builder.Property(r => r.TotalAmount).HasColumnName("total_amount").HasPrecision(18, 2);
         builder.Property(r => r.CreatedAt).HasColumnName("created_at").IsRequired();
         builder.Property(r => r.ConfirmedAt).HasColumnName("confirmed_at");
+        builder.Property(r => r.IsSuperseded).HasColumnName("is_superseded").HasDefaultValue(false);
 
         builder.HasOne(r => r.Customer)
                .WithMany()

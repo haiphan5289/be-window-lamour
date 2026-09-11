@@ -72,7 +72,11 @@ public class UnconfirmSalesReturnUseCase : IUnconfirmSalesReturnUseCase
                 await _stockRepo.AdjustQuantityAsync(line.ProductId, line.WarehouseId, -line.Quantity, ct);
             }
 
-            salesReturn.Status      = SalesReturnStatus.Draft;
+            // 2026-09-11: gộp "Nháp" và "Treo" thành 1 trạng thái duy nhất "Treo" (Held) — theo yêu
+            // cầu, sau khi "Cất" đã luôn Ghi sổ ngay thì Held/Draft không còn khác biệt gì về nghiệp
+            // vụ (đã xác nhận qua rà code: mọi guard chỉ dựa vào Confirmed, không nơi nào phân biệt
+            // Held vs Draft). "Bỏ ghi" giờ luôn đưa về Held thay vì Draft.
+            salesReturn.Status      = SalesReturnStatus.Held;
             salesReturn.ConfirmedAt = null;
 
             await _repo.UpdateAsync(salesReturn, ct);

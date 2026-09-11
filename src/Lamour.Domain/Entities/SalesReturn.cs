@@ -8,12 +8,17 @@ public enum SalesReturnType
 
 public enum SalesReturnStatus
 {
-    // 2026-09-10: tái kích hoạt Draft (0) — đảo ngược quyết định 2026-09-07. Cất (Create/Update)
-    // giờ luôn kết thúc ở Held, không còn tự Confirm ngay; Draft vẫn giữ nguyên nghĩa cũ ("Bỏ ghi"
-    // từ Confirmed). Xem CreateSalesReturnUseCase/UpdateSalesReturnUseCase/ConfirmSalesReturnUseCase.
+    // Draft — GIỮ LẠI giá trị enum để tương thích ngược (dữ liệu cũ/serialize), nhưng từ 2026-09-11
+    // KHÔNG còn code nào gán mới giá trị này nữa — đã gộp "Nháp" và "Treo" thành 1 trạng thái duy
+    // nhất "Treo" (Held, xem dưới), theo yêu cầu sau khi xác nhận không có guard nghiệp vụ nào (BE
+    // lẫn WPF) từng thực sự phân biệt Draft với Held — chỉ khác label hiển thị. Mọi nơi đọc Status
+    // coi Draft và Held là như nhau (xem SalesReturnViewModel.IsHeld, SalesReturnListItem.StatusLabel).
     Draft     = 0,
     Confirmed = 1,
-    Held      = 2, // "Treo" — mirror SalesOrderStatus.Held. Giá trị mới, không cần EF migration.
+    // 2026-09-11: "Treo" (Held) giờ là trạng thái "chưa Ghi sổ" DUY NHẤT. Cất (Create/Update) luôn
+    // kết thúc ở Confirmed (xem CreateSalesReturnUseCase); UnconfirmSalesReturnUseCase ("Bỏ ghi")
+    // giờ luôn đưa về Held thay vì Draft.
+    Held      = 2,
 }
 
 public class SalesReturn

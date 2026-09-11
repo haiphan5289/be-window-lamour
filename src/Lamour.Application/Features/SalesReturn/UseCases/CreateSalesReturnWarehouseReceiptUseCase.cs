@@ -13,6 +13,13 @@ namespace Lamour.Application.Features.SalesReturn.UseCases;
 // vì CreateSalesReturnUseCase/UpdateSalesReturnUseCase đã cộng tồn kho ngay khi ghi sổ chứng từ trả
 // hàng — gọi thêm lần nữa sẽ cộng tồn kho 2 lần. PN ở đây thuần là chứng từ giấy/kế toán
 // (Nợ TK kho / Có TK giá vốn), dựng sẵn Status = Confirmed để hiện "đã ghi sổ" ngay, không đụng kho.
+//
+// 2026-09-11 (bug fix "In ra sản phẩm cũ sau khi sửa chứng từ"): PN từng chỉ là 1 bản chụp
+// (snapshot) dòng hàng tại thời điểm lập — nếu SalesReturn bị sửa SAU đó (thêm/đổi dòng), PN cũ
+// không tự cập nhật, và "In" (PrintAsync ở WPF) cứ tìm thấy PN cũ là dùng luôn → in ra dữ liệu cũ.
+// Giờ ExecuteAsync tự so khớp dòng hàng mỗi lần gọi: khớp thì tái dùng PN cũ (như trước); LỆCH thì
+// đánh dấu PN cũ IsSuperseded=true (không xoá — chưa có API xoá, giữ lại để đối chiếu/audit) rồi
+// lập PN MỚI khớp đúng dữ liệu hiện tại (số PN sẽ đổi — chấp nhận đánh đổi để luôn in đúng).
 public class CreateSalesReturnWarehouseReceiptUseCase : ICreateSalesReturnWarehouseReceiptUseCase
 {
     private readonly ISalesReturnRepository      _salesReturnRepo;
@@ -38,9 +45,36 @@ public class CreateSalesReturnWarehouseReceiptUseCase : ICreateSalesReturnWareho
             throw new DomainException("Chứng từ không có dòng hàng nào để lập phiếu nhập kho.");
 
         var existingReceipts = await _receiptRepo.GetAllAsync(ct);
-        if (existingReceipts.Any(r => r.ReceiptType == WarehouseReceiptType.ReturnedGoods
-                                       && r.Reference == salesReturn.DocumentNumber))
-            throw new DomainException($"Đã lập phiếu nhập kho cho chứng từ {salesReturn.DocumentNumber} rồi.");
+        var existingActive = existingReceipts.FirstOrDefault(r =>
+            r.ReceiptType == WarehouseReceiptType.ReturnedGoods
+            && r.Reference == salesReturn.DocumentNumber
+            && !r.IsSuperseded);
+
+        if (existingActive is not null)
+        {
+            var currentSignature  = BuildLineSignature(salesReturn.Lines.Select(l => (l.ProductId, l.WarehouseId, l.Quantity)));
+            var existingSignature = BuildLineSignature(existingActive.Lines.Select(l => (l.ProductId, l.WarehouseId, l.Quantity)));
+
+            if (currentSignature == existingSignature)
+            {
+                _logger.LogInformation(
+                    "Reused existing WarehouseReceipt {ReceiptNumber} for SalesReturn {DocumentNumber} — lines unchanged",
+                    existingActive.ReceiptNumber, salesReturn.DocumentNumber);
+                return CreateWarehouseReceiptUseCase.MapToDto(existingActive);
+            }
+
+            // Chứng từ đã bị sửa sau khi lập PN — PN cũ không còn khớp dữ liệu hiện tại. `existingActive`
+            // đến từ GetAllAsync (AsNoTracking) nên phải nạp lại TRACKED qua GetByIdAsync mới sửa được.
+            var tracked = await _receiptRepo.GetByIdAsync(existingActive.Id, ct);
+            if (tracked is not null)
+            {
+                tracked.IsSuperseded = true;
+                await _receiptRepo.SaveChangesAsync(ct);
+                _logger.LogInformation(
+                    "Superseded WarehouseReceipt {ReceiptNumber} for SalesReturn {DocumentNumber} — lines no longer match after edit",
+                    tracked.ReceiptNumber, salesReturn.DocumentNumber);
+            }
+        }
 
         var receiptNumber = await _receiptRepo.GetNextReceiptNumberAsync(ct);
 
@@ -79,4 +113,9 @@ public class CreateSalesReturnWarehouseReceiptUseCase : ICreateSalesReturnWareho
 
         return CreateWarehouseReceiptUseCase.MapToDto(saved);
     }
+
+    private static string BuildLineSignature(IEnumerable<(int ProductId, int WarehouseId, int Quantity)> lines) =>
+        string.Join("|", lines
+            .OrderBy(l => l.ProductId).ThenBy(l => l.WarehouseId).ThenBy(l => l.Quantity)
+            .Select(l => $"{l.ProductId}:{l.WarehouseId}:{l.Quantity}"));
 }

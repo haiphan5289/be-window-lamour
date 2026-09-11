@@ -74,7 +74,9 @@ public class UnconfirmSalesOrderUseCase : IUnconfirmSalesOrderUseCase
                 await _stockRepo.AdjustQuantityAsync(line.ProductId, line.WarehouseId!.Value, line.Quantity, ct);
             }
 
-            order.Status = SalesOrderStatus.Draft;
+            // 2026-09-11: gộp "Nháp" và "Treo" thành 1 trạng thái duy nhất "Treo" (Held) — mirror
+            // SalesReturn cùng ngày. "Bỏ ghi" giờ luôn đưa đơn về Held thay vì Draft.
+            order.Status = SalesOrderStatus.Held;
             await _repo.UpdateAsync(order, ct);
 
             await _uow.CommitAsync(ct);

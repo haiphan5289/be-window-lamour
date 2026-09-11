@@ -145,6 +145,7 @@ public class CreateWarehouseReceiptUseCase : ICreateWarehouseReceiptUseCase
         TotalAmount    = r.TotalAmount,
         CreatedAt      = r.CreatedAt,
         ConfirmedAt    = r.ConfirmedAt,
+        IsSuperseded   = r.IsSuperseded,
         Lines          = r.Lines.Select(l => new WarehouseReceiptLineDto
         {
             Id            = l.Id,

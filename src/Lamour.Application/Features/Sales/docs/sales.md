@@ -1,9 +1,11 @@
 # Sales Orders — Feature Document (BE)
 
-> **Jira:** — | **Branch:** `dev` | **Generated:** 2026-05-01 | **Last updated:** 2026-09-11 (**ĐẢO
-> NGƯỢC quyết định 2026-09-10 — "Cất" = "Ghi sổ" ngay, không còn 2 lần bấm** — xem mục "Update —
-> 2026-09-11: Cất = Ghi sổ ngay" cuối file, đè lên toàn bộ mô tả "2 lần bấm" ở mục "Update —
-> 2026-09-10" ngay dưới đây) | 2026-09-10 (**tách "Cất" và "Ghi sổ" thành 2 hành động riêng — NAY ĐÃ
+> **Jira:** — | **Branch:** `dev` | **Generated:** 2026-05-01 | **Last updated:** 2026-09-11 (cùng
+> ngày, mục mới nhất) — **gộp "Nháp" (Draft) và "Treo" (Held) thành 1 trạng thái duy nhất "Treo"**,
+> mirror SalesReturn cùng ngày — xem mục "Update — 2026-09-11: gộp Nháp + Treo thành 1" cuối file.
+> Trước đó cùng ngày: **ĐẢO NGƯỢC quyết định 2026-09-10 — "Cất" = "Ghi sổ" ngay, không còn 2 lần
+> bấm** — xem mục "Update — 2026-09-11: Cất = Ghi sổ ngay" cuối file, đè lên toàn bộ mô tả "2 lần
+> bấm" ở mục "Update — 2026-09-10" ngay dưới đây) | 2026-09-10 (**tách "Cất" và "Ghi sổ" thành 2 hành động riêng — NAY ĐÃ
 > LỖI THỜI** — xem mục "Update — 2026-09-10" cuối file) | 2026-09-08 (**gỡ hẳn cầu nối Sales Order ↔ Đặt cọc/Trừ cọc** — `Create/Update/DeleteSalesOrderUseCase` không còn tạo/đồng bộ/xóa `Deposit` theo đơn, không còn inject `IDepositRepository`; xóa `SalesOrderDepositHelper`. Dòng SP `IsDepositProduct` vẫn loại khỏi tồn kho + ẩn cột khi in, nhưng KHÔNG còn sinh phiếu cọc — chi tiết ở `Deposits/docs/deposits.md` mục "Update — 2026-09-08") | 2026-09-01 (tồn kho chỉ bị tác động khi đơn ở Normal/hoàn thành — Treo không còn trừ/giữ kho, xem mục "Update — 2026-09-01" cuối file) | 2026-08-09 (fix bug: Sửa đơn Treo + Ghi sổ không đổi status về Normal)
 
 ---
@@ -703,3 +705,24 @@ liên quan tới Status/tồn kho nên không cần sửa). `dotnet build -p:Ena
 0 lỗi. **Chưa test thật trên UTM** — đặc biệt cần xác nhận tồn kho trừ đúng ngay khi bấm Cất lần đầu,
 và trường hợp "Cất" 1 đơn với nhiều dòng mà 1 dòng không đủ tồn (phải chặn TRƯỚC khi trừ dòng nào, đã
 giữ nguyên two-pass nên về lý thuyết an toàn, nhưng chưa test tay qua UTM).
+
+---
+
+## Update — 2026-09-11: gộp "Nháp" (Draft) và "Treo" (Held) thành 1 trạng thái duy nhất "Treo"
+
+Theo yêu cầu, mirror y hệt SalesReturn cùng ngày (xem `SalesReturn/docs/sales-return.md` mục cùng
+tên cho bối cảnh đầy đủ: lý do, xác nhận qua `AskUserQuestion`, kết quả rà code xác nhận Held/Draft
+chưa từng bị phân biệt bởi guard nghiệp vụ nào).
+
+**Quyết định**: tên gọi chung **"Treo"**; áp dụng đồng bộ cho cả 2 module cùng lúc.
+
+| Thành phần | Trước | Sau (2026-09-11) |
+|---|---|---|
+| `UnconfirmSalesOrderUseCase` ("Bỏ ghi") | Đưa đơn về `Status = Draft` (2) | Đưa về **`Status = Held`** (1) |
+| Migration | — | **Không cần** — kiểm `psql` trước khi làm: `sales_orders` có 0 dòng đang ở Draft(2) (chỉ Normal(0) 45 dòng, Held(1) 2 dòng), không có gì để migrate |
+| Enum `SalesOrderStatus.Draft` | — | Giữ nguyên giá trị enum (không xoá member) — chỉ không còn code nào gán mới; mọi nơi đọc Status coi Draft và Held là như nhau |
+
+Verify: `dotnet build` 0 lỗi, `dotnet test` 6/6 pass. Chi tiết thay đổi phía WPF
+(`SalesOrderListItem.StatusLabel`, `SalesOrderListView.xaml` RowStyle, `SalesOrderViewModel.IsHeld`)
+ở `desktop-lamour/.../Sales/docs/sales.md` mục cùng tên. **Chưa restart BE process** (user tự quản
+lý). **Chưa test thật trên UTM.**

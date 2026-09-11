@@ -41,6 +41,14 @@ public class WarehouseReceipt
     public DateTime  CreatedAt    { get; set; }
     public DateTime? ConfirmedAt  { get; set; }
 
+    // 2026-09-11: chỉ dùng bởi PN tự động lập từ SalesReturn (ReceiptType.ReturnedGoods, xem
+    // CreateSalesReturnWarehouseReceiptUseCase) — đánh dấu "đã bị thay thế" khi chứng từ trả hàng
+    // gốc bị sửa (thêm/đổi dòng) SAU khi đã lập PN, thay vì âm thầm in ra dữ liệu cũ đã lỗi thời.
+    // Không xoá PN cũ (chưa có API xoá WarehouseReceipt, và giữ lại cho mục đích đối chiếu/audit) —
+    // chỉ ẩn khỏi lần tìm PN liên kết tiếp theo (FindExistingWarehouseReceiptAsync lọc
+    // !IsSuperseded), 1 PN mới khớp đúng dữ liệu hiện tại sẽ được lập thay thế.
+    public bool      IsSuperseded { get; set; }
+
     public ICollection<WarehouseReceiptLine> Lines { get; set; } = new List<WarehouseReceiptLine>();
 }
 
