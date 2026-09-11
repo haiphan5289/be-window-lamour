@@ -49,7 +49,10 @@ public class CreateSalesReturnUseCase : ICreateSalesReturnUseCase
         var lines = new List<SalesReturnLineEntity>();
         foreach (var dto in request.Lines)
         {
-            var product = await _productRepo.GetByIdAsync(dto.ProductId, ct);
+            // Tracked (không phải AsNoTracking) — 2026-09-11 Cất giờ cộng tồn kho ngay trong cùng
+            // vòng lặp validate (xem cuối khối này), cần entity tracked để EF ghi nhận thay đổi
+            // StockQuantity, khớp đúng cách ConfirmSalesReturnUseCase (cũ) đã làm.
+            var product = await _productRepo.GetByIdTrackedAsync(dto.ProductId, ct);
             if (product is null)
                 throw new DomainException($"Sản phẩm với id {dto.ProductId} không tồn tại.");
             if (!product.IsActive)
@@ -99,6 +102,15 @@ public class CreateSalesReturnUseCase : ICreateSalesReturnUseCase
                 CostAmount       = costAmount,
                 DepartmentId     = dto.DepartmentId,
             });
+
+            // 2026-09-11: Cất giờ CỘNG tồn kho ngay (hàng trả lại = nhập lại kho) — đảo ngược quyết
+            // định 2026-09-10 ("Cất luôn ra Held, không đụng kho, phải Ghi sổ riêng"). Theo yêu cầu
+            // khớp hành vi MISA: "Cất" = "Ghi sổ" luôn, không còn bước Treo trung gian nữa. Logic
+            // cộng kho giống hệt ConfirmSalesReturnUseCase (vẫn giữ, dùng khi bấm "Ghi sổ" thẳng từ
+            // trạng thái Nháp không qua Sửa/Cất).
+            product.StockQuantity += dto.Quantity;
+            await _productRepo.UpdateAsync(product, ct);
+            await _stockRepo.AdjustQuantityAsync(dto.ProductId, dto.WarehouseId, dto.Quantity, ct);
         }
 
         var salesReturn = new SalesReturnEntity
@@ -111,10 +123,10 @@ public class CreateSalesReturnUseCase : ICreateSalesReturnUseCase
             Description    = request.Description,
             Reference      = request.Reference,
             ReturnType     = (SalesReturnTypeEnum)request.ReturnType,
-            // 2026-09-10: tái kích hoạt vòng đời Treo → Ghi sổ — chứng từ mới luôn ở Held, chưa
-            // đụng tồn kho. Cộng tồn kho thật xảy ra ở ConfirmSalesReturnUseCase ("Ghi sổ").
-            Status         = SalesReturnStatusEnum.Held,
-            ConfirmedAt    = null,
+            // 2026-09-11: "Cất" = "Ghi sổ" ngay — chứng từ mới luôn ở Confirmed, cộng tồn kho ngay
+            // trong vòng lặp validate ở trên (đảo ngược quyết định 2026-09-10 "Cất luôn ra Held").
+            Status         = SalesReturnStatusEnum.Confirmed,
+            ConfirmedAt    = DateTime.UtcNow,
             TotalAmount    = lines.Sum(l => l.Amount),
             TotalDiscount  = lines.Sum(l => l.DiscountAmount),
             TotalPayment   = lines.Sum(l => l.Amount) - lines.Sum(l => l.DiscountAmount),

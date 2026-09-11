@@ -48,6 +48,7 @@ public class GetSalesReturnsUseCase : IGetSalesReturnsUseCase
         {
             Id               = l.Id,
             ProductId        = l.ProductId,
+            WarehouseId      = l.WarehouseId,
             ProductCode      = l.ProductCode,
             ProductName      = l.ProductName,
             ReturnAccount    = l.ReturnAccount,

@@ -1,6 +1,104 @@
 # Warehouses (Kho) — Feature Document (BE + WPF)
 
-> **Jira:** — | **Branch:** `dev` | **Generated:** 2026-08-09
+> **Jira:** — | **Branch:** `dev` | **Generated:** 2026-08-09 | **Last updated:** 2026-09-11 (cùng
+> ngày, mục mới nhất) — **⚠️ tìm ra nguyên nhân THẬT SỰ** của "Kho bị mất khi mở lại chứng từ": không
+> phải (chỉ) do lọc IsActive như "Bug fix" bên dưới từng kết luận, mà do `GetSalesReturnsUseCase.
+> MapToDto` (BE) **thiếu hẳn field `WarehouseId`** khi map entity → response DTO — trả `warehouse_id:
+> 0` cho MỌI dòng, mọi chứng từ, bất kể Kho gì. Đây là nguyên nhân chính, phổ biến hơn nhiều; lỗi lọc
+> IsActive vẫn có thật nhưng chỉ ảnh hưởng riêng trường hợp Kho đã ngưng hoạt động. Chi tiết đầy đủ +
+> cách phát hiện (đối chiếu `psql` DB thật với response API thật) ở
+> `SalesReturn/docs/sales-return.md` mục "Bug fix — 2026-09-11: warehouse_id luôn trả về 0...". Trước
+> đó cùng ngày: backfill `default_warehouse_id = HH` cho 81 sản phẩm hiện có — xem "Update —
+> 2026-09-11: backfill..." ngay dưới. Trước đó: fix lọc IsActive (mục "Bug fix — 2026-09-11: Kho bị
+> mất khi mở lại chứng từ" — **kết luận ban đầu ở đây KHÔNG SAI nhưng KHÔNG ĐỦ**, vẫn giữ vì đúng 1
+> phần). Trước đó: ngưng hoạt động `KHO01`/`KHO02`, chỉ còn `HH`/`TB`.
+
+---
+
+## Update — 2026-09-11: backfill Kho ngầm định = Hàng hoá cho toàn bộ sản phẩm hiện có
+
+Theo yêu cầu ("chuyển tất cả sản phẩm sang kho Hàng hoá hết đi"), xác nhận phạm vi qua
+`AskUserQuestion` sau khi kiểm tra DB thật (`psql`): 81/81 sản phẩm đang để trống
+`default_warehouse_id` (không phải do lỗi — trường này vốn optional, chỉ mới thêm popup "Kho ngầm
+định" từ 2026-08-09, sản phẩm cũ chưa từng được set). Đã xác nhận rõ **chỉ backfill trường "gợi ý
+mặc định"**, KHÔNG đụng tới số tồn kho thật (`product_warehouse_stocks` — vốn đang chia ra 3 Kho:
+`HH` 74 dòng/19081, `TB` 29 dòng/103, `KHO01` 2 dòng/1 — giữ nguyên, không gộp).
+
+| Thành phần | Thay đổi |
+|---|---|
+| Migration mới `SetDefaultWarehouseForExistingProducts` | `UPDATE products SET default_warehouse_id = (SELECT id FROM warehouses WHERE code='HH') WHERE default_warehouse_id IS NULL` — chỉ update dòng đang NULL, an toàn rerun, không ghi đè lựa chọn thủ công nếu có. `Down()` revert ngược lại (set NULL cho các dòng đang = HH) |
+
+Verify: `dotnet build` 0 lỗi, `dotnet ef database update` áp dụng thành công, `psql` xác nhận
+81/81 sản phẩm đã có `default_warehouse_id = 4` (HH).
+
+**Lưu ý cho sản phẩm MỚI tạo sau này**: không cần backfill gì thêm — `ProductFormViewModel` (WPF) đã
+tự động mặc định "Kho ngầm định" = HH cho mọi sản phẩm mới (`DefaultWarehouseCode = "HH"`, có từ
+trước, xem mục "Update — 2026-09-11: ngưng hoạt động..." bên dưới).
+
+## Bug fix — 2026-09-11: Kho bị mất khi mở lại chứng từ (regression từ lần lọc IsActive cùng ngày)
+
+**Triệu chứng** (báo qua 3 ảnh chụp màn hình thật): thêm dòng sản phẩm mới → cột "Kho" hiện đúng
+"Hàng hoá" → bấm Cất → vẫn đúng. Nhưng mở lại 1 chứng từ **đã lưu từ trước** (tạo trước khi Kho
+"Kho chính" bị ngưng hoạt động) → cột "Kho" hiện **trống trơn**, dù "Mã hàng"/"Tên hàng" vẫn đúng.
+
+**Root cause**: lần sửa "ngưng hoạt động Kho thừa" (mục ngay dưới) đã lọc `Warehouses` (danh sách
+dùng cho combobox chọn Kho) chỉ còn Kho `IsActive`. Nhưng ở `SalesReturnViewModel`/
+`SalesOrderViewModel`/`ProductFormViewModel`, khi mở 1 chứng từ/sản phẩm **đã lưu**, code resolve
+`SelectedWarehouse` bằng cách tìm trong CHÍNH danh sách đã lọc đó
+(`Warehouses.FirstOrDefault(w => w.Id == line.WarehouseId)`). Nếu dòng cũ trỏ tới 1 Kho vừa bị
+ngưng hoạt động (ví dụ `KHO01`/"Kho chính" — default cũ trước khi có field `HH`), `FirstOrDefault`
+trả về `null` → `SelectedWarehouse = null` → cột Kho trống, và nếu user bấm Cất mà không tự chọn lại
+Kho thì BE sẽ trả 400 "Vui lòng chọn Kho..." (vì `WarehouseId` gửi lên là 0).
+
+**Fix**: cả 3 ViewModel giờ giữ **2 danh sách riêng** — `Warehouses` (đã lọc `IsActive`, dùng làm
+`ItemsSource` cho combobox — chỉ cho chọn Kho đang hoạt động) và `_allWarehouses` (KHÔNG lọc, chỉ
+dùng để RESOLVE giá trị Kho đã lưu của 1 dòng/sản phẩm cũ). Không cần đổi gì ở `AppSearchableComboBox`
+— control này cho phép `SelectedItem` không nằm trong `ItemsSource` vẫn hiện đúng `DisplayText` (xem
+`AppSearchableComboBox.xaml.cs:OnSelectedItemChanged`), nên chỉ cần lookup đúng nguồn dữ liệu.
+
+| File | Thay đổi |
+|---|---|
+| `SalesReturnViewModel.cs` | Thêm field `_allWarehouses`; dòng resolve Kho cho line đã lưu đổi từ `Warehouses.FirstOrDefault(...)` sang `_allWarehouses.FirstOrDefault(...)` |
+| `SalesOrderViewModel.cs` | Tương tự |
+| `ProductFormViewModel.cs` | Tương tự, áp dụng cho `SelectedDefaultWarehouse` ("Kho ngầm định") ở cả 2 chỗ nạp (load ban đầu + reload sau khi bấm "+" thêm Kho mới) |
+
+**Lưu ý — bug cùng loại (KHÔNG sửa trong lần này)**: `_allProducts` trong cả 2 ViewModel Sales/
+SalesReturn cũng đã lọc `IsActive` từ trước (không phải do lần sửa hôm nay), và dùng chung pattern
+resolve tương tự cho "Mã hàng"/"Tên hàng" của 1 dòng cũ (`_allProducts.FirstOrDefault(p => p.Id ==
+l.ProductId)`). Nếu 1 sản phẩm bị ngưng kinh doanh sau khi đã có chứng từ tham chiếu, nhiều khả năng
+"Mã hàng"/"Tên hàng" cũng sẽ trống theo đúng cơ chế lỗi y hệt — chưa xác nhận qua test thật, và chưa
+sửa vì nằm ngoài phạm vi báo lỗi lần này (chỉ báo "Kho"). Cần theo dõi/hỏi lại nếu gặp.
+
+Verify: `dotnet build -p:EnableWindowsTargeting=true` 0 lỗi. **Chưa test thật trên UTM** — đặc biệt
+cần mở lại đúng chứng từ trong 3 ảnh chụp màn hình gốc để xác nhận cột Kho hiện lại đúng "Hàng hoá".
+
+---
+
+## Update — 2026-09-11: ngưng hoạt động Kho thừa + lọc IsActive ở mọi nơi chọn Kho
+
+Theo yêu cầu ("Sản phẩm chọn mặc định là Kho Hàng Hoá, chỉ 2 Kho là Kho Trưng Bày & Hàng hoá"), xác
+nhận phạm vi qua nhiều vòng `AskUserQuestion` sau khi kiểm tra DB thật (`psql`) phát hiện **4 Kho
+đang active**, không phải 2 như PRD gốc dự định — `KHO01`/"Kho chính" (seed từ
+`AddWarehouseReceipts`) và `KHO02`/"Kho chi nhánh Q.1" (không có trong bất kỳ migration nào, chèn
+thủ công ngoài luồng) đã lẫn vào bên cạnh `HH`/`TB`.
+
+| Thành phần | Thay đổi |
+|---|---|
+| Migration mới `DeactivateExtraWarehouses` | `UpdateData` set `is_active=false` cho `id=1` (`KHO01`) và `id=3` (`KHO02`) — `Down()` phục hồi `true`. Không xoá row — chứng từ cũ đã tham chiếu 2 kho này vẫn giữ FK hợp lệ. `UpdateData` cho `id=3` an toàn no-op trên DB nào chưa từng có dòng này (fresh install). |
+| `SalesOrderViewModel.cs` (WPF) | `Warehouses` giờ lọc `.Where(w => w.IsActive)` trước khi hiện combobox chọn Kho ở dòng sản phẩm — trước đây không lọc, `KHO01`/`KHO02` vẫn hiện dù đã tắt |
+| `SalesReturnViewModel.cs` (WPF) | Tương tự lọc `IsActive`; **thêm mới** hằng số `DefaultWarehouseCode = "HH"` — mặc định Kho khi chọn Mã hàng đổi từ "lấy kho đầu tiên trong danh sách" (trước đây tình cờ là `KHO01`, giờ là `HH`) sang ưu tiên tìm `Code == "HH"` (mirror `SalesOrderViewModel`) |
+| `ProductFormViewModel.cs` (WPF, popup "Sửa Vật tư, hàng hoá, dịch vụ") | `Warehouses` (combobox "Kho ngầm định") lọc `IsActive` ở cả 2 chỗ nạp (load ban đầu + reload sau khi bấm "+" thêm Kho mới) — mặc định chọn "HH" cho sản phẩm mới **đã có sẵn từ trước** (`DefaultWarehouseCode = "HH"`, không đổi), chỉ thiếu lọc IsActive nên trước đây `KHO01`/`KHO02` vẫn lọt vào danh sách chọn |
+
+**Không đổi tên Kho** — `HH`/"Hàng hoá" và `TB`/"Trưng bày" giữ nguyên tên, không thêm tiền tố "Kho"
+(xác nhận qua `AskUserQuestion`, chỉ là cách gọi tắt trong yêu cầu, không cần đổi dữ liệu thật).
+
+**`WarehouseReceiptFormViewModel` không cần sửa** — không có combobox chọn Kho ở dòng, chỉ tính ngầm
+`WarehouseId = product.DefaultWarehouseId ?? 4` (id=4 = HH) khi submit, không hiện danh sách Kho nào
+cho user chọn nên không bị ảnh hưởng bởi Kho ngưng hoạt động.
+
+Verify: `dotnet build` (BE) + `dotnet ef database update` áp dụng thành công, `psql` xác nhận
+`warehouses.is_active` đúng `f` cho id 1/3, `t` cho id 4/5. `dotnet build -p:EnableWindowsTargeting=true`
+(WPF) 0 lỗi. **Chưa test thật trên UTM.**
 
 ---
 

@@ -1,10 +1,98 @@
 # Sales Returns — Feature Document (BE)
 
-> **Jira:** — | **Branch:** `dev` | **Generated:** 2026-06-13 | **Last updated:** 2026-09-11 (thêm ghi chú export HTML tĩnh của Review Artifact cho kế toán + đánh dấu điểm xác nhận #3 đã fix — xem mục "Review Artifact" ngay dưới; trước đó 2026-09-10 tái kích hoạt trạng thái Treo, tách "Cất" và "Ghi sổ" thành 2 hành động riêng — xem mục "Update — 2026-09-10: tách Cất/Ghi sổ" ngay dưới; 2026-09-09 thêm validate Kho tồn tại ở Create/Update)
+> **Jira:** — | **Branch:** `dev` | **Generated:** 2026-06-13 | **Last updated:** 2026-09-11 (cùng
+> ngày, mục mới nhất) — **bug nghiêm trọng**: `GetSalesReturnsUseCase.MapToDto` thiếu field
+> `WarehouseId` khi map ra response, khiến API luôn trả `warehouse_id: 0` cho MỌI dòng của MỌI chứng
+> từ (không liên quan gì tới việc Kho có bị ngưng hoạt động hay không) — xem "Bug fix — 2026-09-11:
+> warehouse_id luôn trả về 0..." ngay dưới. Trước đó cùng ngày: **ĐẢO NGƯỢC quyết định 2026-09-10**:
+> "Cất" = "Ghi sổ" ngay (1 lần bấm, không còn qua Treo trung gian) — xem "Update — 2026-09-11: Cất =
+> Ghi sổ ngay" (đè lên mô tả "2 lần bấm" ở mục "Update — 2026-09-10", mục đó nay chỉ còn giá trị lịch
+> sử). Trước đó cùng ngày: export HTML tĩnh của Review Artifact + đánh dấu điểm xác nhận #3 đã fix;
+> 2026-09-09 thêm validate Kho tồn tại ở Create/Update.
 
 ---
 
-## Review Artifact — workflow cho kế toán (đối chiếu lại lần 2 — 2026-09-11)
+## Bug fix — 2026-09-11: `warehouse_id` luôn trả về 0 khi GET (Kho hiện trống khi mở lại chứng từ)
+
+**Triệu chứng** (báo qua ảnh chụp màn hình thật, lần 2 — sau khi lần fix trước "Kho bị mất" ở
+`Warehouses/docs/warehouses.md` KHÔNG giải quyết dứt điểm): thêm dòng mới, Kho hiện đúng "Hàng hoá";
+Cất xong vẫn đúng; nhưng **đóng rồi mở lại chứng từ đã lưu → cột Kho trống trơn**, dù DB thật (kiểm
+qua `psql`) cho thấy `warehouse_id = 4` (Hàng hoá, đang hoạt động — KHÔNG phải trường hợp Kho bị
+ngưng hoạt động của lần fix trước).
+
+**Cách tìm ra**: đối chiếu trực tiếp 3 nguồn — `psql` (DB thật: `warehouse_id = 4`) vs response JSON
+thật từ `curl http://localhost:5282/api/v1/sales-returns` (`"warehouse_id": 0`) vs code
+`GetSalesReturnsUseCase.MapToDto`. DB đúng, API sai → chắc chắn lỗi nằm ở tầng mapping BE, không
+phải WPF.
+
+**Root cause**: `GetSalesReturnsUseCase.MapToDto` (dùng chung bởi `GetSalesReturnsUseCase`,
+`GetSalesReturnByIdUseCase`, và gián tiếp bởi `Create`/`UpdateSalesReturnUseCase` — tất cả đều gọi
+lại đúng 1 hàm tĩnh này) khi map `SalesReturnLine` → `SalesReturnLineDto` **thiếu hẳn dòng
+`WarehouseId = l.WarehouseId`** — trong khi các field tương tự khác (`ReturnAccount`, `DebtAccount`,
+`ProductCode`...) đều có mặt đầy đủ. `WarehouseId` trong DTO vì vậy luôn giữ giá trị mặc định `0`.
+Khớp đúng lý do 2 ảnh chụp đầu (Thêm/Cất trong CÙNG 1 phiên popup) vẫn hiện đúng "Hàng hoá": WPF
+`SaveAsync` set `CurrentReturn = result` nhưng KHÔNG gọi lại `PopulateFormFromCurrent()` — dòng đang
+sửa vẫn giữ nguyên `SelectedWarehouse` đã set cục bộ trước đó, chưa bao giờ thực sự đọc lại giá trị
+từ response. Chỉ khi mở lại (fetch mới hoàn toàn qua GET, chạy `PopulateFormFromCurrent()` với DTO
+mới) mới lộ ra `WarehouseId=0` từ BE.
+
+**Fix**: 1 dòng — `GetSalesReturnsUseCase.cs`, thêm `WarehouseId = l.WarehouseId,` vào khối map
+`SalesReturnLineDto`. Đối chiếu `Sales/UseCases/GetSalesOrdersUseCase.cs` (SalesOrder) — đã có sẵn
+đúng dòng này (`WarehouseId = l.WarehouseId ?? 0`), xác nhận SalesOrder KHÔNG bị bug này, chỉ riêng
+SalesReturn thiếu.
+
+Verify: `dotnet build` 0 lỗi, `dotnet test` 6/6 pass. Restart lại `dotnet run --project src/Lamour.Api`
+(đang chạy plain `dotnet run`, không phải `dotnet watch`, nên phải restart thủ công) rồi gọi lại
+`curl http://localhost:5282/api/v1/sales-returns` — xác nhận `warehouse_id` giờ trả đúng `4` cho
+đúng document/line vừa kiểm tra qua `psql` trước đó.
+
+**Lưu ý quan hệ với lần fix "IsActive filter" trước**: lần fix đó (tách `Warehouses`/`_allWarehouses`
+trong WPF) **vẫn đúng và vẫn cần giữ** — nó giải quyết đúng trường hợp dòng cũ trỏ tới 1 Kho ĐÃ NGƯNG
+HOẠT ĐỘNG. Bug này (thiếu `WarehouseId` trong response) là 1 nguyên nhân KHÁC, nghiêm trọng hơn vì
+ảnh hưởng MỌI chứng từ SalesReturn bất kể Kho gì — 2 lỗi cộng dồn khiến lần test đầu (Kho vẫn active)
+tưởng như lần fix trước không có tác dụng.
+
+## Update — 2026-09-11: "Cất" = "Ghi sổ" ngay (ĐẢO NGƯỢC quyết định 2026-09-10)
+
+**Đây là lần đổi ý thứ 3 cho đúng 1 khúc logic này** (2026-09-07 bỏ hẳn Nháp→Ghi sổ tách biệt → 2026-09-10
+tách lại "Cất"/"Ghi sổ" thành 2 bước với Treo trung gian → **2026-09-11 (hôm nay) đảo ngược lại**: "Cất"
+= "Ghi sổ" luôn). Đọc kỹ mục này trước khi đọc "Update — 2026-09-10" ngay bên dưới — mục đó mô tả hành
+vi ĐÃ LỖI THỜI, chỉ giữ lại vì giá trị lịch sử.
+
+**Theo yêu cầu** — kèm 1 video quay màn hình MISA (phần mềm tham chiếu), đã tách frame xem trực tiếp
+để xác nhận chính xác hành vi trước khi sửa (không đoán từ mô tả bằng lời): bấm "Cất" trên MISA →
+toggle nhảy thẳng từ "Ghi sổ" sang "Bỏ ghi" ngay (tooltip "Bỏ ghi (Ctrl+B)"), dùng được luôn — không
+có bước "bấm lần 1 chỉ tự tin hoá" như Lamour đang làm. Xác nhận qua nhiều vòng `AskUserQuestion`:
+loại bỏ hẳn Treo khỏi luồng Cất, và **áp dụng đồng bộ cho cả SalesOrder** (xem `Sales/docs/sales.md`
+mục cùng ngày) dù request gốc chỉ nêu tên SalesReturn — video demo dùng tab "Bán hàng" (SalesOrder)
+của MISA nhưng 2 module vốn đã luôn được xây/sửa giống hệt nhau từ trước.
+
+| Thành phần | Trước (2026-09-10) | Sau (2026-09-11, hôm nay) |
+|---|---|---|
+| `CreateSalesReturnUseCase` | Lưu `Held`, `ConfirmedAt=null`, KHÔNG cộng tồn kho | Lưu **`Confirmed`**, `ConfirmedAt=now`, **CỘNG tồn kho ngay** cho mỗi dòng (gộp thẳng logic vốn nằm trong `ConfirmSalesReturnUseCase` vào ngay vòng lặp validate — dùng `GetByIdTrackedAsync` thay vì `GetByIdAsync` để EF ghi nhận thay đổi `StockQuantity`) |
+| `UpdateSalesReturnUseCase` | Luôn kết thúc `Held`, không cộng kho dòng mới (vẫn hoàn tác dòng cũ nếu `wasConfirmed`) | Luôn kết thúc **`Confirmed`**, **cộng tồn kho dòng mới ngay** — khối hoàn tác dòng cũ (nếu `wasConfirmed`) giữ nguyên không đổi |
+| `ConfirmSalesReturnUseCase`/`UnconfirmSalesReturnUseCase` | Dùng cho MỌI lần chuyển trạng thái (kể cả sau Cất) | **Không đổi code** — vẫn còn, giờ chỉ dùng khi bấm "Ghi sổ"/"Bỏ ghi" thẳng từ trạng thái Nháp (không qua Sửa/Cất) |
+| `SalesReturnsController` | Không đổi | Không đổi (không thêm/bớt endpoint nào) |
+| WPF `SalesReturnViewModel` | Cờ `IsArmed` (WPF-only) bắt buộc bấm toggle 2 lần mới Confirm thật | **Xóa hẳn `IsArmed`** — `ToggleConfirmAsync` bấm 1 lần là gọi Confirm/Unconfirm thật ngay. `UnpostButtonLabel` đơn giản còn `IsConfirmed ? "Bỏ ghi" : "Ghi sổ"`. `CanDeleteReturn` bỏ điều kiện `IsArmed`, còn `!IsConfirmed && IsReadOnly` (Xóa bật ngay sau Bỏ ghi, tắt khi đang Sửa — giữ nguyên ý định gốc, chỉ bỏ phần liên quan Treo) |
+
+**Không cần EF migration** — cột `status`/`confirmed_at` giữ nguyên kiểu; enum `SalesReturnStatus.Held`
+vẫn giữ nguyên giá trị (không xoá) nhưng từ nay **không còn code nào tạo mới ở trạng thái Held** —
+chỉ dữ liệu cũ (tạo trước 2026-09-11) mới còn ở Held, xử lý bình thường như trước (Sửa/Xóa/Ghi sổ đều
+hoạt động đúng, không cần xử lý đặc biệt).
+
+**Verify đã chạy**: `dotnet build` 0 lỗi, `dotnet test` 6/6 pass (không có test nào assert trực tiếp
+`Status == Held` sau Create nên không có test nào cần sửa). `dotnet build -p:EnableWindowsTargeting=true`
+(WPF) 0 lỗi. **Chưa test thật trên UTM** — đặc biệt cần xác nhận tồn kho cộng đúng ngay khi bấm Cất
+lần đầu (trước đây phải bấm thêm 2 lần toggle mới thấy tồn kho đổi).
+
+**⚠️ Review Artifact cho kế toán (mục ngay dưới) hiện ĐANG MÔ TẢ SAI** — toàn bộ 7 bước "Cất → Treo
+→ bấm 2 lần → Ghi sổ" trong artifact/file export tĩnh giờ lỗi thời, cần đối chiếu lại lần 3 trước khi
+gửi cho kế toán xem tiếp. Chưa cập nhật artifact trong lần sửa này — cần làm riêng nếu muốn gửi lại
+cho kế toán.
+
+---
+
+## Review Artifact — workflow cho kế toán (đối chiếu lại lần 2 — 2026-09-11) — ⚠️ NỘI DUNG BÊN DƯỚI ĐÃ LỖI THỜI SAU MỤC "Update — 2026-09-11" Ở TRÊN
 
 Trang Artifact mô tả toàn bộ workflow (2 màn hình mockup + 7 bước + bảng quy tắc + 6 điểm cần xác nhận), tạo qua skill `ct-audience-persona-pattern` → `ct-review-artifact`, đã đối chiếu trực tiếp với code BE + WPF mới nhất (không chỉ đọc doc). **Đây là bản UPDATE-IN-PLACE cùng 1 link** — bản trước (2026-09-10) mô tả luồng "Cất = Ghi sổ ngay" đã lỗi thời hoàn toàn sau khi tách Cất/Ghi sổ (xem mục "Update — 2026-09-10" ngay dưới), bản này mô tả đúng luồng 2-lần-bấm-để-Ghi-sổ / 1-lần-bấm-để-Bỏ-ghi hiện tại:
 

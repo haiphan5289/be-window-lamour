@@ -1,6 +1,10 @@
 # Sales Orders — Feature Document (BE)
 
-> **Jira:** — | **Branch:** `dev` | **Generated:** 2026-05-01 | **Last updated:** 2026-09-10 (**tách "Cất" và "Ghi sổ" thành 2 hành động riêng** — xem mục "Update — 2026-09-10" cuối file) | 2026-09-08 (**gỡ hẳn cầu nối Sales Order ↔ Đặt cọc/Trừ cọc** — `Create/Update/DeleteSalesOrderUseCase` không còn tạo/đồng bộ/xóa `Deposit` theo đơn, không còn inject `IDepositRepository`; xóa `SalesOrderDepositHelper`. Dòng SP `IsDepositProduct` vẫn loại khỏi tồn kho + ẩn cột khi in, nhưng KHÔNG còn sinh phiếu cọc — chi tiết ở `Deposits/docs/deposits.md` mục "Update — 2026-09-08") | 2026-09-01 (tồn kho chỉ bị tác động khi đơn ở Normal/hoàn thành — Treo không còn trừ/giữ kho, xem mục "Update — 2026-09-01" cuối file) | 2026-08-09 (fix bug: Sửa đơn Treo + Ghi sổ không đổi status về Normal)
+> **Jira:** — | **Branch:** `dev` | **Generated:** 2026-05-01 | **Last updated:** 2026-09-11 (**ĐẢO
+> NGƯỢC quyết định 2026-09-10 — "Cất" = "Ghi sổ" ngay, không còn 2 lần bấm** — xem mục "Update —
+> 2026-09-11: Cất = Ghi sổ ngay" cuối file, đè lên toàn bộ mô tả "2 lần bấm" ở mục "Update —
+> 2026-09-10" ngay dưới đây) | 2026-09-10 (**tách "Cất" và "Ghi sổ" thành 2 hành động riêng — NAY ĐÃ
+> LỖI THỜI** — xem mục "Update — 2026-09-10" cuối file) | 2026-09-08 (**gỡ hẳn cầu nối Sales Order ↔ Đặt cọc/Trừ cọc** — `Create/Update/DeleteSalesOrderUseCase` không còn tạo/đồng bộ/xóa `Deposit` theo đơn, không còn inject `IDepositRepository`; xóa `SalesOrderDepositHelper`. Dòng SP `IsDepositProduct` vẫn loại khỏi tồn kho + ẩn cột khi in, nhưng KHÔNG còn sinh phiếu cọc — chi tiết ở `Deposits/docs/deposits.md` mục "Update — 2026-09-08") | 2026-09-01 (tồn kho chỉ bị tác động khi đơn ở Normal/hoàn thành — Treo không còn trừ/giữ kho, xem mục "Update — 2026-09-01" cuối file) | 2026-08-09 (fix bug: Sửa đơn Treo + Ghi sổ không đổi status về Normal)
 
 ---
 
@@ -668,3 +672,34 @@ Artifact link ở `SalesReturn/docs/sales-return.md` mục "Toolbar toggle — s
 
 **Chưa test qua UTM thật** — chỉ verify `dotnet build`/`dotnet test` (BE) và
 `dotnet build -p:EnableWindowsTargeting=true` (WPF) đều sạch.
+
+---
+
+## Update — 2026-09-11: "Cất" = "Ghi sổ" ngay (ĐẢO NGƯỢC quyết định 2026-09-10)
+
+**Lần đổi ý thứ 3 cho đúng khúc logic này** (2026-09-07 tương tự bên SalesReturn: từng bỏ hẳn
+Nháp→Ghi sổ tách biệt → 2026-09-10 tách "Cất"/"Ghi sổ" ra 2 bước qua Held trung gian, cần 2 lần bấm
+toggle → **2026-09-11 (hôm nay) đảo ngược lại**). Toàn bộ mục "Update — 2026-09-10" và "State machine
+toggle" ngay phía trên đã **LỖI THỜI** — chỉ giữ lại vì giá trị lịch sử.
+
+**Theo yêu cầu** — clone cùng thay đổi vừa làm cho SalesReturn sang SalesOrder (xem
+`SalesReturn/docs/sales-return.md` mục "Update — 2026-09-11: Cất = Ghi sổ ngay" để biết đầy đủ bối
+cảnh: video quay MISA tách frame xác nhận, hỏi đáp qua nhiều vòng `AskUserQuestion`). Request gốc chỉ
+nêu tên SalesReturn nhưng đã xác nhận áp dụng đồng bộ cho cả SalesOrder.
+
+| Thành phần | Trước (2026-09-10) | Sau (2026-09-11, hôm nay) |
+|---|---|---|
+| `CreateSalesOrderUseCase` | Lưu `Held`, không trừ tồn kho | Lưu **`Normal`**, **TRỪ tồn kho ngay** cho các dòng thật (không phải khuyến mại/trừ cọc) — validate đủ tồn (`stockErrors`, giữ nguyên) gom dòng hợp lệ vào `stockLines` rồi trừ thật ở "pass 2" (sau khi `_repo.AddAsync`, trong cùng transaction) — mirror two-pass đã có sẵn ở `ConfirmSalesOrderUseCase`. Dùng `GetByIdTrackedAsync` thay `GetByIdAsync` để EF ghi nhận `StockQuantity` |
+| `UpdateSalesOrderUseCase` | Luôn kết thúc `Held`, không trừ kho dòng mới | Luôn kết thúc **`Normal`**, **trừ tồn kho dòng mới ngay** (cùng pattern pass 2) — khối hoàn tác dòng cũ (nếu đơn trước đó `Normal`) giữ nguyên không đổi |
+| `ConfirmSalesOrderUseCase`/`UnconfirmSalesOrderUseCase` | Dùng cho MỌI lần chuyển trạng thái | **Không đổi code** — vẫn còn, giờ chỉ dùng khi bấm "Ghi sổ"/"Bỏ ghi" thẳng từ Draft (không qua Sửa/Cất) |
+| `HoldSalesOrderUseCase` | Đã xóa từ 2026-09-10 | Vẫn đã xóa, không khôi phục |
+| WPF `SalesOrderViewModel` | Cờ `IsArmed` bắt buộc bấm toggle 2 lần | **Xóa hẳn `IsArmed`** — mirror SalesReturnViewModel: `ToggleConfirmAsync` 1 lần bấm gọi Confirm/Unconfirm thật ngay, `UnpostButtonLabel => IsConfirmed ? "Bỏ ghi" : "Ghi sổ"`, `CanDeleteOrder => CurrentOrder is not null && !IsConfirmed && IsReadOnly` |
+
+**Không cần EF migration** — `SalesOrderStatus` enum không đổi giá trị; `Held` vẫn tồn tại nhưng từ
+nay không còn code nào tạo mới ở trạng thái này (chỉ dữ liệu cũ trước 2026-09-11).
+
+**Verify đã chạy**: `dotnet build` 0 lỗi, `dotnet test` 6/6 pass (`SalesOrderAmountManualTests` không
+liên quan tới Status/tồn kho nên không cần sửa). `dotnet build -p:EnableWindowsTargeting=true` (WPF)
+0 lỗi. **Chưa test thật trên UTM** — đặc biệt cần xác nhận tồn kho trừ đúng ngay khi bấm Cất lần đầu,
+và trường hợp "Cất" 1 đơn với nhiều dòng mà 1 dòng không đủ tồn (phải chặn TRƯỚC khi trừ dòng nào, đã
+giữ nguyên two-pass nên về lý thuyết an toàn, nhưng chưa test tay qua UTM).

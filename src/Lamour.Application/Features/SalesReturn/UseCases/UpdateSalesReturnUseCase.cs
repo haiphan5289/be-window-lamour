@@ -89,7 +89,9 @@ public class UpdateSalesReturnUseCase : IUpdateSalesReturnUseCase
             var newLines = new List<SalesReturnLineEntity>();
             foreach (var dto in request.Lines)
             {
-                var product = await _productRepo.GetByIdAsync(dto.ProductId, ct);
+                // Tracked — 2026-09-11 Cất (Update) giờ cộng tồn kho ngay cho dòng mới (xem cuối
+                // khối này), cần entity tracked để EF ghi nhận thay đổi StockQuantity.
+                var product = await _productRepo.GetByIdTrackedAsync(dto.ProductId, ct);
                 if (product is null)
                     throw new DomainException($"Sản phẩm với id {dto.ProductId} không tồn tại.");
                 if (!product.IsActive)
@@ -137,6 +139,12 @@ public class UpdateSalesReturnUseCase : IUpdateSalesReturnUseCase
                     CostAmount       = costAmount,
                     DepartmentId     = dto.DepartmentId,
                 });
+
+                // 2026-09-11: cộng tồn kho ngay cho dòng mới — "Cất" giờ luôn kết thúc ở Confirmed
+                // (xem thay đổi Status bên dưới), mirror CreateSalesReturnUseCase cùng ngày.
+                product.StockQuantity += dto.Quantity;
+                await _productRepo.UpdateAsync(product, ct);
+                await _stockRepo.AdjustQuantityAsync(dto.ProductId, dto.WarehouseId, dto.Quantity, ct);
             }
 
             salesReturn.DocumentNumber = request.DocumentNumber;
@@ -147,10 +155,10 @@ public class UpdateSalesReturnUseCase : IUpdateSalesReturnUseCase
             salesReturn.Description    = request.Description;
             salesReturn.Reference      = request.Reference;
             salesReturn.ReturnType     = (SalesReturnTypeEnum)request.ReturnType;
-            // 2026-09-10: "Cất" không còn tự Ghi sổ — luôn đưa chứng từ về Held ("Treo"), bất kể
-            // trạng thái trước đó. Cộng tồn kho thật xảy ra riêng ở ConfirmSalesReturnUseCase.
-            salesReturn.Status         = SalesReturnStatus.Held;
-            salesReturn.ConfirmedAt    = null;
+            // 2026-09-11: "Cất" = "Ghi sổ" ngay — đảo ngược quyết định 2026-09-10 ("Cất luôn ra
+            // Held"). Luôn đưa chứng từ về Confirmed, cộng tồn kho dòng mới ngay ở vòng lặp trên.
+            salesReturn.Status         = SalesReturnStatus.Confirmed;
+            salesReturn.ConfirmedAt    = DateTime.UtcNow;
             salesReturn.TotalAmount    = newLines.Sum(l => l.Amount);
             salesReturn.TotalDiscount  = newLines.Sum(l => l.DiscountAmount);
             salesReturn.TotalPayment   = newLines.Sum(l => l.Amount) - newLines.Sum(l => l.DiscountAmount);

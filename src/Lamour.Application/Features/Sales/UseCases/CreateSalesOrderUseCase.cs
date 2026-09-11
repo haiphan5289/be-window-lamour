@@ -47,9 +47,15 @@ public class CreateSalesOrderUseCase : ICreateSalesOrderUseCase
         // Validate products, stock, and build lines
         var stockErrors = new List<string>();
         var lines = new List<SalesOrderLine>();
+        // 2026-09-11: dòng nào thật sự cần trừ kho (không phải khuyến mại/trừ cọc) được gom lại đây
+        // để trừ kho THẬT ở pass 2 (sau khi toàn bộ dòng đã qua validate đủ tồn) — mirror two-pass
+        // pattern của ConfirmSalesOrderUseCase (vẫn giữ), tránh trừ dở dang nếu 1 dòng sau đó lỗi.
+        var stockLines = new List<(int ProductId, int WarehouseId, int Quantity, Product Product)>();
         foreach (var dto in request.Lines)
         {
-            var product = await _productRepo.GetByIdAsync(dto.ProductId, ct);
+            // Tracked — Cất giờ trừ tồn kho ngay (xem stockLines/pass 2 bên dưới), cần entity
+            // tracked để EF ghi nhận thay đổi StockQuantity.
+            var product = await _productRepo.GetByIdTrackedAsync(dto.ProductId, ct);
             if (product is null)
                 throw new DomainException($"Sản phẩm với id {dto.ProductId} không tồn tại.");
             if (!product.IsActive)
@@ -66,6 +72,8 @@ public class CreateSalesOrderUseCase : ICreateSalesOrderUseCase
                 var availableQty = await _stockRepo.GetQuantityAsync(dto.ProductId, dto.WarehouseId, ct);
                 if (availableQty < dto.Quantity)
                     stockErrors.Add($"• {product.Name}: kho có {availableQty}, cần {dto.Quantity}");
+                else
+                    stockLines.Add((dto.ProductId, dto.WarehouseId, dto.Quantity, product));
             }
 
             // Hàng khuyến mại: giá/CK/thuế luôn = 0, bất kể client gửi gì lên.
@@ -125,9 +133,9 @@ public class CreateSalesOrderUseCase : ICreateSalesOrderUseCase
             TotalTaxAmount = lines.Sum(l => l.TaxAmount),
             GrandTotal     = lines.Sum(l => l.Amount + l.TaxAmount),
             CreatedAt      = DateTime.UtcNow,
-            // 2026-09-10: Cất không còn tự Ghi sổ — chứng từ mới luôn ở Treo, chưa đụng tồn kho.
-            // Trừ kho thật xảy ra ở ConfirmSalesOrderUseCase ("Ghi sổ").
-            Status         = SalesOrderStatus.Held,
+            // 2026-09-11: "Cất" = "Ghi sổ" ngay — đảo ngược quyết định 2026-09-10 ("Cất luôn ra
+            // Treo"). Chứng từ mới luôn ở Normal, trừ tồn kho ngay (pass 2 bên dưới, trong transaction).
+            Status         = SalesOrderStatus.Normal,
             Lines          = lines,
         };
 
@@ -135,6 +143,15 @@ public class CreateSalesOrderUseCase : ICreateSalesOrderUseCase
         try
         {
             var saved = await _repo.AddAsync(order, ct);
+
+            // Pass 2 — trừ tồn kho thật cho các dòng đã qua validate đủ tồn ở trên (mirror
+            // ConfirmSalesOrderUseCase, vẫn giữ nguyên dùng cho luồng "Ghi sổ" thẳng từ Nháp).
+            foreach (var (productId, warehouseId, quantity, product) in stockLines)
+            {
+                product.StockQuantity -= quantity;
+                await _productRepo.UpdateAsync(product, ct);
+                await _stockRepo.AdjustQuantityAsync(productId, warehouseId, -quantity, ct);
+            }
 
             await _uow.CommitAsync(ct);
 
