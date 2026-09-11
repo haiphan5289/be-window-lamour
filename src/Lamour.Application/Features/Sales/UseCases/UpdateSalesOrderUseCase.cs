@@ -4,6 +4,7 @@ using Lamour.Application.Features.Sales;
 using Lamour.Application.Features.Sales.Dtos;
 using Lamour.Application.Features.Sales.Repositories;
 using Lamour.Application.Features.Warehouse.Repositories;
+using Lamour.Application.Features.Warehouses.Repositories;
 using Lamour.Domain.Entities;
 using Lamour.Domain.Exceptions;
 using Microsoft.Extensions.Logging;
@@ -14,6 +15,7 @@ public class UpdateSalesOrderUseCase : IUpdateSalesOrderUseCase
 {
     private readonly ISalesOrderRepository _repo;
     private readonly IProductRepository    _productRepo;
+    private readonly IWarehouseRepository  _warehouseRepo;
     private readonly IProductWarehouseStockRepository _stockRepo;
     private readonly IUnitOfWork           _uow;
     private readonly ILogger<UpdateSalesOrderUseCase> _logger;
@@ -21,15 +23,17 @@ public class UpdateSalesOrderUseCase : IUpdateSalesOrderUseCase
     public UpdateSalesOrderUseCase(
         ISalesOrderRepository repo,
         IProductRepository productRepo,
+        IWarehouseRepository warehouseRepo,
         IProductWarehouseStockRepository stockRepo,
         IUnitOfWork uow,
         ILogger<UpdateSalesOrderUseCase> logger)
     {
-        _repo        = repo;
-        _productRepo = productRepo;
-        _stockRepo   = stockRepo;
-        _uow         = uow;
-        _logger      = logger;
+        _repo          = repo;
+        _productRepo   = productRepo;
+        _warehouseRepo = warehouseRepo;
+        _stockRepo     = stockRepo;
+        _uow           = uow;
+        _logger        = logger;
     }
 
     public async Task<SalesOrderResponseDto> ExecuteAsync(
@@ -40,17 +44,16 @@ public class UpdateSalesOrderUseCase : IUpdateSalesOrderUseCase
 
         // "Ít nhất 1 dòng" không còn bắt buộc ở BE (2026-08-25) — xem CreateSalesOrderUseCase.
 
-        // 2026-09-01: "Ghi sổ" (Update) LUÔN đưa đơn về Normal — nếu đơn ĐANG Treo, tồn kho CHƯA
-        // từng bị trừ cho các dòng cũ (xem HoldSalesOrderUseCase/CreateSalesOrderUseCase), nên
-        // KHÔNG được hoàn kho cũ ở bước dưới (sẽ cộng dư tồn kho không có thật) — lần Ghi sổ này
-        // chính là lần đầu tiên đơn thật sự "hoàn thành" và trừ kho.
-        var wasHeld = order.Status == SalesOrderStatus.Held;
+        // 2026-09-10: "Cất" (Update) LUÔN đưa đơn về Held — chỉ hoàn tác tồn kho dòng cũ nếu đơn
+        // ĐANG Normal (đã từng trừ kho thật lúc Confirm trước đó). Đơn đang Held (chưa từng trừ kho)
+        // hoặc Draft (Bỏ ghi đã tự hoàn tồn kho rồi) thì KHÔNG hoàn tác lần nữa (double-revert).
+        var stockNotCurrentlyDeducted = order.Status is SalesOrderStatus.Held or SalesOrderStatus.Draft;
 
         await _uow.BeginAsync(ct);
         try
         {
             // Restore stock from old lines — chỉ khi đơn cũ đã Normal (đã từng trừ kho thật).
-            if (!wasHeld)
+            if (!stockNotCurrentlyDeducted)
             {
                 foreach (var oldLine in order.Lines.Where(l => !l.IsPromotion))
                 {
@@ -77,6 +80,12 @@ public class UpdateSalesOrderUseCase : IUpdateSalesOrderUseCase
                     throw new DomainException($"Sản phẩm với id {dto.ProductId} không tồn tại.");
                 if (!dto.IsPromotion && !product.IsDepositProduct)
                 {
+                    // Validate Kho tồn tại — cùng lý do CreateSalesOrderUseCase (tránh FK vi phạm
+                    // rơi xuống DbUpdateException 500 chung chung).
+                    var warehouse = await _warehouseRepo.GetByIdAsync(dto.WarehouseId, ct);
+                    if (warehouse is null)
+                        throw new DomainException($"Vui lòng chọn Kho cho hàng hóa '{product.Name}'.");
+
                     var availableQty = await _stockRepo.GetQuantityAsync(dto.ProductId, dto.WarehouseId, ct);
                     if (availableQty < dto.Quantity)
                         stockErrors.Add($"• {product.Name}: kho có {availableQty}, cần {dto.Quantity}");
@@ -133,32 +142,17 @@ public class UpdateSalesOrderUseCase : IUpdateSalesOrderUseCase
             order.Notes          = request.Notes;
             order.DeliveryMethod = request.DeliveryMethod;
             order.PaymentMethod  = request.PaymentMethod;
-            // "💾 Ghi sổ" luôn post lại đơn hàng — sửa 1 đơn đang Treo rồi Ghi sổ phải đưa
-            // về Normal (khớp hành vi CreateSalesOrderUseCase); chỉ nút "⏸ Treo" riêng mới giữ Treo.
-            order.Status         = SalesOrderStatus.Normal;
+            // 2026-09-10: "Cất" (Update) không còn tự Ghi sổ — luôn đưa đơn về Held ("Treo"), bất kể
+            // trạng thái trước đó (Held/Draft/Normal). Trừ kho thật xảy ra riêng ở
+            // ConfirmSalesOrderUseCase ("Ghi sổ") — xem block hoàn tác dòng cũ ở trên, giữ nguyên vì
+            // vẫn cần hoàn tác nếu đơn cũ đang Normal trước khi sửa.
+            order.Status         = SalesOrderStatus.Held;
             order.TotalAmount    = newLines.Sum(l => l.Amount);
             order.TotalTaxAmount = newLines.Sum(l => l.TaxAmount);
             order.GrandTotal     = newLines.Sum(l => l.Amount + l.TaxAmount);
             order.Lines          = newLines;
 
             await _repo.UpdateAsync(order, ct);
-
-            // Apply stock for new non-promotion lines — LUÔN chạy (không điều kiện theo wasHeld):
-            // đơn luôn kết thúc ở Normal (hoàn thành) sau bước này, dù trước đó là Normal (re-sync
-            // sau khi sửa) hay Held (lần đầu thật sự trừ kho khi hoàn thành).
-            foreach (var line in newLines.Where(l => !l.IsPromotion))
-            {
-                var product = await _productRepo.GetByIdTrackedAsync(line.ProductId, ct);
-                if (product is not null && product.IsDepositProduct)
-                    continue; // "Đặt cọc" không phải hàng tồn kho thật
-
-                if (product is not null)
-                {
-                    product.StockQuantity -= line.Quantity;
-                    await _productRepo.UpdateAsync(product, ct);
-                }
-                await _stockRepo.AdjustQuantityAsync(line.ProductId, line.WarehouseId!.Value, -line.Quantity, ct);
-            }
 
             await _uow.CommitAsync(ct);
 

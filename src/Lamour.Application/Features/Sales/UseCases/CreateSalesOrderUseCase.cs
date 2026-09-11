@@ -4,6 +4,7 @@ using Lamour.Application.Features.Sales;
 using Lamour.Application.Features.Sales.Dtos;
 using Lamour.Application.Features.Sales.Repositories;
 using Lamour.Application.Features.Warehouse.Repositories;
+using Lamour.Application.Features.Warehouses.Repositories;
 using Lamour.Domain.Entities;
 using Lamour.Domain.Exceptions;
 using Microsoft.Extensions.Logging;
@@ -14,6 +15,7 @@ public class CreateSalesOrderUseCase : ICreateSalesOrderUseCase
 {
     private readonly ISalesOrderRepository _repo;
     private readonly IProductRepository    _productRepo;
+    private readonly IWarehouseRepository  _warehouseRepo;
     private readonly IProductWarehouseStockRepository _stockRepo;
     private readonly IUnitOfWork           _uow;
     private readonly ILogger<CreateSalesOrderUseCase> _logger;
@@ -21,15 +23,17 @@ public class CreateSalesOrderUseCase : ICreateSalesOrderUseCase
     public CreateSalesOrderUseCase(
         ISalesOrderRepository repo,
         IProductRepository productRepo,
+        IWarehouseRepository warehouseRepo,
         IProductWarehouseStockRepository stockRepo,
         IUnitOfWork uow,
         ILogger<CreateSalesOrderUseCase> logger)
     {
-        _repo        = repo;
-        _productRepo = productRepo;
-        _stockRepo   = stockRepo;
-        _uow         = uow;
-        _logger      = logger;
+        _repo          = repo;
+        _productRepo   = productRepo;
+        _warehouseRepo = warehouseRepo;
+        _stockRepo     = stockRepo;
+        _uow           = uow;
+        _logger        = logger;
     }
 
     public async Task<SalesOrderResponseDto> ExecuteAsync(
@@ -52,6 +56,13 @@ public class CreateSalesOrderUseCase : ICreateSalesOrderUseCase
                 throw new DomainException($"Hàng hóa '{product.Name}' đã ngưng kinh doanh.");
             if (!dto.IsPromotion && !product.IsDepositProduct)
             {
+                // Validate Kho tồn tại — thiếu bước này khiến "warehouse_id" (FK thật tới bảng
+                // warehouses) nhận giá trị không hợp lệ từ client rơi thẳng xuống DbUpdateException
+                // FK vi phạm (500 chung chung) thay vì 1 lỗi 400 dễ hiểu (đã gặp ở SalesReturn).
+                var warehouse = await _warehouseRepo.GetByIdAsync(dto.WarehouseId, ct);
+                if (warehouse is null)
+                    throw new DomainException($"Vui lòng chọn Kho cho hàng hóa '{product.Name}'.");
+
                 var availableQty = await _stockRepo.GetQuantityAsync(dto.ProductId, dto.WarehouseId, ct);
                 if (availableQty < dto.Quantity)
                     stockErrors.Add($"• {product.Name}: kho có {availableQty}, cần {dto.Quantity}");
@@ -114,7 +125,9 @@ public class CreateSalesOrderUseCase : ICreateSalesOrderUseCase
             TotalTaxAmount = lines.Sum(l => l.TaxAmount),
             GrandTotal     = lines.Sum(l => l.Amount + l.TaxAmount),
             CreatedAt      = DateTime.UtcNow,
-            Status         = SalesOrderStatus.Normal,
+            // 2026-09-10: Cất không còn tự Ghi sổ — chứng từ mới luôn ở Treo, chưa đụng tồn kho.
+            // Trừ kho thật xảy ra ở ConfirmSalesOrderUseCase ("Ghi sổ").
+            Status         = SalesOrderStatus.Held,
             Lines          = lines,
         };
 
@@ -122,20 +135,6 @@ public class CreateSalesOrderUseCase : ICreateSalesOrderUseCase
         try
         {
             var saved = await _repo.AddAsync(order, ct);
-
-            foreach (var line in lines.Where(l => !l.IsPromotion))
-            {
-                var product = await _productRepo.GetByIdTrackedAsync(line.ProductId, ct);
-                if (product is not null && product.IsDepositProduct)
-                    continue; // "Đặt cọc" không phải hàng tồn kho thật
-
-                if (product is not null)
-                {
-                    product.StockQuantity -= line.Quantity;
-                    await _productRepo.UpdateAsync(product, ct);
-                }
-                await _stockRepo.AdjustQuantityAsync(line.ProductId, line.WarehouseId!.Value, -line.Quantity, ct);
-            }
 
             await _uow.CommitAsync(ct);
 

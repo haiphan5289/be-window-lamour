@@ -284,8 +284,10 @@ builder.Services.AddScoped<Lamour.Application.Features.Sales.UseCases.IDeleteSal
                            Lamour.Application.Features.Sales.UseCases.DeleteSalesOrderUseCase>();
 builder.Services.AddScoped<Lamour.Application.Features.Sales.UseCases.IGetNextSalesOrderCodeUseCase,
                            Lamour.Application.Features.Sales.UseCases.GetNextSalesOrderCodeUseCase>();
-builder.Services.AddScoped<Lamour.Application.Features.Sales.UseCases.IHoldSalesOrderUseCase,
-                           Lamour.Application.Features.Sales.UseCases.HoldSalesOrderUseCase>();
+builder.Services.AddScoped<Lamour.Application.Features.Sales.UseCases.IConfirmSalesOrderUseCase,
+                           Lamour.Application.Features.Sales.UseCases.ConfirmSalesOrderUseCase>();
+builder.Services.AddScoped<Lamour.Application.Features.Sales.UseCases.IUnconfirmSalesOrderUseCase,
+                           Lamour.Application.Features.Sales.UseCases.UnconfirmSalesOrderUseCase>();
 builder.Services.AddScoped<Lamour.Application.Features.Sales.UseCases.IGetSalesOrderReportUseCase,
                            Lamour.Application.Features.Sales.UseCases.GetSalesOrderReportUseCase>();
 builder.Services.AddScoped<Lamour.Application.Features.Sales.UseCases.IGetSalesOrderSummaryReportUseCase,
@@ -308,6 +310,10 @@ builder.Services.AddScoped<Lamour.Application.Features.SalesReturn.UseCases.IUpd
                            Lamour.Application.Features.SalesReturn.UseCases.UpdateSalesReturnUseCase>();
 builder.Services.AddScoped<Lamour.Application.Features.SalesReturn.UseCases.IDeleteSalesReturnUseCase,
                            Lamour.Application.Features.SalesReturn.UseCases.DeleteSalesReturnUseCase>();
+builder.Services.AddScoped<Lamour.Application.Features.SalesReturn.UseCases.IConfirmSalesReturnUseCase,
+                           Lamour.Application.Features.SalesReturn.UseCases.ConfirmSalesReturnUseCase>();
+builder.Services.AddScoped<Lamour.Application.Features.SalesReturn.UseCases.IUnconfirmSalesReturnUseCase,
+                           Lamour.Application.Features.SalesReturn.UseCases.UnconfirmSalesReturnUseCase>();
 builder.Services.AddScoped<Lamour.Application.Features.SalesReturn.UseCases.ICreateSalesReturnWarehouseReceiptUseCase,
                            Lamour.Application.Features.SalesReturn.UseCases.CreateSalesReturnWarehouseReceiptUseCase>();
 

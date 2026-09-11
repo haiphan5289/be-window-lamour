@@ -8,11 +8,12 @@ public enum SalesReturnType
 
 public enum SalesReturnStatus
 {
-    // Draft (0) không còn được dùng — bỏ vòng đời Nháp → Ghi sổ (2026-09-07). Mọi chứng từ
-    // trả hàng vừa lưu đã là Confirmed và cộng tồn kho ngay (xem CreateSalesReturnUseCase).
-    // Vẫn giữ member để không phải viết migration đổi kiểu cột / backfill dữ liệu cũ.
+    // 2026-09-10: tái kích hoạt Draft (0) — đảo ngược quyết định 2026-09-07. Cất (Create/Update)
+    // giờ luôn kết thúc ở Held, không còn tự Confirm ngay; Draft vẫn giữ nguyên nghĩa cũ ("Bỏ ghi"
+    // từ Confirmed). Xem CreateSalesReturnUseCase/UpdateSalesReturnUseCase/ConfirmSalesReturnUseCase.
     Draft     = 0,
     Confirmed = 1,
+    Held      = 2, // "Treo" — mirror SalesOrderStatus.Held. Giá trị mới, không cần EF migration.
 }
 
 public class SalesReturn

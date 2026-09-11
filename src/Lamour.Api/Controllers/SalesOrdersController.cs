@@ -17,7 +17,8 @@ public class SalesOrdersController : ControllerBase
     private readonly ICreateSalesOrderUseCase       _create;
     private readonly IUpdateSalesOrderUseCase       _update;
     private readonly IDeleteSalesOrderUseCase       _delete;
-    private readonly IHoldSalesOrderUseCase         _hold;
+    private readonly IConfirmSalesOrderUseCase      _confirm;
+    private readonly IUnconfirmSalesOrderUseCase    _unconfirm;
     private readonly IGetSalesOrderReportUseCase    _report;
     private readonly IGetSalesOrderSummaryReportUseCase _summaryReport;
     private readonly IDuplicateSalesOrderUseCase    _duplicate;
@@ -29,7 +30,8 @@ public class SalesOrdersController : ControllerBase
         ICreateSalesOrderUseCase      create,
         IUpdateSalesOrderUseCase      update,
         IDeleteSalesOrderUseCase      delete,
-        IHoldSalesOrderUseCase        hold,
+        IConfirmSalesOrderUseCase     confirm,
+        IUnconfirmSalesOrderUseCase   unconfirm,
         IGetSalesOrderReportUseCase   report,
         IGetSalesOrderSummaryReportUseCase summaryReport,
         IDuplicateSalesOrderUseCase   duplicate)
@@ -40,7 +42,8 @@ public class SalesOrdersController : ControllerBase
         _create        = create;
         _update        = update;
         _delete        = delete;
-        _hold          = hold;
+        _confirm       = confirm;
+        _unconfirm     = unconfirm;
         _report        = report;
         _summaryReport = summaryReport;
         _duplicate     = duplicate;
@@ -113,9 +116,13 @@ public class SalesOrdersController : ControllerBase
         return NoContent();
     }
 
-    [HttpPut("{id:int}/hold")]
-    public async Task<IActionResult> Hold(int id, CancellationToken ct)
-        => Ok(await _hold.ExecuteAsync(id, ct));
+    [HttpPost("{id:int}/confirm")]
+    public async Task<IActionResult> Confirm(int id, CancellationToken ct)
+        => Ok(await _confirm.ExecuteAsync(id, ct));
+
+    [HttpPost("{id:int}/unconfirm")]
+    public async Task<IActionResult> Unconfirm(int id, CancellationToken ct)
+        => Ok(await _unconfirm.ExecuteAsync(id, ct));
 
     [HttpPost("{id:int}/duplicate")]
     public async Task<IActionResult> Duplicate(int id, CancellationToken ct)

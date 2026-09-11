@@ -1,26 +1,39 @@
 # Sales Orders — Feature Document (BE)
 
-> **Jira:** — | **Branch:** `dev` | **Generated:** 2026-05-01 | **Last updated:** 2026-09-08 (**gỡ hẳn cầu nối Sales Order ↔ Đặt cọc/Trừ cọc** — `Create/Update/DeleteSalesOrderUseCase` không còn tạo/đồng bộ/xóa `Deposit` theo đơn, không còn inject `IDepositRepository`; xóa `SalesOrderDepositHelper`. Dòng SP `IsDepositProduct` vẫn loại khỏi tồn kho + ẩn cột khi in, nhưng KHÔNG còn sinh phiếu cọc — chi tiết ở `Deposits/docs/deposits.md` mục "Update — 2026-09-08") | 2026-09-01 (tồn kho chỉ bị tác động khi đơn ở Normal/hoàn thành — Treo không còn trừ/giữ kho, xem mục "Update — 2026-09-01" cuối file) | 2026-08-09 (fix bug: Sửa đơn Treo + Ghi sổ không đổi status về Normal)
+> **Jira:** — | **Branch:** `dev` | **Generated:** 2026-05-01 | **Last updated:** 2026-09-10 (**tách "Cất" và "Ghi sổ" thành 2 hành động riêng** — xem mục "Update — 2026-09-10" cuối file) | 2026-09-08 (**gỡ hẳn cầu nối Sales Order ↔ Đặt cọc/Trừ cọc** — `Create/Update/DeleteSalesOrderUseCase` không còn tạo/đồng bộ/xóa `Deposit` theo đơn, không còn inject `IDepositRepository`; xóa `SalesOrderDepositHelper`. Dòng SP `IsDepositProduct` vẫn loại khỏi tồn kho + ẩn cột khi in, nhưng KHÔNG còn sinh phiếu cọc — chi tiết ở `Deposits/docs/deposits.md` mục "Update — 2026-09-08") | 2026-09-01 (tồn kho chỉ bị tác động khi đơn ở Normal/hoàn thành — Treo không còn trừ/giữ kho, xem mục "Update — 2026-09-01" cuối file) | 2026-08-09 (fix bug: Sửa đơn Treo + Ghi sổ không đổi status về Normal)
 
 ---
 
 ## PRD Summary
 
 > API quản lý đơn hàng bán (Sales Orders) cho hệ thống Lamour Spa & Cosmetics.
+>
+> **Cập nhật 2026-09-10** — thay hẳn phần dưới đây bằng đúng hành vi hiện tại (workflow 3 trạng thái
+> Held/Normal/Draft, tách Cất/Ghi sổ, bỏ endpoint `/hold` cũ). Các mục "Update — ..." bên dưới trong
+> file là nhật ký lịch sử — không cần đọc lại để hiểu hành vi hiện tại.
 
-- **Goal:** Cung cấp CRUD API đầy đủ cho module Bán Hàng, tự động điều chỉnh tồn kho khi tạo/sửa/xóa đơn, hỗ trợ treo đơn.
-- **User story:** As a Lamour admin, I want to manage sales orders via a REST API so that the WPF desktop client can create, hold, and track customer sales with automatic stock deduction.
+- **Goal:** Cung cấp CRUD API đầy đủ cho module Bán Hàng, tách rời "Cất" (lưu nháp, không đụng tồn
+  kho) khỏi "Ghi sổ" (chốt số liệu, trừ tồn kho thật) — giống chính xác workflow Chứng từ hàng bán
+  bị trả lại (`SalesReturn/docs/sales-return.md`).
+- **User story:** As a Lamour admin, I want to save a sales order as a draft first, then post it
+  separately, so that stock only changes when I explicitly confirm the numbers are correct.
 - **Acceptance criteria:**
   - [x] `GET /api/v1/sales-orders` trả danh sách tất cả đơn hàng kèm lines
   - [x] `GET /api/v1/sales-orders/{id}` trả chi tiết một đơn hàng
-  - [x] `POST /api/v1/sales-orders` tạo mới, mặc định Status = Normal (Ghi sổ), trừ tồn kho cho từng line (ngoại trừ line khuyến mại)
-  - [x] `PUT /api/v1/sales-orders/{id}` cập nhật — luôn đưa Status về Normal; trừ tồn kho mới luôn luôn, nhưng CHỈ hoàn tồn kho cũ nếu đơn trước đó đang Normal (2026-09-01 — xem Business Rules)
-  - [x] `DELETE /api/v1/sales-orders/{id}` xóa — CHỈ hoàn tồn kho nếu đơn đang Normal (2026-09-01)
+  - [x] `POST /api/v1/sales-orders` tạo mới ở trạng thái `Held` ("Treo") — KHÔNG trừ tồn kho
+  - [x] `PUT /api/v1/sales-orders/{id}` cập nhật — cho phép ở BẤT KỲ trạng thái nào, luôn kết thúc ở
+        `Held` (hoàn tác tồn kho dòng cũ trước nếu đơn đang `Normal`)
+  - [x] `DELETE /api/v1/sales-orders/{id}` xóa — cho phép ở BẤT KỲ trạng thái nào (hoàn tồn kho
+        trước nếu đơn đang `Normal`)
+  - [x] `POST /api/v1/sales-orders/{id}/confirm` ("Ghi sổ") — trừ tồn kho cho từng line, cho phép từ
+        `Held` HOẶC `Draft`, chuyển sang `Normal`; chặn nếu đã `Normal` rồi (thay hẳn endpoint
+        `PUT .../hold` cũ — đã xóa)
+  - [x] `POST /api/v1/sales-orders/{id}/unconfirm` ("Bỏ ghi") — hoàn tồn kho (two-pass validate đủ
+        tồn trước), chỉ cho phép từ `Normal`, chuyển về `Draft`
   - [x] `GET /api/v1/sales-orders/next-code` trả số chứng từ tiếp theo dạng `XK{5 digits}`
-  - [x] `PUT /api/v1/sales-orders/{id}/hold` treo đơn (Status → Held) — hoàn lại tồn kho đã trừ trước đó (2026-09-01); chặn nếu đơn đã Treo sẵn
   - [x] `GET /api/v1/sales-orders/report` báo cáo chi tiết dòng bán hàng, lọc theo mặt hàng/nhân viên/khách hàng/khoảng ngày
   - [x] Stock guard: kiểm tra tất cả sản phẩm trước khi trừ kho, gom tất cả lỗi rồi throw 1 lần
-  - [x] DB transaction: Create/Update/Delete dùng `IUnitOfWork` — rollback khi lỗi
+  - [x] DB transaction: Create/Update/Delete/Confirm/Unconfirm dùng `IUnitOfWork` — rollback khi lỗi
 
 ---
 
@@ -32,9 +45,11 @@
 | Ít nhất 1 line (nới lỏng 2026-08-25) | BE không còn chặn `Lines.Count == 0` — chứng từ có thể chỉ dùng để trừ cọc (không có dòng sản phẩm thật nào), cần số chứng từ XK để gắn với lần trừ cọc thay vì số TC từ màn Đặt Cọc/Trừ Cọc riêng. WPF (`SalesOrderViewModel.SaveAsync`) vẫn chặn Ghi sổ nếu **cả** sản phẩm thật lẫn dòng Trừ cọc đều không có |
 | Hàng còn kinh doanh | Chỉ cho phép `IsActive = true` — `DomainException` nếu sản phẩm đã ngưng |
 | Stock guard | Trước khi trừ kho: kiểm tra **tất cả** lines. Nếu bất kỳ sản phẩm nào không đủ kho → gom tất cả lỗi thành 1 message rồi throw `DomainException` — không dừng sớm |
-| Trừ tồn kho | Khi tạo: trừ `StockQuantity` cho mỗi line không phải khuyến mại (đơn tạo mới luôn `Status = Normal`, xem `CreateSalesOrderUseCase`) |
-| Hoàn tồn kho khi sửa (đổi 2026-09-01) | Khi sửa: trừ tồn kho mới LUÔN LUÔN chạy (Update luôn đưa đơn về Normal = hoàn thành), nhưng bước hoàn tồn kho CŨ chỉ chạy nếu đơn **trước đó đã Normal** — nếu đơn đang Treo (`wasHeld`), tồn kho chưa từng bị trừ cho lines cũ nên không có gì để hoàn |
-| Hoàn tồn kho khi xóa (đổi 2026-09-01) | Chỉ hoàn tồn kho nếu đơn đang **Normal** lúc xóa — đơn đang Treo chưa từng trừ kho nên xóa không cần hoàn tác gì (hoàn vô điều kiện như trước sẽ cộng dư tồn kho không có thật) |
+| **Trạng thái (2026-09-10)** | `Held` ("Treo", mặc định khi Cất — KHÔNG trừ tồn kho) ⇄ `Normal` ("Đã ghi sổ", TRỪ tồn kho) ⇄ `Draft` ("Bỏ ghi", sau khi hoàn tác) — cùng sơ đồ với SalesReturn (xem `sales-return.md`) |
+| Cất (Create/Update, 2026-09-10) | LUÔN kết thúc ở `Held`, không trừ tồn kho cho dòng MỚI. Nếu đơn trước đó đang `Normal`, hoàn tác tồn kho dòng CŨ trước |
+| Ghi sổ (Confirm, 2026-09-10) | Trừ `StockQuantity` cho mỗi line (two-pass validate đủ tồn trước) — cho phép từ `Held` **hoặc** `Draft`; chặn nếu đã `Normal` |
+| Bỏ ghi (Unconfirm) | Hoàn `StockQuantity` cho mỗi line (two-pass validate đủ tồn trước) — chỉ cho phép khi đang `Normal`; chuyển về `Draft` |
+| Sửa/Xóa đơn (2026-09-10) | **Không bị chặn theo trạng thái ở BE** — cho phép ở mọi status, chỉ tự động hoàn tác tồn kho nếu đơn đang `Normal` trước khi thao tác. WPF tự giới hạn thêm ở UI |
 | Line khuyến mại | `IsPromotion = true` → không trừ/hoàn tồn kho |
 | Tỷ lệ chiết khấu | `DiscountRate` (0–100%) per line — BE clamp `Math.Max(0, Math.Min(100, dto.DiscountRate))` |
 | Tính Thành tiền | `Amount = Quantity × UnitPrice × (1 − DiscountRate / 100)` — BE tính server-side, bỏ qua `amount` từ client, **trừ khi** `is_amount_manual = true` (xem rule "Thành tiền thủ công" bên dưới) |
@@ -48,7 +63,7 @@
 | TK mặc định | `ReceivableAccount = "131"`, `RevenueAccount = "511"` |
 | Tổng tiền | `TotalAmount = SUM(line.Amount)` (net sau chiết khấu, **chưa thuế**); `TotalTaxAmount = SUM(line.TaxAmount)`; `GrandTotal = TotalAmount + TotalTaxAmount` (tổng thanh toán thật) — tất cả tính tại BE |
 | DB Transaction | Mỗi mutation UseCase dùng `IUnitOfWork.BeginAsync` → `CommitAsync` hoặc `RollbackAsync` |
-| SalesOrderStatus | `Normal=0` (Ghi sổ — mặc định khi tạo đơn), `Held=1` (treo đơn) |
+| SalesOrderStatus | `Normal=0` (Đã ghi sổ), `Held=1` (Treo — mặc định khi Cất), `Draft=2` (Bỏ ghi) |
 | Treo đơn (đổi 2026-09-01) | `HoldSalesOrderUseCase` → hoàn lại tồn kho đã trừ (order chỉ có thể đang ở Normal khi tới đây → chắc chắn đã từng trừ kho), rồi `Status = Held`. Chặn (`DomainException`) nếu đơn **đã Treo sẵn** — trước đây có thể treo bất kể trạng thái hiện tại, không hoàn kho gì cả |
 | Bỏ treo (2026-08-09, timing tồn kho đổi 2026-09-01) | Không có action "un-hold" riêng — `UpdateSalesOrderUseCase` (nút "💾 Ghi sổ" khi Sửa) luôn set `Status = Normal` sau khi lưu, bất kể trạng thái trước đó là gì. "Ghi sổ" = post lại đơn; chỉ nút "⏸ Treo" riêng mới giữ/đưa về Treo. Nếu đơn đang Treo, lần "Ghi sổ" này chính là lần đầu tiên tồn kho thật sự bị trừ |
 | Bất biến tồn kho theo Status (mới 2026-09-01) | Bất biến xuyên suốt: `StockQuantity` chỉ phản ánh các đơn đang **Normal** — đơn đang **Held** không bao giờ có tác động tồn kho nào (không trừ lúc tạo/sửa thành Treo, không hoàn lúc xóa). Áp dụng nhất quán ở cả 4 UseCase: Create (luôn Normal, luôn trừ), Update (`wasHeld` quyết định có hoàn kho cũ không, luôn trừ kho mới vì luôn kết thúc ở Normal), Delete (chỉ hoàn nếu đang Normal), Hold (luôn hoàn vì chỉ gọi được từ Normal) |
@@ -598,3 +613,58 @@ Theo yêu cầu: *"Chứng từ bán hàng nếu đơn đang treo thì sản ph�
 - **`CreateSalesOrderUseCase`** — **không đổi** (vẫn luôn `Status = Normal` + trừ kho ngay). Luồng "Treo 1 đơn hoàn toàn mới" ở WPF (`SalesOrderViewModel.CreateThenHoldAsync`, đã thêm trước đó cùng phiên làm việc để enable nút Treo lúc Thêm mới) gọi Create rồi gọi Hold ngay sau — với fix Hold ở trên, kết quả CUỐI CÙNG vẫn đúng bất biến (tồn kho được trừ rồi hoàn lại trong 2 transaction riêng, về đúng trạng thái "chưa trừ"), nên **không cần sửa gì thêm ở WPF/Create** cho luồng này.
 
 Không cần EF migration (không đổi schema, `SalesOrderStatus` enum đã có sẵn từ trước — chỉ đổi THỜI ĐIỂM chạy logic trừ/hoàn kho). BE build 0 lỗi. Chưa test thật trên UTM — do 2026-08-31 mới fix xong 1 bug tương tự bên `WarehouseReceiptPrintWindow` (crash chỉ lộ ra khi chạy UI thật, `dotnet build` sạch không bắt được loại lỗi runtime WPF này), nên khuyến nghị mạnh: verify kỹ trên UTM thật trước khi coi task này là xong, đặc biệt 3 kịch bản — (1) Treo 1 đơn mới, (2) Ghi sổ lại 1 đơn đang Treo, (3) Xóa 1 đơn đang Treo — kiểm tra `Product.StockQuantity` trước/sau mỗi bước.
+
+## Update — 2026-09-10: tách "Cất" và "Ghi sổ" thành 2 hành động riêng
+
+Theo yêu cầu (xác nhận qua nhiều vòng `AskUserQuestion`, áp dụng đồng bộ cho cả Sales Order và Sales
+Return — xem `SalesReturn/docs/sales-return.md` mục cùng ngày): **"Cất" không còn tự Ghi sổ**. Trước
+đây `CreateSalesOrderUseCase`/`UpdateSalesOrderUseCase` luôn kết thúc ở `Status = Normal` và trừ kho
+ngay trong cùng transaction. Giờ:
+
+- **`CreateSalesOrderUseCase`** — bỏ hẳn khối trừ kho cuối hàm; `Status = Held` (không còn `Normal`).
+  Đơn mới luôn ở Treo, chưa đụng tồn kho.
+- **`UpdateSalesOrderUseCase`** — giữ nguyên khối hoàn tác tồn kho dòng cũ (chỉ chạy nếu đơn TRƯỚC ĐÓ
+  đang `Normal` — logic `stockNotCurrentlyDeducted` không đổi); bỏ khối trừ kho dòng mới ở cuối;
+  `Status = Held` thay vì `Normal`. "Cất" giờ luôn đưa đơn về Treo, kể cả khi sửa 1 đơn đang Normal
+  hoặc Draft.
+- **`ConfirmSalesOrderUseCase`/`IConfirmSalesOrderUseCase`** (MỚI) — ảnh gương của
+  `UnconfirmSalesOrderUseCase`: guard chỉ cho phép khi `Status == Held`, two-pass validate đủ tồn rồi
+  **trừ** kho (đây là hành động "Ghi sổ" thật sự, tách khỏi Create/Update) → `Status = Normal`.
+  Route mới: `POST /api/v1/sales-orders/{id}/confirm`.
+- **`HoldSalesOrderUseCase`/`IHoldSalesOrderUseCase`** — **đã xóa**. Nút "Treo" độc lập (đưa 1 đơn
+  Normal thẳng về Held) không còn cần thiết — muốn về Treo từ Normal thì đi Bỏ ghi → Sửa → Cất (2
+  bước, dùng lại đúng luồng Update ở trên). Route `PUT /{id}/hold` đã xóa khỏi
+  `SalesOrdersController`.
+- **`UnconfirmSalesOrderUseCase`** — không đổi (Normal → Draft, hoàn tác tồn kho — hành vi cũ).
+- **`DeleteSalesOrderUseCase`** — không đổi (điều kiện hoàn tác `Status == Normal` vốn đã đúng với
+  model mới: Held/Draft chưa từng đụng kho nên xóa không cần hoàn tác).
+
+Không cần EF migration (`SalesOrderStatus` enum không đổi giá trị). Verify: `dotnet build` 0 lỗi,
+`dotnet test` 6/6 pass. Test thủ công qua curl trên logic tương đương phía `SalesReturn` (xem
+`SalesReturn/docs/sales-return.md`) đã xác nhận Create→Held (không đổi kho)→Confirm (đổi kho đúng
+chiều)→Unconfirm (hoàn tác) hoạt động đúng; SalesOrder dùng chung pattern nhưng đảo chiều trừ/cộng
+kho, chưa test qua API thật (cần JWT — sẽ verify trên UTM cùng đợt với WPF).
+
+WPF (`desktop-lamour`): nút "Bỏ ghi" cũ đổi thành 1 nút **toggle "Ghi sổ" ⇄ "Bỏ ghi"** (label động
+theo `IsHeld`/`IsConfirmed`), nút "Treo" độc lập bị bỏ khỏi toolbar — chi tiết xem
+`desktop-lamour/.../Sales/docs/sales.md` mục cùng ngày.
+
+### State machine toggle — mirror từ SalesReturn (cùng ngày, sau khi chốt qua mô phỏng tương tác)
+
+Test tay lộ ra toggle 2 chiều đơn giản ở trên (1 lần bấm) không đúng ý — đã sửa lại theo đúng state
+machine đã chốt cho `SalesReturnViewModel` qua 1 Artifact mô phỏng tương tác, xem đầy đủ bảng +
+Artifact link ở `SalesReturn/docs/sales-return.md` mục "Toolbar toggle — state machine đã chốt".
+Áp dụng y hệt cho SalesOrder (Normal thay cho Confirmed, Held/Draft giữ nguyên):
+
+- **Đi lên (Held/Draft → Normal) cần đúng 2 lần bấm toggle**: lần 1 chỉ đổi nhãn + mở khóa Xóa,
+  KHÔNG gọi BE; lần 2 mới thật sự gọi `ConfirmSalesOrderUseCase` (trừ tồn kho).
+- **Đi xuống (Normal → Draft) chỉ 1 lần bấm**, hạ cánh thẳng ở "Held/Draft đã đụng toggle" (nhãn
+  sẵn "Ghi sổ", Xóa đã mở).
+- `ConfirmSalesOrderUseCase` guard nới từ `Status != Held` → chỉ chặn khi `Status == Normal` (cho
+  phép Ghi sổ cả từ Draft).
+- `SalesOrderViewModel` thêm cờ WPF-only `IsArmed`, `CanDeleteOrder` (mới, thay `DeleteCommand` dùng
+  chung `IsEditable` như trước) = `!IsConfirmed && IsReadOnly && IsArmed`. `SaveAsync`/
+  `InitializeAsync` đều khóa form (`IsReadOnly=true`) sau mỗi lần Cất/mở chứng từ có sẵn.
+
+**Chưa test qua UTM thật** — chỉ verify `dotnet build`/`dotnet test` (BE) và
+`dotnet build -p:EnableWindowsTargeting=true` (WPF) đều sạch.

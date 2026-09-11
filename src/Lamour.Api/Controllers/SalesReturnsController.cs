@@ -15,6 +15,8 @@ public class SalesReturnsController : ControllerBase
     private readonly ICreateSalesReturnUseCase      _create;
     private readonly IUpdateSalesReturnUseCase      _update;
     private readonly IDeleteSalesReturnUseCase      _delete;
+    private readonly IConfirmSalesReturnUseCase     _confirm;
+    private readonly IUnconfirmSalesReturnUseCase   _unconfirm;
     private readonly ICreateSalesReturnWarehouseReceiptUseCase _createWarehouseReceipt;
 
     public SalesReturnsController(
@@ -24,6 +26,8 @@ public class SalesReturnsController : ControllerBase
         ICreateSalesReturnUseCase      create,
         IUpdateSalesReturnUseCase      update,
         IDeleteSalesReturnUseCase      delete,
+        IConfirmSalesReturnUseCase     confirm,
+        IUnconfirmSalesReturnUseCase   unconfirm,
         ICreateSalesReturnWarehouseReceiptUseCase createWarehouseReceipt)
     {
         _getAll      = getAll;
@@ -32,6 +36,8 @@ public class SalesReturnsController : ControllerBase
         _create      = create;
         _update      = update;
         _delete      = delete;
+        _confirm     = confirm;
+        _unconfirm   = unconfirm;
         _createWarehouseReceipt = createWarehouseReceipt;
     }
 
@@ -70,6 +76,14 @@ public class SalesReturnsController : ControllerBase
         await _delete.ExecuteAsync(id, ct);
         return NoContent();
     }
+
+    [HttpPost("{id:int}/confirm")]
+    public async Task<IActionResult> Confirm(int id, CancellationToken ct)
+        => Ok(await _confirm.ExecuteAsync(id, ct));
+
+    [HttpPost("{id:int}/unconfirm")]
+    public async Task<IActionResult> Unconfirm(int id, CancellationToken ct)
+        => Ok(await _unconfirm.ExecuteAsync(id, ct));
 
     [HttpPost("{id:int}/create-warehouse-receipt")]
     public async Task<IActionResult> CreateWarehouseReceipt(int id, CancellationToken ct)

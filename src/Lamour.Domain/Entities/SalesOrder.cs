@@ -2,8 +2,13 @@ namespace Lamour.Domain.Entities;
 
 public enum SalesOrderStatus
 {
-    Normal = 0,  // Ghi sổ — mặc định khi tạo đơn
-    Held   = 1,  // Treo đơn
+    Normal  = 0,  // Ghi sổ — mặc định khi tạo đơn
+    Held    = 1,  // Treo đơn
+    // "Bỏ ghi" (2026-09-09) — khác "Treo": Treo dùng cho 1 đơn CHƯA hoàn chỉnh (tồn kho chưa từng
+    // trừ); Draft dùng khi 1 đơn ĐÃ Normal (đã trừ kho) bị đảo lại có chủ đích qua
+    // UnconfirmSalesOrderUseCase (đã hoàn tồn kho). Update luôn đưa đơn về lại Normal (mirror
+    // UnconfirmSalesReturnUseCase/UpdateSalesReturnUseCase) — không có nút "Ghi sổ" riêng để quay lại.
+    Draft   = 2,
 }
 
 public class SalesOrder

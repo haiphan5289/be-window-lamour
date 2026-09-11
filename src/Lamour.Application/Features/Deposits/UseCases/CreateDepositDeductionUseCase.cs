@@ -42,10 +42,12 @@ public class CreateDepositDeductionUseCase : ICreateDepositDeductionUseCase
         var eligibleDeposits = (await _depositRepo.GetEligibleForDeductionAsync(
             salesOrder.CustomerId, ct)).ToList();
 
-        var totalAvailable = eligibleDeposits.Sum(d => d.RemainingBalance);
-        if (request.Amount > totalAvailable)
-            throw new DomainException("Số tiền trừ cọc vượt quá tổng số dư cọc còn lại của khách hàng.");
-
+        // Đã bỏ hẳn validate "vượt quá tổng số dư cọc" theo yêu cầu (trước đó: throw DomainException
+        // nếu request.Amount > eligibleDeposits.Sum(d => d.RemainingBalance)). Hệ quả đã biết: nếu
+        // Amount thật sự vượt tổng dư cọc, vòng lặp bên dưới chỉ phân bổ được tới khi hết cọc khả
+        // dụng rồi dừng (remainingToAllocate > 0 bị bỏ luôn, không báo lỗi) — tổng DepositDeduction
+        // tạo ra sẽ ÍT HƠN Amount yêu cầu, có thể lệch với số hiển thị trên dòng "Trừ Cọc" của đơn
+        // hàng gốc. Người dùng đã xác nhận chấp nhận đánh đổi này.
         await _uow.BeginAsync(ct);
         try
         {

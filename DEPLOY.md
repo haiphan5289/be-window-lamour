@@ -51,22 +51,23 @@ Thay IP thành IP của máy chạy BE. Không cần rebuild lại WPF.
 
 ## Publish từ Mac (khi có code mới)
 
+> Có script sẵn cho cả 2 bước này trong `deploy/` — chạy script thay vì gõ tay lệnh, để tránh lỗi
+> thứ tự (xem cảnh báo bên dưới).
+
 ### BE (ASP.NET Core → Windows)
 
 ```bash
 cd /Users/hai.phan/Desktop/haiphan/be-window-lamour
-dotnet publish src/Lamour.Api \
-  -r win-x64 \
-  --self-contained true \
-  -c Release \
-  -o publish/api-win
+bash deploy/publish-be-mac.sh
 ```
+
+(Script chạy đúng: `dotnet publish src/Lamour.Api -r win-x64 --self-contained true -c Release -o publish/api-win`)
 
 Copy thư mục `publish/api-win/` lên `D:\app-lamour\LamourApi\api-win\` trên Windows.
 
 ### WPF (Windows, chạy trên UTM)
 
-> ⚠️ Luôn đủ 3 lệnh theo đúng thứ tự **sync → publish → zip**. Thiếu `Compress-Archive` (hoặc chạy
+> ⚠️ Luôn đủ 4 bước theo đúng thứ tự **cd → sync → publish → zip**. Thiếu `Compress-Archive` (hoặc chạy
 > trước `dotnet publish`) thì `desktop-win-new.zip` không xuất hiện lại trên Mac, hoặc chứa nhầm
 > build cũ — xem chi tiết ở mục "Quy trình update build chuẩn" bên dưới. **Không copy tay
 > `publish\desktop-win\` sang máy đích** — luôn đi qua bước zip này.
@@ -74,11 +75,11 @@ Copy thư mục `publish/api-win/` lên `D:\app-lamour\LamourApi\api-win\` trên
 ```powershell
 cd C:\projects\desktop-lamour
 .\sync.ps1
-
 dotnet publish src\DesktopLamour -r win-x64 --self-contained true -c Release -o publish\desktop-win
-
 Compress-Archive -Path "C:\projects\desktop-lamour\publish\desktop-win\*" -DestinationPath "Z:\publish\desktop-win-new.zip" -Force
 ```
+
+(`Z:\publish` phải tồn tại trước — nếu chưa có, chạy `mkdir Z:\publish -Force` trước khi `Compress-Archive`.)
 
 Zip xuất hiện lại trên Mac tại `desktop-lamour/publish/desktop-win-new.zip` (qua `Z:\` map) — giải nén rồi copy vào `D:\app-lamour\LamourDesktop\desktop-win\` trên máy đích.
 
@@ -133,18 +134,15 @@ start "Lamour API" /min /d "D:\app-lamour\LamourApi\api-win" "D:\app-lamour\Lamo
 **Bước 1 — Publish BE (Mac terminal):**
 ```bash
 cd /Users/hai.phan/Desktop/haiphan/be-window-lamour
-dotnet publish src/Lamour.Api -r win-x64 --self-contained true -c Release -o publish/api-win
+bash deploy/publish-be-mac.sh
 ```
 
 **Bước 2 — Sync + Publish + Zip WPF (UTM PowerShell):**
 ```powershell
 cd C:\projects\desktop-lamour
-.\sync.ps1
-
-dotnet publish src\DesktopLamour -r win-x64 --self-contained true -c Release -o publish\desktop-win
-
-Compress-Archive -Path "C:\projects\desktop-lamour\publish\desktop-win\*" -DestinationPath "Z:\publish\desktop-win-new.zip" -Force
+.\publish-wpf-utm.ps1
 ```
+(Copy `deploy/publish-wpf-utm.ps1` từ BE repo sang `C:\projects\desktop-lamour\` trên UTM trước khi chạy lần đầu.)
 
 > **⚠️ QUAN TRỌNG:** Phải chạy `.\sync.ps1` **trước** `dotnet publish`, và **không được bỏ qua bước publish**. `sync.ps1` chỉ copy source code (`src\`) từ Mac sang UTM — nó không tự build. Nếu zip/copy output ngay sau khi sync mà quên chạy `dotnet publish`, `Compress-Archive` sẽ nén **build cũ** còn nằm sẵn trong `publish\desktop-win\` từ lần trước, code mới vừa sync sẽ không được đưa vào exe. Thứ tự bắt buộc: **sync → publish → zip**.
 >
@@ -159,9 +157,9 @@ Compress-Archive -Path "C:\projects\desktop-lamour\publish\desktop-win\*" -Desti
 
 **Bước 3 — Dừng app trên máy đích:**
 ```powershell
-Stop-Process -Name "Lamour.Api" -Force -ErrorAction SilentlyContinue
-Stop-Process -Name "DesktopLamour" -Force -ErrorAction SilentlyContinue
+.\stop-lamour.ps1
 ```
+(Copy `deploy/stop-lamour.ps1` sang máy đích trước; hoặc chạy tay 2 lệnh `Stop-Process -Name "Lamour.Api" -Force -ErrorAction SilentlyContinue` / `Stop-Process -Name "DesktopLamour" -Force -ErrorAction SilentlyContinue`.)
 
 **Bước 4 — Copy file lên máy đích (dùng TeamViewer File Transfer):**
 - BE: copy toàn bộ `publish/api-win/` → `D:\app-lamour\LamourApi\api-win\`

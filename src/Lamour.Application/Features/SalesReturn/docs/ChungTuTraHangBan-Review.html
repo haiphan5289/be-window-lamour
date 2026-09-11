@@ -1,0 +1,381 @@
+<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1"><style>:root{color-scheme:light}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#faf9f5;color:#141413}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style><title>Chứng Từ Trả Hàng Bán</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Spectral:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+<style>
+
+  :root{
+    --ink: #1C2B26;
+    --ink-soft: #5C6D66;
+    --paper: #F2F5F0;
+    --surface: #FFFFFF;
+    --rule: #CBD6CB;
+    --rule-strong: #9FB29F;
+    --stamp: #A3382B;
+    --stamp-soft: #F6E7E3;
+    --flag: #8A6D1D;
+    --flag-soft: #FBF3DD;
+    --resolved: #3F7D5C;
+    --resolved-soft: #E5F0E9;
+    --shadow: 0 1px 2px rgba(20,30,26,.05), 0 10px 26px -14px rgba(20,30,26,.16);
+  }
+
+  @media (prefers-color-scheme: dark){
+    :root:not([data-theme="light"]){
+      --ink: #E7EDE7; --ink-soft: #9BAA9F;
+      --paper: #121B17; --surface: #1A2420;
+      --rule: #34433A; --rule-strong: #4A5C4F;
+      --stamp: #E3897C; --stamp-soft: #33201D;
+      --flag: #D9BB66; --flag-soft: #332A10;
+      --resolved: #74C99C; --resolved-soft: #163024;
+      --shadow: 0 1px 2px rgba(0,0,0,.35), 0 10px 26px -14px rgba(0,0,0,.6);
+    }
+  }
+  :root[data-theme="dark"]{
+    --ink: #E7EDE7; --ink-soft: #9BAA9F;
+    --paper: #121B17; --surface: #1A2420;
+    --rule: #34433A; --rule-strong: #4A5C4F;
+    --stamp: #E3897C; --stamp-soft: #33201D;
+    --flag: #D9BB66; --flag-soft: #332A10;
+    --resolved: #74C99C; --resolved-soft: #163024;
+    --shadow: 0 1px 2px rgba(0,0,0,.35), 0 10px 26px -14px rgba(0,0,0,.6);
+  }
+
+  *{ box-sizing: border-box; }
+  body{
+    background: var(--paper); color: var(--ink);
+    font-family: "IBM Plex Sans", "Segoe UI", system-ui, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    padding-inline: max(18px, calc((100vw - 860px) / 2));
+    padding-block: 44px 72px;
+  }
+  .serif{ font-family: "Spectral", Georgia, serif; }
+  .mono{ font-family: "IBM Plex Mono", ui-monospace, monospace; font-variant-numeric: tabular-nums; }
+  h1,h2,h3{ text-wrap: balance; }
+  a{ color: var(--resolved); }
+
+  .page{ max-width: 860px; margin-inline: auto; display: flex; flex-direction: column; gap: 44px; }
+
+  /* ── Masthead — như đầu 1 tờ chứng từ chính thức ─────────── */
+  .masthead{
+    border: 1px solid var(--rule-strong); border-radius: 3px; background: var(--surface);
+    box-shadow: var(--shadow); padding: 30px 34px 26px; position: relative; overflow: hidden;
+  }
+  .masthead::before{
+    content:""; position:absolute; left:0; top:0; bottom:0; width:5px; background: var(--stamp);
+  }
+  .doc-id{
+    display: inline-flex; align-items: center; gap: 8px;
+    font-family: "IBM Plex Mono", monospace; font-size: .72rem; font-weight: 600; letter-spacing: .06em;
+    color: var(--stamp); border: 1.5px solid var(--stamp); border-radius: 3px;
+    padding: 3px 9px; transform: rotate(-1.2deg); margin-bottom: 18px;
+  }
+  h1{ font-size: 2.05rem; font-weight: 700; margin: 0 0 12px; letter-spacing: -0.01em; }
+  .lede{ font-size: 1.02rem; line-height: 1.65; color: var(--ink-soft); max-width: 60ch; margin: 0 0 24px; }
+  .facts{
+    display: grid; grid-template-columns: repeat(4, 1fr); border-top: 1px solid var(--rule); padding-top: 18px;
+  }
+  .facts > div{ padding-inline: 18px; border-left: 1px solid var(--rule); }
+  .facts > div:first-child{ padding-left: 0; border-left: none; }
+  .facts dt{ font-size: .68rem; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; color: var(--ink-soft); margin: 0 0 4px; }
+  .facts dd{ font-size: .92rem; font-weight: 600; margin: 0; }
+  @media (max-width: 680px){ .facts{ grid-template-columns: repeat(2, 1fr); row-gap: 16px; } .facts > div:nth-child(3){ border-left:none; padding-left:0; } }
+
+  /* ── Section shell — chia trang kiểu sổ, không đánh số giả ── */
+  section{ display: flex; flex-direction: column; gap: 16px; }
+  .section-head{ display: flex; align-items: baseline; gap: 12px; }
+  .section-head::before{ content:""; width: 3px; align-self: stretch; background: var(--rule-strong); border-radius: 2px; flex: none; }
+  .section-head h2{ font-size: 1.28rem; font-weight: 700; margin: 0; }
+  .section-head .hint{ font-size: .82rem; color: var(--ink-soft); margin-left: auto; align-self: center; }
+
+  /* ── Notice strips ─────────────────────────────────────── */
+  .notice{ display: flex; gap: 12px; align-items: flex-start; border: 1px solid var(--rule); border-left-width: 4px; border-radius: 0 3px 3px 0; padding: 13px 16px; font-size: .89rem; line-height: 1.6; background: var(--surface); }
+  .notice.pending{ border-left-color: var(--flag); }
+  .notice.pending .notice-tag{ color: var(--flag); }
+  .notice.resolved{ border-left-color: var(--resolved); background: var(--resolved-soft); }
+  .notice.resolved .notice-tag{ color: var(--resolved); }
+  .notice-tag{ flex: none; font-family: "IBM Plex Mono", monospace; font-size: .68rem; font-weight: 700; letter-spacing: .07em; text-transform: uppercase; padding-top: 2px; }
+
+  /* ── Screen mockup — khung mô phỏng phần mềm ─────────────── */
+  .mockup-window{ border: 1px solid var(--rule-strong); border-radius: 7px; background: var(--surface); box-shadow: var(--shadow); overflow: hidden; }
+  .mockup-titlebar{ padding: 10px 16px; font-weight: 700; font-size: .92rem; border-bottom: 1px solid var(--rule); }
+  .mockup-tabs{ display: flex; gap: 2px; padding: 0 12px; background: var(--paper); border-bottom: 1px solid var(--rule); overflow-x: auto; }
+  .mockup-tabs span{ padding: 8px 12px; font-size: .8rem; color: var(--ink-soft); border-bottom: 2px solid transparent; white-space: nowrap; }
+  .mockup-tabs span.active{ color: var(--stamp); border-bottom-color: var(--stamp); font-weight: 600; }
+  .mockup-toolbar{ display: flex; flex-wrap: wrap; gap: 8px; padding: 10px 16px; border-bottom: 1px solid var(--rule); background: var(--paper); }
+  .mockup-toolbar .btn{ display: inline-flex; gap: 6px; align-items: center; font-size: .82rem; font-weight: 600; padding: 5px 10px; border: 1px solid var(--rule-strong); border-radius: 4px; background: var(--surface); }
+  .mockup-toolbar .btn.dim{ opacity: .4; }
+  .mockup-toolbar .btn.toggle{ border-color: var(--flag); background: var(--flag-soft); color: var(--flag); }
+  .mockup-body{ padding: 16px; }
+  .mockup-body.form{ display: grid; grid-template-columns: repeat(auto-fill, minmax(150px,1fr)); gap: 12px 20px; }
+  .mockup-body.form .field label{ display: block; font-size: .68rem; text-transform: uppercase; letter-spacing: .04em; color: var(--ink-soft); }
+  .mockup-body.form .field .value{ font-size: .9rem; font-weight: 600; }
+  .mockup-lines{ padding: 0 16px 16px; overflow-x: auto; }
+  .mockup-lines table{ width: 100%; border-collapse: collapse; font-size: .8rem; }
+  .mockup-lines th{ text-align: left; padding: 7px 9px; background: var(--paper); color: var(--ink-soft); font-size: .65rem; text-transform: uppercase; white-space: nowrap; }
+  .mockup-lines td{ padding: 7px 9px; border-top: 1px solid var(--rule); white-space: nowrap; }
+  .mockup-body.grid{ overflow-x: auto; }
+  .mockup-body.grid table{ width: 100%; border-collapse: collapse; font-size: .84rem; }
+  .mockup-body.grid th{ text-align: left; padding: 8px 10px; background: var(--paper); color: var(--ink-soft); font-size: .68rem; text-transform: uppercase; white-space: nowrap; }
+  .mockup-body.grid td{ padding: 8px 10px; border-top: 1px solid var(--rule); white-space: nowrap; }
+  .mockup-body.grid tr.highlight td{ color: var(--flag); font-weight: 600; background: var(--flag-soft); }
+  .mockup-footer{ padding: 10px 16px; border-top: 1px solid var(--rule); display: flex; justify-content: flex-end; gap: 20px; flex-wrap: wrap; font-size: .84rem; }
+  .mockup-footer b{ font-family: "IBM Plex Mono", monospace; }
+  .mockup-caption{ font-size: .8rem; color: var(--ink-soft); line-height: 1.6; margin: 0; }
+  .ui-chip{ display: inline-flex; align-items: center; gap: 4px; font-family: "IBM Plex Mono", monospace; font-size: .82rem; font-weight: 600; background: var(--paper); border: 1px solid var(--rule-strong); border-radius: 4px; padding: 1px 7px; }
+
+  /* ── Workflow — trình tự thao tác thật, đánh số có ý nghĩa ── */
+  .steps{ display: flex; flex-direction: column; gap: 12px; }
+  .step{ display: grid; grid-template-columns: 40px 1fr; gap: 18px; border: 1px solid var(--rule); border-radius: 4px; background: var(--surface); padding: 18px 20px; }
+  @media (max-width: 560px){ .step{ grid-template-columns: 1fr; } }
+  .step-num{ font-family: "IBM Plex Mono", monospace; font-weight: 600; font-size: .92rem; color: var(--ink); background: var(--paper); border: 1px solid var(--rule-strong); width: 36px; height: 36px; border-radius: 50%; display: flex; align-items: center; justify-content: center; }
+  .step-body{ display: flex; flex-direction: column; gap: 9px; }
+  .step-body h3{ font-size: 1.02rem; font-weight: 700; margin: 0; }
+  .step-body p{ margin: 0; line-height: 1.65; font-size: .93rem; }
+  .step-body ul{ margin: 0; padding-left: 20px; display: flex; flex-direction: column; gap: 6px; font-size: .91rem; line-height: 1.55; }
+  .step-body li::marker{ color: var(--ink-soft); }
+
+  /* ── Rules ledger — bảng kẻ dòng thật, không phải khối code ── */
+  .rules-wrap{ border: 1px solid var(--rule-strong); border-radius: 4px; overflow: auto; background: var(--surface); }
+  .rules-table{ width: 100%; border-collapse: collapse; font-size: .88rem; }
+  .rules-table th, .rules-table td{ text-align: left; padding: 10px 15px; border-bottom: 1px solid var(--rule); vertical-align: top; }
+  .rules-table th{ font-size: .68rem; letter-spacing: .06em; text-transform: uppercase; color: var(--ink-soft); font-weight: 700; background: var(--paper); }
+  .rules-table tr:last-child td{ border-bottom: none; }
+  .acct{ font-family: "IBM Plex Mono", monospace; font-size: .86em; color: var(--stamp); }
+
+  /* ── Checklist — như phiếu soát xét đóng dấu từng mục ────── */
+  .checklist{ display: flex; flex-direction: column; gap: 10px; }
+  .check-item{ display: flex; gap: 14px; align-items: flex-start; border: 1px solid var(--rule); border-radius: 4px; background: var(--surface); padding: 14px 16px; }
+  .check-item.resolved{ background: var(--resolved-soft); border-color: var(--resolved); }
+  .check-mark{
+    flex: none; width: 30px; height: 30px; border-radius: 50%; display: flex; align-items: center; justify-content: center;
+    font-family: "IBM Plex Mono", monospace; font-size: .8rem; font-weight: 700; border: 1.5px solid var(--rule-strong); color: var(--ink-soft);
+  }
+  .check-item.resolved .check-mark{ border-color: var(--resolved); color: var(--resolved); transform: rotate(-6deg); }
+  .check-text{ font-size: .92rem; line-height: 1.6; padding-top: 3px; }
+  .stamp-tag{ display:inline-block; font-family: "IBM Plex Mono", monospace; font-size: .68rem; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; color: var(--resolved); border: 1px solid var(--resolved); padding: 1px 7px; border-radius: 3px; margin-right: 7px; transform: rotate(-2deg); }
+
+  footer{ display: flex; justify-content: space-between; gap: 12px; flex-wrap: wrap; font-size: .78rem; color: var(--ink-soft); border-top: 1px solid var(--rule); padding-top: 16px; }
+</style>
+
+<div class="page">
+
+  <header class="masthead">
+    <span class="doc-id">SỐ RV-BTL-02 · 11/09/2026</span>
+    <h1 class="serif">Chứng từ hàng bán bị trả lại</h1>
+    <p class="lede">Cách "Cất" và "Ghi sổ" hoạt động đã thay đổi so với bản trước — giờ tách thành 2 bước riêng. Tài liệu này đối chiếu trực tiếp với phần mềm mới nhất, để Kế toán xác nhận trước khi đưa vào dùng chính thức.</p>
+    <dl class="facts">
+      <div><dt>Đối tượng</dt><dd>Kế toán lên đơn</dd></div>
+      <div><dt>Mục tiêu</dt><dd>Xác nhận quy trình Cất → Ghi sổ → Bỏ ghi</dd></div>
+      <div><dt>Phạm vi</dt><dd>Popup chứng từ &amp; Danh sách</dd></div>
+      <div><dt>Lần soát xét</dt><dd>Lần 2 — 11/09/2026</dd></div>
+    </dl>
+  </header>
+
+  <section>
+    <div class="section-head"><h2>Chưa dùng thử trên máy thật</h2></div>
+    <div class="notice pending">
+      <span class="notice-tag">Lưu ý</span>
+      <span>Toàn bộ nội dung dưới đây đã được kiểm tra kỹ theo đúng phần mềm mới nhất, nhưng <b>chưa được dùng thử trên máy tính thật</b> của kế toán. Số bước bấm, tên nút, trạng thái khóa/mở có thể lệch nhẹ khi dùng thật — nếu thấy khác với mô tả ở đây, phản hồi lại giúp.</span>
+    </div>
+    <div class="notice resolved">
+      <span class="notice-tag">Đã cập nhật</span>
+      <span>Sau lần soát xét đầu, phần mềm đã điều chỉnh thêm 2 chỗ, tài liệu này đã cập nhật theo: (1) bỏ hẳn nút <b>"Lập PN"</b> riêng trên popup — nút <b>"In"</b> vẫn tự lập Phiếu Nhập Kho khi cần, chỉ gộp lại còn 1 nút thay vì 2; (2) danh sách đã tô màu <b>Treo</b> giống <b>Nháp</b> và bộ lọc Trạng thái đã có thêm lựa chọn "Treo" — xem mục #3 trong phiếu soát xét bên dưới.</span>
+    </div>
+  </section>
+
+  <section>
+    <div class="section-head">
+      <h2>Popup — Chứng từ hàng bán bị trả lại</h2>
+      <span class="hint">Minh họa giao diện, không phải ảnh chụp thật</span>
+    </div>
+    <div class="mockup-window">
+      <div class="mockup-titlebar">Chứng từ hàng bán bị trả lại</div>
+      <div class="mockup-tabs">
+        <span class="active">1. Hàng tiền</span><span>2. Thuế</span><span>3. Giá vốn</span><span>4. Thống kê</span><span>5. Thông tin bổ sung</span>
+      </div>
+      <div class="mockup-toolbar">
+        <span class="btn dim">◀ Trước</span>
+        <span class="btn dim">▶ Sau</span>
+        <span class="btn">➕ Thêm</span>
+        <span class="btn dim">✏️ Sửa</span>
+        <span class="btn dim">🗑️ Xóa</span>
+        <span class="btn">💾 Cất</span>
+        <span class="btn toggle">↩️ Ghi sổ</span>
+        <span class="btn">🖨️ In</span>
+        <span class="btn">✖️ Đóng</span>
+      </div>
+      <div class="mockup-body form">
+        <div class="field"><label>Mã khách hàng</label><span class="value">KH00042</span></div>
+        <div class="field"><label>Tên khách hàng</label><span class="value">Nguyễn Thị Hồng</span></div>
+        <div class="field"><label>Diễn giải</label><span class="value">Trả hàng lỗi</span></div>
+        <div class="field"><label>NV bán hàng</label><span class="value">NV003 — Trần Văn B</span></div>
+        <div class="field"><label>Tham chiếu</label><span class="value">—</span></div>
+        <div class="field"><label>Loại trả hàng</label><span class="value">⦿ Giảm trừ công nợ</span></div>
+        <div class="field"><label>Ngày hạch toán</label><span class="value mono">11/09/2026</span></div>
+        <div class="field"><label>Ngày chứng từ</label><span class="value mono">11/09/2026</span></div>
+        <div class="field"><label>Số chứng từ</label><span class="value mono">BTL00023</span></div>
+      </div>
+      <div class="mockup-lines">
+        <table>
+          <tr><th>Mã hàng</th><th>Tên hàng</th><th>Kho</th><th>TK trả lại</th><th>TK công nợ</th><th>ĐVT</th><th>SL</th><th>Đơn giá</th><th>Thành tiền</th></tr>
+          <tr><td class="mono">SP014</td><td>Serum dưỡng ẩm</td><td>Kho chính</td><td class="mono">5212</td><td class="mono">131</td><td>Chai</td><td class="mono">2</td><td class="mono">185.000</td><td class="mono">370.000</td></tr>
+        </table>
+      </div>
+      <div class="mockup-footer">
+        <span>Tổng tiền hàng <b>370.000</b></span>
+        <span>Tổng chiết khấu <b>0</b></span>
+        <span>Tiền thuế GTGT <b>29.600</b></span>
+        <span>Tổng tiền thanh toán <b>370.000</b></span>
+      </div>
+    </div>
+    <p class="mockup-caption">Minh họa tab "1. Hàng tiền" — 4 tab còn lại (Thuế/Giá vốn/Thống kê/Thông tin bổ sung) có thật trên màn nhưng không minh họa ở đây. Nút thứ 7 trên thanh công cụ (<span class="ui-chip">↩️</span>) đổi qua lại giữa nhãn <b>"Ghi sổ"</b> và <b>"Bỏ ghi"</b> tùy trạng thái chứng từ — xem mục "Các bước thao tác" bên dưới. <b>Cập nhật 11/09/2026:</b> đã bỏ nút <span class="ui-chip">🧾 Lập PN</span> riêng (trước đây nằm giữa "Ghi sổ" và "In") — xem bước 7. Số liệu/mã khách hàng chỉ là ví dụ minh họa.</p>
+  </section>
+
+  <section>
+    <div class="section-head">
+      <h2>Danh sách chứng từ</h2>
+      <span class="hint">Minh họa giao diện, không phải ảnh chụp thật</span>
+    </div>
+    <div class="mockup-window">
+      <div class="mockup-titlebar">Chứng từ hàng bán bị trả lại</div>
+      <div class="mockup-toolbar">
+        <span class="btn">➕ Thêm</span>
+        <span class="btn">👁 Xem</span>
+        <span class="btn dim">✏️ Sửa</span>
+        <span class="btn dim">↩️ Bỏ ghi</span>
+        <span class="btn dim">🗑️ Xóa</span>
+        <span class="btn">📤 Xuất khẩu</span>
+      </div>
+      <div class="mockup-body grid">
+        <table>
+          <tr><th>Số chứng từ</th><th>Ngày c.từ</th><th>Khách hàng</th><th>Diễn giải</th><th>Tổng thanh toán</th><th>Kiêm phiếu nhập</th></tr>
+          <tr><td class="mono">BTL00012</td><td class="mono">09/09/2026</td><td>Phan Thị Bích Liễu</td><td>Trả hàng lỗi in</td><td class="mono">2.925.000</td><td>Có</td></tr>
+          <tr class="highlight"><td class="mono">BTL00023</td><td class="mono">11/09/2026</td><td>Nguyễn Thị Hồng</td><td>Trả hàng lỗi</td><td class="mono">370.000</td><td>Chưa</td></tr>
+          <tr class="highlight"><td class="mono">BTL00011</td><td class="mono">08/09/2026</td><td>Nguyễn Văn A</td><td>Trả thiếu size</td><td class="mono">1.480.000</td><td>Chưa</td></tr>
+        </table>
+      </div>
+    </div>
+    <p class="mockup-caption">Minh họa — <span style="color:var(--flag);font-weight:600">2 dòng tô màu</span>: BTL00023 đang <b>Treo</b> (vừa Cất), BTL00011 đang <b>Nháp</b> (đã Bỏ ghi) — <b>cập nhật 11/09/2026: dùng chung 1 màu</b> (trước đây chỉ Nháp được tô, Treo trông giống hệt Đã ghi sổ). Cột hiển thị đã rút gọn để vừa trang — màn thật còn có Loại trả hàng, Ngày hạch toán, Nhân viên, Tổng tiền hàng, Tổng CK, Tiền thuế GTGT. Không có cột "Trạng thái" riêng — chỉ đổi màu cả dòng. Bộ lọc "Trạng thái" giờ có 3 lựa chọn tách bạch: <b>Đã ghi sổ / Treo / Nháp</b> (trước đây "Nháp" ngầm hiện luôn cả Treo).</p>
+  </section>
+
+  <section>
+    <div class="section-head">
+      <h2>Các bước thao tác — Cất, Ghi sổ, Bỏ ghi</h2>
+      <span class="hint">7 bước, theo đúng thứ tự thao tác thật</span>
+    </div>
+    <div class="steps">
+
+      <div class="step">
+        <div class="step-num">1</div>
+        <div class="step-body">
+          <h3>Tạo chứng từ mới</h3>
+          <p>Bấm <span class="ui-chip">➕ Thêm</span> → form trống, chưa có số chứng từ chính thức. Nhập khách hàng và ít nhất 1 dòng hàng.</p>
+        </div>
+      </div>
+
+      <div class="step">
+        <div class="step-num">2</div>
+        <div class="step-body">
+          <h3>Cất → Treo (chưa đụng tồn kho)</h3>
+          <p>Bấm <span class="ui-chip">💾 Cất</span> → chứng từ được lưu ở trạng thái <b>Treo</b>. <b>Tồn kho chưa đổi gì cả.</b></p>
+          <ul>
+            <li>Thanh công cụ lúc này: Cất tắt, Xóa tắt, Sửa bật, nút thứ 7 hiện <b>"Bỏ ghi"</b> (nhưng bấm chưa làm gì thật — xem bước 3).</li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="step">
+        <div class="step-num">3</div>
+        <div class="step-body">
+          <h3>Bấm nút lần 1 — chỉ để xác nhận trước</h3>
+          <p>Bấm nút đang hiện <b>"Bỏ ghi"</b> → nút đổi nhãn thành <b>"Ghi sổ"</b>, mở khóa thêm nút Xóa. <b>Chưa có gì lưu xuống hệ thống, tồn kho vẫn chưa đổi.</b></p>
+          <div class="notice pending"><span class="notice-tag">Cần xác nhận</span><span>Cùng 1 nút, bấm 1 lần chỉ đổi chữ chứ chưa ghi sổ thật — có dễ gây hiểu lầm "bấm xong là ghi sổ luôn" rồi bỏ dở giữa chừng không?</span></div>
+        </div>
+      </div>
+
+      <div class="step">
+        <div class="step-num">4</div>
+        <div class="step-body">
+          <h3>Bấm nút lần 2 — ghi sổ thật</h3>
+          <p>Bấm nút đang hiện <b>"Ghi sổ"</b> → lúc này mới thật sự ghi sổ: <b>cộng tồn kho</b> cho từng mặt hàng trả lại, chứng từ chuyển <b>Đã ghi sổ</b>.</p>
+          <ul>
+            <li>Form khóa lại hoàn toàn: Cất/Sửa/Xóa đều tắt. Chỉ còn nút chuyển trạng thái (giờ hiện "Bỏ ghi") và In dùng được.</li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="step">
+        <div class="step-num">5</div>
+        <div class="step-body">
+          <h3>Bỏ ghi — chỉ cần 1 lần bấm</h3>
+          <p>Muốn sửa lại 1 chứng từ Đã ghi sổ: bấm nút đang hiện <b>"Bỏ ghi"</b> — lần này <b>chỉ 1 lần bấm là xong ngay</b> (khác hẳn bước 3–4 cần 2 lần).</p>
+          <ul>
+            <li>Tồn kho được <b>trừ lại</b> ngay lập tức, chứng từ về <b>Nháp</b>.</li>
+            <li>Nếu tồn kho hiện tại không đủ để trừ lại (hàng đã bán tiếp sau khi ghi sổ) → báo lỗi, không cho Bỏ ghi.</li>
+            <li>Sau bước này: Sửa và Xóa đều bật ngay, nút chuyển trạng thái hiện sẵn <b>"Ghi sổ"</b> — không cần bấm "Bỏ ghi" lại từ đầu để ghi sổ lần nữa.</li>
+          </ul>
+          <div class="notice pending"><span class="notice-tag">Cần xác nhận</span><span>Cùng 1 nút "Bỏ ghi"/"Ghi sổ" nhưng đôi lúc cần bấm 2 lần (bước 3–4), đôi lúc chỉ 1 lần mới ghi sổ được (bước này) — kế toán có dễ nhớ đúng số lần cần bấm không?</span></div>
+        </div>
+      </div>
+
+      <div class="step">
+        <div class="step-num">6</div>
+        <div class="step-body">
+          <h3>Sửa lại số liệu</h3>
+          <p>Bấm <span class="ui-chip">✏️ Sửa</span> → mở khóa ô nhập liệu. Sửa xong bấm <span class="ui-chip">💾 Cất</span> → quay về <b>Treo</b> (giống bước 2), phải bấm nút chuyển trạng thái <b>2 lần</b> nữa (bước 3–4) mới ghi sổ lại được.</p>
+        </div>
+      </div>
+
+      <div class="step">
+        <div class="step-num">7</div>
+        <div class="step-body">
+          <h3>In — tự lập Phiếu Nhập Kho khi cần</h3>
+          <p><b>Cập nhật 11/09/2026:</b> đã bỏ nút <span class="ui-chip">🧾 Lập PN</span> riêng trên popup (theo yêu cầu, gộp lại còn 1 nút thay vì 2 nút làm cùng một việc). Nút <span class="ui-chip">🖨️ In</span> vẫn tự lập Phiếu Nhập Kho liên kết nếu chưa có, rồi in luôn — bấm được bất cứ lúc nào chứng từ đã tồn tại, kể cả đang Treo. Không còn cách nào lập Phiếu Nhập Kho mà không in cùng lúc nữa.</p>
+          <div class="notice pending"><span class="notice-tag">Cần xác nhận</span><span>"Ghi sổ"/"Bỏ ghi" không kiểm tra Phiếu Nhập Kho đã lập liên kết — Bỏ ghi xong, Phiếu Nhập Kho cũ vẫn còn nguyên, hệ thống không tự hủy hay cảnh báo. Có cần chặn/nhắc trong trường hợp này không?</span></div>
+        </div>
+      </div>
+
+    </div>
+  </section>
+
+  <section>
+    <div class="section-head">
+      <h2>Quy tắc nghiệp vụ</h2>
+      <span class="hint">Để kế toán đối chiếu với chế độ kế toán đang áp dụng</span>
+    </div>
+    <div class="rules-wrap">
+      <table class="rules-table">
+        <tr><th>Mục</th><th>Quy tắc</th></tr>
+        <tr><td>Số chứng từ</td><td>Prefix <span class="acct">BTL</span>, sinh tự động dạng <span class="acct">BTL00001</span>, <span class="acct">BTL00002</span>... (sinh trên máy kế toán, không phải máy chủ)</td></tr>
+        <tr><td>Điều kiện Cất</td><td>Bắt buộc chọn khách hàng và ít nhất 1 dòng hàng. Hàng đã ngưng kinh doanh hoặc chưa chọn Kho sẽ bị chặn</td></tr>
+        <tr><td>Ghi sổ</td><td><b>CỘNG</b> tồn kho cho mỗi dòng (hàng trả về nhập lại kho)</td></tr>
+        <tr><td>Bỏ ghi</td><td><b>TRỪ</b> lại đúng số đã cộng — bị chặn nếu tồn kho hiện tại không đủ để trừ (hàng đã bán tiếp)</td></tr>
+        <tr><td>Sửa / Xóa</td><td>Hệ thống không chặn theo trạng thái — chặn là do màn hình tự giới hạn (ví dụ Đã ghi sổ thì khóa Sửa cho tới khi Bỏ ghi trước)</td></tr>
+        <tr><td>Thành tiền</td><td>Số lượng × Đơn giá — tính trước chiết khấu</td></tr>
+        <tr><td>Tiền chiết khấu</td><td>Thành tiền × % chiết khấu — hệ thống tự giới hạn 0–100%</td></tr>
+        <tr><td>Thuế GTGT &amp; giá vốn</td><td>Hệ thống tự lấy từ hồ sơ Sản phẩm tại thời điểm ghi sổ — không nhập tay được</td></tr>
+        <tr><td>Hình thức xử lý</td><td>Giảm trừ công nợ / Trả lại tiền mặt — <b>"Trả lại tiền mặt" chỉ lưu nhãn</b>, không tự lập Phiếu chi tương ứng</td></tr>
+        <tr><td>Số chứng từ bán hàng</td><td>Ô nhập tay tự do, hệ thống không đối chiếu với hóa đơn gốc thật</td></tr>
+        <tr><td>Tài khoản mặc định</td><td>Doanh thu trả lại <span class="acct">5212</span> · Công nợ <span class="acct">131</span> · Chiết khấu <span class="acct">5211</span> · Thuế <span class="acct">33311</span> · Giá vốn <span class="acct">632</span></td></tr>
+      </table>
+    </div>
+  </section>
+
+  <section>
+    <div class="section-head"><h2>Phiếu soát xét — cần kế toán xác nhận</h2></div>
+    <div class="checklist">
+      <div class="check-item"><span class="check-mark">1</span><span class="check-text">Bước <b>"bấm 2 lần mới ghi sổ thật"</b> (Treo → Ghi sổ) có trực quan với thói quen làm việc không?</span></div>
+      <div class="check-item"><span class="check-mark">2</span><span class="check-text">Sau khi <b>Bỏ ghi</b>, chỉ cần <b>1 lần bấm</b> để ghi sổ lại — khác số lần bấm so với chứng từ mới. Có gây nhầm lẫn không?</span></div>
+      <div class="check-item resolved"><span class="check-mark">✓</span><span class="check-text"><span class="stamp-tag">Đã xử lý 11/09</span>Danh sách trước đây không phân biệt màu giữa chứng từ Treo và Đã ghi sổ, bộ lọc Trạng thái không có "Treo" — Treo giờ tô cùng màu với Nháp, bộ lọc đã có thêm lựa chọn "Treo" riêng. Xác nhận lại giúp khi thấy đúng trên máy tính thật.</span></div>
+      <div class="check-item"><span class="check-mark">4</span><span class="check-text">Ghi sổ <b>không qua bước duyệt</b> riêng — ai bấm cũng ghi sổ được ngay. Có đúng quy trình kiểm soát mong muốn không?</span></div>
+      <div class="check-item"><span class="check-mark">5</span><span class="check-text"><b>Ghi sổ/Bỏ ghi không kiểm tra Phiếu Nhập Kho</b> liên kết đã lập trước đó.</span></div>
+      <div class="check-item"><span class="check-mark">6</span><span class="check-text">Tính năng vừa điều chỉnh xong trong ngày, <b>chưa dùng thử trên máy tính thật</b> — cần xác nhận lại bằng mắt khi được cài đặt thật.</span></div>
+    </div>
+  </section>
+
+  <footer>
+    <span>Nội dung đối chiếu trực tiếp với phần mềm mới nhất — soát xét lần 2 ngày 11/09/2026, sau khi bỏ nút Lập PN và chỉnh màu Treo. Góp ý xin phản hồi trực tiếp qua Zalo/email.</span>
+  </footer>
+
+</div>
+
+</body></html>

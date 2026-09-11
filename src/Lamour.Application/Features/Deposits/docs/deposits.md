@@ -1,6 +1,21 @@
 # Đặt Cọc (Deposit) — Feature Document (BE)
 
-> **Jira:** — | **Branch:** `dev` | **Generated:** 2026-08-09 | **Updated:** 2026-09-08 (**gỡ hẳn cầu nối Sales Order ↔ Deposit** — xem "Update — 2026-09-08" ngay dưới) | 2026-08-15 (Deposit có thể tự sinh từ 1 dòng sản phẩm "Đặt cọc" trong Sales Order — nay đã gỡ)
+> **Jira:** — | **Branch:** `dev` | **Generated:** 2026-08-09 | **Updated:** 2026-09-09 (bỏ hẳn guard "vượt quá tổng số dư cọc" ở `CreateDepositDeductionUseCase` — xem "Update — 2026-09-09" ngay dưới, **không còn all-or-nothing**) | 2026-09-08 (**gỡ hẳn cầu nối Sales Order ↔ Deposit** — xem "Update — 2026-09-08" ngay dưới) | 2026-08-15 (Deposit có thể tự sinh từ 1 dòng sản phẩm "Đặt cọc" trong Sales Order — nay đã gỡ)
+
+## Update — 2026-09-09: bỏ hẳn guard "vượt quá tổng số dư cọc"
+
+Theo yêu cầu (xác nhận qua `AskUserQuestion` — chấp nhận đánh đổi): `CreateDepositDeductionUseCase`
+không còn throw `DomainException` khi `request.Amount > Σ RemainingBalance` của các cọc hợp lệ.
+
+**Hệ quả (đã cảnh báo, user chấp nhận)**: hành vi "all-or-nothing" mô tả ở mục "Trừ cọc tự động
+phân bổ FIFO" bên dưới **không còn đúng** cho trường hợp vượt quá — vòng lặp phân bổ giờ chạy tới
+khi hết cọc khả dụng rồi dừng lặng lẽ (`remainingToAllocate > 0` bị bỏ, không lỗi), tạo ra tổng
+`DepositDeduction` **ÍT HƠN** `Amount` yêu cầu. Phía WPF (`SalesOrderViewModel.SaveAsync`), dòng
+"Trừ Cọc" trên đơn hàng vẫn hiển thị đúng số tiền user nhập — có thể lệch với tổng thật đã phân bổ.
+Không có cơ chế tự động điều chỉnh lại số hiển thị trên đơn khớp với số thực trừ được.
+
+`request.Amount <= 0` vẫn được validate (`DomainException("Số tiền trừ cọc phải lớn hơn 0.")`) —
+chỉ bỏ đúng 1 guard "vượt quá tổng dư cọc".
 
 ---
 
@@ -50,7 +65,7 @@ Toàn bộ cầu nối tự động giữa **Chứng từ bán hàng (XK)** và 
 | Khởi tạo cọc | `Amount > 0` bắt buộc — `DomainException` nếu vi phạm. `RemainingBalance` = `Amount`, `Status = Active` |
 | Trừ cọc bắt buộc gắn Sales Order | `DepositDeduction.SalesOrderId` bắt buộc — validate Sales Order tồn tại (`NotFoundException` → 404 nếu không) |
 | Guard số dư (đã thay thế, xem rule bên dưới 2026-08-25) | ~~`Amount trừ > 0` và `Amount trừ <= Deposit.RemainingBalance` — nếu vượt: `DomainException("Số tiền trừ cọc vượt quá số dư còn lại.")` → 400~~ Guard này áp dụng cho model 1 deduction = 1 deposit cụ thể (client chọn `deposit_id`), nay không còn dùng — xem rule "Trừ cọc tự động phân bổ FIFO" |
-| Trừ cọc tự động phân bổ FIFO (mới 2026-08-25) | Client **không còn gửi `deposit_id`** khi tạo `DepositDeduction` — chỉ gửi `sales_order_id` + `amount`. BE tự resolve `CustomerId` qua Sales Order (`ISalesOrderRepository.GetByIdAsync`), lấy các `Deposit` còn số dư (`RemainingBalance > 0`) của khách hàng đó qua `IDepositRepository.GetEligibleForDeductionAsync(customerId, excludeSalesOrderId: salesOrderId)` — sắp xếp CŨ NHẤT TRƯỚC (FIFO theo `CreatedAt` tăng dần), loại trừ cọc có `SourceSalesOrderId == salesOrderId` đang xử lý (chặn tự trừ cọc do chính đơn này sinh ra). `Amount` yêu cầu vẫn phải `> 0` (`DomainException("Số tiền trừ cọc phải lớn hơn 0.")`). Guard tổng số dư: nếu `Amount > Σ RemainingBalance` của các cọc hợp lệ → `DomainException("Số tiền trừ cọc vượt quá tổng số dư cọc còn lại của khách hàng.")` → 400, **không phân bổ một phần** (all-or-nothing). Nếu hợp lệ: phân bổ `Amount` tuần tự vào từng cọc theo thứ tự FIFO — mỗi cọc nhận `Math.Min(số còn cần phân bổ, RemainingBalance của cọc đó)`, dừng khi phân bổ hết, **không tạo dòng `DepositDeduction` cho cọc không được đụng tới**. Mỗi cọc nhận phân bổ → 1 dòng `DepositDeduction` riêng, số chứng từ `TC{5}` riêng (sinh mới cho từng dòng qua `GetNextCodeNumberAsync` trong cùng transaction), nhưng cùng `SalesOrderId`. Toàn bộ nằm trong 1 `IUnitOfWork` transaction — hoặc tất cả các dòng deduction + cập nhật balance đều thành công, hoặc rollback hết. `POST /deposit-deductions` trả về **mảng** `DepositDeductionResponseDto[]` (201) thay vì 1 object |
+| Trừ cọc tự động phân bổ FIFO (mới 2026-08-25) | Client **không còn gửi `deposit_id`** khi tạo `DepositDeduction` — chỉ gửi `sales_order_id` + `amount`. BE tự resolve `CustomerId` qua Sales Order (`ISalesOrderRepository.GetByIdAsync`), lấy các `Deposit` còn số dư (`RemainingBalance > 0`) của khách hàng đó qua `IDepositRepository.GetEligibleForDeductionAsync(customerId, excludeSalesOrderId: salesOrderId)` — sắp xếp CŨ NHẤT TRƯỚC (FIFO theo `CreatedAt` tăng dần), loại trừ cọc có `SourceSalesOrderId == salesOrderId` đang xử lý (chặn tự trừ cọc do chính đơn này sinh ra). `Amount` yêu cầu vẫn phải `> 0` (`DomainException("Số tiền trừ cọc phải lớn hơn 0.")`). ~~Guard tổng số dư: nếu `Amount > Σ RemainingBalance` của các cọc hợp lệ → `DomainException(...)` → 400, không phân bổ một phần (all-or-nothing).~~ **Đã bỏ guard này 2026-09-09** (xem "Update — 2026-09-09" ở trên) — giờ KHÔNG all-or-nothing nữa, vượt quá sẽ phân bổ một phần lặng lẽ. Phân bổ `Amount` tuần tự vào từng cọc theo thứ tự FIFO — mỗi cọc nhận `Math.Min(số còn cần phân bổ, RemainingBalance của cọc đó)`, dừng khi phân bổ hết, **không tạo dòng `DepositDeduction` cho cọc không được đụng tới**. Mỗi cọc nhận phân bổ → 1 dòng `DepositDeduction` riêng, số chứng từ `TC{5}` riêng (sinh mới cho từng dòng qua `GetNextCodeNumberAsync` trong cùng transaction), nhưng cùng `SalesOrderId`. Toàn bộ nằm trong 1 `IUnitOfWork` transaction — hoặc tất cả các dòng deduction + cập nhật balance đều thành công, hoặc rollback hết. `POST /deposit-deductions` trả về **mảng** `DepositDeductionResponseDto[]` (201) thay vì 1 object |
 | Trừ cọc thành công | `Deposit.RemainingBalance -= Amount`; nếu về `0` → `Status = Depleted`, ngược lại giữ/trả về `Active` |
 | Xóa lần trừ cọc | Hoàn `Deposit.RemainingBalance += Amount`, `Status = Active` (đã hoàn nên chắc chắn > 0), rồi xóa dòng `DepositDeduction` |
 | Sửa/Xóa Deposit header | Chỉ cho phép khi **chưa bị trừ lần nào** (`RemainingBalance == Amount`) — ngược lại `DomainException("Cọc đã bị trừ, không thể sửa/xóa.")` |
