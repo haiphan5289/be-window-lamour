@@ -2,7 +2,7 @@
 -- PostgreSQL database dump
 --
 
-\restrict GHxBYsiNkmwgaCiMfz5eCp949D0ZvjxhxHIDqTDUuE8hBFp5P37OeJfsh9Jj83t
+\restrict WoZSNDAUon4zuUbjvsRmNflMnwHWiMz03g3cmibdrB9ZdAve00oc3kTUXXG5Yx3
 
 -- Dumped from database version 16.14 (Homebrew)
 -- Dumped by pg_dump version 16.14 (Homebrew)
@@ -18,6 +18,7 @@ SET xmloption = content;
 SET client_min_messages = warning;
 SET row_security = off;
 
+ALTER TABLE IF EXISTS ONLY public.warehouse_receipts DROP CONSTRAINT IF EXISTS "FK_warehouse_receipts_suppliers_supplier_id";
 ALTER TABLE IF EXISTS ONLY public.warehouse_receipts DROP CONSTRAINT IF EXISTS "FK_warehouse_receipts_employees_employee_id";
 ALTER TABLE IF EXISTS ONLY public.warehouse_receipts DROP CONSTRAINT IF EXISTS "FK_warehouse_receipts_customers_customer_id";
 ALTER TABLE IF EXISTS ONLY public.warehouse_receipt_lines DROP CONSTRAINT IF EXISTS "FK_warehouse_receipt_lines_warehouses_warehouse_id";
@@ -28,6 +29,7 @@ ALTER TABLE IF EXISTS ONLY public.sales_returns DROP CONSTRAINT IF EXISTS "FK_sa
 ALTER TABLE IF EXISTS ONLY public.sales_return_lines DROP CONSTRAINT IF EXISTS "FK_sales_return_lines_warehouses_warehouse_id";
 ALTER TABLE IF EXISTS ONLY public.sales_return_lines DROP CONSTRAINT IF EXISTS "FK_sales_return_lines_sales_returns_sales_return_id";
 ALTER TABLE IF EXISTS ONLY public.sales_return_lines DROP CONSTRAINT IF EXISTS "FK_sales_return_lines_products_product_id";
+ALTER TABLE IF EXISTS ONLY public.sales_return_lines DROP CONSTRAINT IF EXISTS "FK_sales_return_lines_departments_department_id";
 ALTER TABLE IF EXISTS ONLY public.sales_orders DROP CONSTRAINT IF EXISTS "FK_sales_orders_employees_employee_id";
 ALTER TABLE IF EXISTS ONLY public.sales_orders DROP CONSTRAINT IF EXISTS "FK_sales_orders_customers_customer_id";
 ALTER TABLE IF EXISTS ONLY public.sales_order_lines DROP CONSTRAINT IF EXISTS "FK_sales_order_lines_warehouses_warehouse_id";
@@ -35,6 +37,7 @@ ALTER TABLE IF EXISTS ONLY public.sales_order_lines DROP CONSTRAINT IF EXISTS "F
 ALTER TABLE IF EXISTS ONLY public.sales_order_lines DROP CONSTRAINT IF EXISTS "FK_sales_order_lines_products_product_id";
 ALTER TABLE IF EXISTS ONLY public.receipts DROP CONSTRAINT IF EXISTS "FK_receipts_employees_CollectorEmployeeId";
 ALTER TABLE IF EXISTS ONLY public.receipts DROP CONSTRAINT IF EXISTS "FK_receipts_customers_CustomerId";
+ALTER TABLE IF EXISTS ONLY public.receipt_entries DROP CONSTRAINT IF EXISTS "FK_receipt_entries_sales_orders_SalesOrderId";
 ALTER TABLE IF EXISTS ONLY public.receipt_entries DROP CONSTRAINT IF EXISTS "FK_receipt_entries_receipts_ReceiptId";
 ALTER TABLE IF EXISTS ONLY public.products DROP CONSTRAINT IF EXISTS "FK_products_warehouses_default_warehouse_id";
 ALTER TABLE IF EXISTS ONLY public.products DROP CONSTRAINT IF EXISTS "FK_products_product_units_product_unit_id";
@@ -47,7 +50,6 @@ ALTER TABLE IF EXISTS ONLY public.products DROP CONSTRAINT IF EXISTS "FK_product
 ALTER TABLE IF EXISTS ONLY public.products DROP CONSTRAINT IF EXISTS "FK_products_account_settings_cost_account_id";
 ALTER TABLE IF EXISTS ONLY public.product_warehouse_stocks DROP CONSTRAINT IF EXISTS "FK_product_warehouse_stocks_warehouses_warehouse_id";
 ALTER TABLE IF EXISTS ONLY public.product_warehouse_stocks DROP CONSTRAINT IF EXISTS "FK_product_warehouse_stocks_products_product_id";
-ALTER TABLE IF EXISTS ONLY public.payments DROP CONSTRAINT IF EXISTS "FK_payments_suppliers_SupplierId";
 ALTER TABLE IF EXISTS ONLY public.payments DROP CONSTRAINT IF EXISTS "FK_payments_employees_PaymentEmployeeId";
 ALTER TABLE IF EXISTS ONLY public.payment_entries DROP CONSTRAINT IF EXISTS "FK_payment_entries_payments_PaymentId";
 ALTER TABLE IF EXISTS ONLY public.payment_entries DROP CONSTRAINT IF EXISTS "FK_payment_entries_expense_categories_ExpenseCategoryId";
@@ -60,6 +62,7 @@ ALTER TABLE IF EXISTS ONLY public.deposit_deductions DROP CONSTRAINT IF EXISTS "
 ALTER TABLE IF EXISTS ONLY public.deposit_deductions DROP CONSTRAINT IF EXISTS "FK_deposit_deductions_deposits_deposit_id";
 ALTER TABLE IF EXISTS ONLY public.customers DROP CONSTRAINT IF EXISTS "FK_customers_employees_sale_care_employee_id";
 DROP INDEX IF EXISTS public."IX_warehouses_code";
+DROP INDEX IF EXISTS public."IX_warehouse_receipts_supplier_id";
 DROP INDEX IF EXISTS public."IX_warehouse_receipts_status";
 DROP INDEX IF EXISTS public."IX_warehouse_receipts_employee_id";
 DROP INDEX IF EXISTS public."IX_warehouse_receipts_customer_id";
@@ -75,6 +78,7 @@ DROP INDEX IF EXISTS public."IX_sales_returns_accounting_date";
 DROP INDEX IF EXISTS public."IX_sales_return_lines_warehouse_id";
 DROP INDEX IF EXISTS public."IX_sales_return_lines_sales_return_id";
 DROP INDEX IF EXISTS public."IX_sales_return_lines_product_id";
+DROP INDEX IF EXISTS public."IX_sales_return_lines_department_id";
 DROP INDEX IF EXISTS public."IX_sales_orders_employee_id";
 DROP INDEX IF EXISTS public."IX_sales_orders_document_number";
 DROP INDEX IF EXISTS public."IX_sales_orders_customer_id";
@@ -84,6 +88,7 @@ DROP INDEX IF EXISTS public."IX_sales_order_lines_sales_order_id";
 DROP INDEX IF EXISTS public."IX_sales_order_lines_product_id";
 DROP INDEX IF EXISTS public."IX_receipts_CustomerId";
 DROP INDEX IF EXISTS public."IX_receipts_CollectorEmployeeId";
+DROP INDEX IF EXISTS public."IX_receipt_entries_SalesOrderId";
 DROP INDEX IF EXISTS public."IX_receipt_entries_ReceiptId";
 DROP INDEX IF EXISTS public."IX_products_stock_account_id";
 DROP INDEX IF EXISTS public."IX_products_revenue_account_id";
@@ -98,8 +103,8 @@ DROP INDEX IF EXISTS public."IX_products_category_id";
 DROP INDEX IF EXISTS public."IX_product_warehouse_stocks_warehouse_id";
 DROP INDEX IF EXISTS public."IX_product_warehouse_stocks_product_id_warehouse_id";
 DROP INDEX IF EXISTS public."IX_product_units_name";
-DROP INDEX IF EXISTS public."IX_payments_SupplierId";
 DROP INDEX IF EXISTS public."IX_payments_PaymentEmployeeId";
+DROP INDEX IF EXISTS public."IX_payments_PartnerType_PartnerId";
 DROP INDEX IF EXISTS public."IX_payment_entries_PaymentId";
 DROP INDEX IF EXISTS public."IX_payment_entries_ExpenseCategoryId";
 DROP INDEX IF EXISTS public."IX_payment_entries_DebitAccountSettingId";
@@ -257,7 +262,9 @@ CREATE TABLE public.cash_transactions (
     debit_amount numeric(18,2) NOT NULL,
     credit_amount numeric(18,2) NOT NULL,
     person_name character varying(200),
-    created_at timestamp with time zone NOT NULL
+    created_at timestamp with time zone NOT NULL,
+    document_type character varying(100) DEFAULT ''::character varying NOT NULL,
+    payment_reason character varying(30)
 );
 
 
@@ -426,15 +433,16 @@ ALTER TABLE public.deposits ALTER COLUMN id ADD GENERATED BY DEFAULT AS IDENTITY
 CREATE TABLE public.employees (
     id integer NOT NULL,
     name character varying(200) NOT NULL,
-    phone character varying(20) NOT NULL,
+    phone character varying(20) DEFAULT ''::character varying NOT NULL,
     role character varying(20) NOT NULL,
     password_hash character varying(500) NOT NULL,
     is_active boolean DEFAULT true NOT NULL,
-    unit character varying(10) NOT NULL,
+    unit character varying(30) NOT NULL,
     bank_account_number character varying(30),
     bank_name character varying(100),
     job_title character varying(30) NOT NULL,
-    code character varying(10) DEFAULT ''::character varying NOT NULL
+    code character varying(10) DEFAULT ''::character varying NOT NULL,
+    gender character varying(10) DEFAULT 'Nam'::character varying NOT NULL
 );
 
 
@@ -517,7 +525,7 @@ ALTER TABLE public.payment_entries ALTER COLUMN "Id" ADD GENERATED BY DEFAULT AS
 
 CREATE TABLE public.payments (
     "Id" integer NOT NULL,
-    "SupplierId" integer NOT NULL,
+    "PartnerId" integer NOT NULL,
     "PayeeName" character varying(200) NOT NULL,
     "Address" character varying(500),
     "PaymentReason" character varying(30) NOT NULL,
@@ -530,7 +538,9 @@ CREATE TABLE public.payments (
     "CreatedAt" timestamp with time zone NOT NULL,
     "ConfirmedAt" timestamp with time zone,
     "ReasonDetail" character varying(500),
-    "Status" character varying(20) DEFAULT ''::character varying NOT NULL
+    "Status" character varying(20) DEFAULT ''::character varying NOT NULL,
+    "PartnerName" character varying(200) DEFAULT ''::character varying NOT NULL,
+    "PartnerType" character varying(20) DEFAULT ''::character varying NOT NULL
 );
 
 
@@ -616,7 +626,7 @@ CREATE TABLE public.products (
     import_tax_rate numeric(18,2),
     tax_reduction_type character varying(20),
     vat_rate character varying(20),
-    category_id integer NOT NULL,
+    category_id integer,
     cost_account_id integer,
     default_warehouse_id integer,
     description text,
@@ -635,7 +645,8 @@ CREATE TABLE public.products (
     special_goods_type character varying(100),
     stock_account_id integer,
     trade_discount_rate numeric(9,2) DEFAULT 0.0 NOT NULL,
-    warranty_period character varying(100)
+    warranty_period character varying(100),
+    is_deposit_product boolean DEFAULT false NOT NULL
 );
 
 
@@ -666,7 +677,8 @@ CREATE TABLE public.receipt_entries (
     "Amount" numeric(18,2) NOT NULL,
     "SubjectCode" character varying(50),
     "SubjectName" character varying(200),
-    "BankAccount" character varying(100)
+    "BankAccount" character varying(100),
+    "SalesOrderId" integer
 );
 
 
@@ -690,7 +702,7 @@ ALTER TABLE public.receipt_entries ALTER COLUMN "Id" ADD GENERATED BY DEFAULT AS
 
 CREATE TABLE public.receipts (
     "Id" integer NOT NULL,
-    "CustomerId" integer NOT NULL,
+    "CustomerId" integer,
     "PayerName" character varying(200) NOT NULL,
     "Address" character varying(500),
     "PaymentReason" character varying(30) NOT NULL,
@@ -700,7 +712,9 @@ CREATE TABLE public.receipts (
     "AccountingDate" timestamp with time zone NOT NULL,
     "DocumentDate" timestamp with time zone NOT NULL,
     "DocumentNumber" character varying(50) NOT NULL,
-    "CreatedAt" timestamp with time zone NOT NULL
+    "CreatedAt" timestamp with time zone NOT NULL,
+    "ConfirmedAt" timestamp with time zone,
+    "Status" integer DEFAULT 1 NOT NULL
 );
 
 
@@ -739,7 +753,8 @@ CREATE TABLE public.sales_order_lines (
     tax_amount numeric(18,2) DEFAULT 0.0 NOT NULL,
     tax_rate numeric(5,2) DEFAULT 0.0 NOT NULL,
     is_amount_manual boolean DEFAULT false NOT NULL,
-    warehouse_id integer DEFAULT 0 NOT NULL
+    warehouse_id integer DEFAULT 0,
+    is_deposit_product boolean DEFAULT false NOT NULL
 );
 
 
@@ -780,7 +795,9 @@ CREATE TABLE public.sales_orders (
     created_at timestamp with time zone NOT NULL,
     status integer DEFAULT 0 NOT NULL,
     grand_total numeric(18,2) DEFAULT 0.0 NOT NULL,
-    total_tax_amount numeric(18,2) DEFAULT 0.0 NOT NULL
+    total_tax_amount numeric(18,2) DEFAULT 0.0 NOT NULL,
+    customer_name_override character varying(200),
+    customer_address_override character varying(500)
 );
 
 
@@ -818,7 +835,15 @@ CREATE TABLE public.sales_return_lines (
     discount_rate numeric(5,2) DEFAULT 0.0 NOT NULL,
     discount_amount numeric(18,2) NOT NULL,
     sales_order_number character varying(50),
-    warehouse_id integer DEFAULT 0 NOT NULL
+    warehouse_id integer DEFAULT 0 NOT NULL,
+    cogs_account character varying(20) DEFAULT '632'::character varying NOT NULL,
+    cost_account character varying(20) DEFAULT '1561'::character varying NOT NULL,
+    cost_amount numeric(18,2) DEFAULT 0.0 NOT NULL,
+    cost_price numeric(18,2) DEFAULT 0.0 NOT NULL,
+    department_id integer,
+    tax_account character varying(20) DEFAULT '33311'::character varying NOT NULL,
+    tax_amount numeric(18,2) DEFAULT 0.0 NOT NULL,
+    tax_rate numeric(5,2) DEFAULT 0.0 NOT NULL
 );
 
 
@@ -853,7 +878,9 @@ CREATE TABLE public.sales_returns (
     total_amount numeric(18,2) NOT NULL,
     total_discount numeric(18,2) NOT NULL,
     total_payment numeric(18,2) NOT NULL,
-    created_at timestamp with time zone NOT NULL
+    created_at timestamp with time zone NOT NULL,
+    confirmed_at timestamp with time zone,
+    status integer DEFAULT 1 NOT NULL
 );
 
 
@@ -914,7 +941,14 @@ CREATE TABLE public.warehouse_receipt_lines (
     unit_price numeric(18,2) NOT NULL,
     amount numeric(18,2) NOT NULL,
     debit_account character varying(20) NOT NULL,
-    credit_account character varying(20) NOT NULL
+    credit_account character varying(20) NOT NULL,
+    cost_item character varying(100),
+    cost_object character varying(100),
+    loan_contract_number character varying(100),
+    project character varying(100),
+    purchase_order_number character varying(100),
+    sales_contract_number character varying(100),
+    statistics_code character varying(100)
 );
 
 
@@ -950,7 +984,9 @@ CREATE TABLE public.warehouse_receipts (
     reference character varying(100),
     total_amount numeric(18,2) NOT NULL,
     created_at timestamp with time zone NOT NULL,
-    confirmed_at timestamp with time zone
+    confirmed_at timestamp with time zone,
+    supplier_id integer,
+    is_superseded boolean DEFAULT false NOT NULL
 );
 
 
@@ -1034,6 +1070,30 @@ COPY public."__EFMigrationsHistory" ("MigrationId", "ProductVersion") FROM stdin
 20260810082526_AddDepartmentsAndExpenseCategories	9.0.3
 20260810094907_AddPaymentStatusAndExpenseCategoryLink	9.0.3
 20260810125950_ConvertPaymentAccountsToAccountSettingFk	9.0.3
+20260815024707_UpdateWarehouseReceiptSupplierAndStats	9.0.3
+20260815030926_CascadeDeleteProductWarehouseStock	9.0.3
+20260815032908_MakeProductCategoryOptional	9.0.3
+20260815035101_AddProductDepositLinking	9.0.3
+20260818131059_ImportVatTuHangHoaAndTonKhoData	9.0.3
+20260819082557_MakeSalesOrderLineWarehouseOptional	9.0.3
+20260819130505_UpdateEmployeeGenderAndUnit	9.0.3
+20260819132143_AddIsDepositProductToSalesOrderLines	9.0.3
+20260821065930_AddSalesOrderIdToReceiptEntries	9.0.3
+20260822041555_AddCustomerNameOverrideToSalesOrder	9.0.3
+20260822043321_AddCustomerAddressOverrideToSalesOrder	9.0.3
+20260826074608_AddDepositXminConcurrency	9.0.3
+20260826091448_AddSalesReturnTaxCostAndDepartment	9.0.3
+20260826093257_AddPaymentPartnerType	9.0.3
+20260826094845_SeedExpenseCategories	9.0.3
+20260826102145_MakeReceiptCustomerIdNullable	9.0.3
+20260828033444_AddCashTransactionReasonAndDocType	9.0.3
+20260831125514_SalesReturnStatus	9.0.3
+20260901040428_ReceiptStatus	9.0.3
+20260908094326_DecoupleDepositFromSalesOrder	9.0.3
+20260911064430_DeactivateExtraWarehouses	9.0.3
+20260911074134_SetDefaultWarehouseForExistingProducts	9.0.3
+20260911080528_MergeSalesReturnDraftIntoHeld	9.0.3
+20260911100750_AddIsSupersededToWarehouseReceipt	9.0.3
 \.
 
 
@@ -1093,7 +1153,7 @@ COPY public.account_settings (id, code, description) FROM stdin;
 --
 
 COPY public.backup_schedule (id, is_enabled, time_of_day, retention_days, last_run_at, interval_days, directory) FROM stdin;
-1	t	02:00:00	30	2026-08-10 02:00:02.953683+07	1	/Users/haiphan/Desktop/haiphan/be-window-lamour/backups
+1	t	02:00:00	30	2026-09-08 02:00:38.898014+07	1	/Users/haiphan/Desktop/haiphan/be-window-lamour/backups
 \.
 
 
@@ -1101,20 +1161,23 @@ COPY public.backup_schedule (id, is_enabled, time_of_day, retention_days, last_r
 -- Data for Name: cash_transactions; Type: TABLE DATA; Schema: public; Owner: -
 --
 
-COPY public.cash_transactions (id, accounting_date, document_date, receipt_number, payment_number, description, account, counter_account, debit_amount, credit_amount, person_name, created_at) FROM stdin;
-1	2023-11-02 07:00:00+07	2023-11-02 07:00:00+07	PT00678	\N	Thu tiền khách hàng	111	131	520000.00	0.00	Thanh Đức	2023-11-02 07:00:00+07
-2	2023-11-02 07:00:00+07	2023-11-02 07:00:00+07	PT00678	\N	Thu tiền khách hàng	111	131	5850000.00	0.00	Thanh Đức	2023-11-02 07:00:00+07
-3	2023-11-02 07:00:00+07	2023-11-02 07:00:00+07	PT00678	\N	Thu tiền khách hàng	111	131	5025000.00	0.00	Thanh Đức	2023-11-02 07:00:00+07
-4	2023-11-02 07:00:00+07	2023-11-02 07:00:00+07	PT00678	\N	Thu tiền khách hàng	111	131	5640000.00	0.00	Thanh Đức	2023-11-02 07:00:00+07
-5	2023-11-02 07:00:00+07	2023-11-02 07:00:00+07	PT00678	\N	Thu tiền khách hàng	111	131	5200000.00	0.00	Thanh Đức	2023-11-02 07:00:00+07
-6	2023-11-02 07:00:00+07	2023-11-02 07:00:00+07	\N	PC02215	Diễm	111	6418	0.00	615000.00	LÊ HOÀNG THANH ĐỨC	2023-11-02 07:00:00+07
-7	2023-11-02 07:00:00+07	2023-11-02 07:00:00+07	\N	PC02215	Thảo Uyên	111	6418	0.00	1055000.00	LÊ HOÀNG THANH ĐỨC	2023-11-02 07:00:00+07
-8	2023-11-02 07:00:00+07	2023-11-02 07:00:00+07	\N	PC02215	Phúc Nhi	111	6418	0.00	1228000.00	LÊ HOÀNG THANH ĐỨC	2023-11-02 07:00:00+07
-9	2023-11-02 07:00:00+07	2023-11-02 07:00:00+07	\N	PC02215	Hân	111	6418	0.00	174000.00	LÊ HOÀNG THANH ĐỨC	2023-11-02 07:00:00+07
-10	2023-11-02 07:00:00+07	2023-11-02 07:00:00+07	\N	PC02215	Hương Ly	111	6418	0.00	105000.00	LÊ HOÀNG THANH ĐỨC	2023-11-02 07:00:00+07
-11	2023-11-02 07:00:00+07	2023-11-02 07:00:00+07	\N	PC02216	Mua like fanpage tháng 10/2023	111	6418	0.00	450000.00	NGUYỄN HÀ THANH HÀ	2023-11-02 07:00:00+07
-12	2023-11-02 07:00:00+07	2023-11-02 07:00:00+07	\N	PC02217	Phí lưu kho t10/2023	111	6418	0.00	1715000.00	LÊ HOÀNG THANH ĐỨC	2023-11-02 07:00:00+07
-13	2023-11-02 07:00:00+07	2023-11-02 07:00:00+07	\N	PC02218	Thuê VP t11/2023	111	6418	0.00	40000000.00	LÊ HOÀNG THANH ĐỨC	2023-11-02 07:00:00+07
+COPY public.cash_transactions (id, accounting_date, document_date, receipt_number, payment_number, description, account, counter_account, debit_amount, credit_amount, person_name, created_at, document_type, payment_reason) FROM stdin;
+1	2023-11-02 07:00:00+07	2023-11-02 07:00:00+07	PT00678	\N	Thu tiền khách hàng	111	131	520000.00	0.00	Thanh Đức	2023-11-02 07:00:00+07	Phiếu thu tiền mặt khách hàng	ThuTienHang
+2	2023-11-02 07:00:00+07	2023-11-02 07:00:00+07	PT00678	\N	Thu tiền khách hàng	111	131	5850000.00	0.00	Thanh Đức	2023-11-02 07:00:00+07	Phiếu thu tiền mặt khách hàng	ThuTienHang
+3	2023-11-02 07:00:00+07	2023-11-02 07:00:00+07	PT00678	\N	Thu tiền khách hàng	111	131	5025000.00	0.00	Thanh Đức	2023-11-02 07:00:00+07	Phiếu thu tiền mặt khách hàng	ThuTienHang
+4	2023-11-02 07:00:00+07	2023-11-02 07:00:00+07	PT00678	\N	Thu tiền khách hàng	111	131	5640000.00	0.00	Thanh Đức	2023-11-02 07:00:00+07	Phiếu thu tiền mặt khách hàng	ThuTienHang
+5	2023-11-02 07:00:00+07	2023-11-02 07:00:00+07	PT00678	\N	Thu tiền khách hàng	111	131	5200000.00	0.00	Thanh Đức	2023-11-02 07:00:00+07	Phiếu thu tiền mặt khách hàng	ThuTienHang
+6	2023-11-02 07:00:00+07	2023-11-02 07:00:00+07	\N	PC02215	Diễm	111	6418	0.00	615000.00	LÊ HOÀNG THANH ĐỨC	2023-11-02 07:00:00+07	Phiếu chi	ChiKhac
+7	2023-11-02 07:00:00+07	2023-11-02 07:00:00+07	\N	PC02215	Thảo Uyên	111	6418	0.00	1055000.00	LÊ HOÀNG THANH ĐỨC	2023-11-02 07:00:00+07	Phiếu chi	ChiKhac
+8	2023-11-02 07:00:00+07	2023-11-02 07:00:00+07	\N	PC02215	Phúc Nhi	111	6418	0.00	1228000.00	LÊ HOÀNG THANH ĐỨC	2023-11-02 07:00:00+07	Phiếu chi	ChiKhac
+9	2023-11-02 07:00:00+07	2023-11-02 07:00:00+07	\N	PC02215	Hân	111	6418	0.00	174000.00	LÊ HOÀNG THANH ĐỨC	2023-11-02 07:00:00+07	Phiếu chi	ChiKhac
+10	2023-11-02 07:00:00+07	2023-11-02 07:00:00+07	\N	PC02215	Hương Ly	111	6418	0.00	105000.00	LÊ HOÀNG THANH ĐỨC	2023-11-02 07:00:00+07	Phiếu chi	ChiKhac
+11	2023-11-02 07:00:00+07	2023-11-02 07:00:00+07	\N	PC02216	Mua like fanpage tháng 10/2023	111	6418	0.00	450000.00	NGUYỄN HÀ THANH HÀ	2023-11-02 07:00:00+07	Phiếu chi	ChiKhac
+12	2023-11-02 07:00:00+07	2023-11-02 07:00:00+07	\N	PC02217	Phí lưu kho t10/2023	111	6418	0.00	1715000.00	LÊ HOÀNG THANH ĐỨC	2023-11-02 07:00:00+07	Phiếu chi	ChiKhac
+13	2023-11-02 07:00:00+07	2023-11-02 07:00:00+07	\N	PC02218	Thuê VP t11/2023	111	6418	0.00	40000000.00	LÊ HOÀNG THANH ĐỨC	2023-11-02 07:00:00+07	Phiếu chi	ChiKhac
+14	2026-08-11 07:00:00+07	2026-08-11 07:00:00+07	\N	PC00001	Công ty TNHH Mỹ phẩm Việt Hàn	111	1562	0.00	0.00	Công ty TNHH Mỹ phẩm Việt Hàn	2026-08-11 19:37:01.655172+07	Phiếu chi	ChiKhac
+15	2026-08-11 07:00:00+07	2026-08-11 07:00:00+07	\N	PC00002	Nhà phân phối Dược mỹ phẩm An Khang	111	1562	0.00	0.00	Nhà phân phối Dược mỹ phẩm An Khang	2026-08-11 19:37:41.887638+07	Phiếu chi	ChiKhac
+16	2026-08-11 07:00:00+07	2026-08-11 07:00:00+07	\N	PC00003	Nhà phân phối Dược mỹ phẩm An Khang	111	1562	0.00	10000000.00	Nhà phân phối Dược mỹ phẩm An Khang	2026-08-11 19:59:05.330315+07	Phiếu chi	ChiKhac
 \.
 
 
@@ -1167,6 +1230,13 @@ COPY public.departments (id, name) FROM stdin;
 --
 
 COPY public.deposit_deductions (id, document_number, deposit_id, sales_order_id, amount, accounting_date, document_date, description, created_at) FROM stdin;
+1	TC00001	2	14	10000000.00	2026-08-14 07:00:00+07	2026-08-14 07:00:00+07	Trừ cọc thanh toán đơn BC00014	2026-08-15 11:08:11.913384+07
+2	TC00002	4	24	2000000.00	2026-08-21 07:00:00+07	2026-08-21 07:00:00+07	Trừ cọc thanh toán đơn BH00001	2026-08-22 10:39:11.519043+07
+3	TC00003	3	25	2000000.00	2026-08-21 07:00:00+07	2026-08-21 07:00:00+07	Trừ cọc thanh toán đơn BH00002	2026-08-22 10:45:48.356112+07
+4	TC00004	1	30	500000.00	2026-08-27 07:00:00+07	2026-08-27 07:00:00+07	Trừ cọc thanh toán đơn BH00007	2026-08-27 22:20:08.453191+07
+5	TC00005	1	46	1500000.00	2026-09-09 07:00:00+07	2026-09-09 07:00:00+07	Trừ cọc thanh toán đơn BH00023	2026-09-09 21:59:28.883063+07
+6	TC00006	2	46	10000000.00	2026-09-09 07:00:00+07	2026-09-09 07:00:00+07	Trừ cọc thanh toán đơn BH00023	2026-09-09 21:59:28.912057+07
+7	TC00007	5	46	2000000.00	2026-09-09 07:00:00+07	2026-09-09 07:00:00+07	Trừ cọc thanh toán đơn BH00023	2026-09-09 21:59:28.91386+07
 \.
 
 
@@ -1175,7 +1245,11 @@ COPY public.deposit_deductions (id, document_number, deposit_id, sales_order_id,
 --
 
 COPY public.deposits (id, document_number, accounting_date, document_date, customer_id, employee_id, description, reference, amount, remaining_balance, status, created_at) FROM stdin;
-1	DC00001	2026-08-07 07:00:00+07	2026-08-07 07:00:00+07	1	1	hihihahha	\N	2000000.00	2000000.00	0	2026-08-09 13:51:13.33101+07
+4	DC00004	2026-08-19 07:00:00+07	2026-08-19 07:00:00+07	1	2	Đặt cọc từ đơn XK00016	\N	2000000.00	0.00	1	2026-08-19 20:28:28.498312+07
+3	DC00003	2026-08-19 07:00:00+07	2026-08-19 07:00:00+07	1	2	Đặt cọc từ đơn XK00015	\N	2000000.00	0.00	1	2026-08-19 20:16:44.130111+07
+1	DC00001	2026-08-07 07:00:00+07	2026-08-07 07:00:00+07	1	1	hihihahha	\N	2000000.00	0.00	1	2026-08-09 13:51:13.33101+07
+2	DC00002	2026-08-14 07:00:00+07	2026-08-14 07:00:00+07	1	2	Đặt cọc từ đơn BC00013	\N	20000000.00	0.00	1	2026-08-15 11:06:58.147157+07
+5	DC00005	2026-08-25 07:00:00+07	2026-08-25 07:00:00+07	1	2	Đặt cọc từ đơn BH00006	\N	2000000.00	0.00	1	2026-08-25 20:37:48.379916+07
 \.
 
 
@@ -1183,12 +1257,12 @@ COPY public.deposits (id, document_number, accounting_date, document_date, custo
 -- Data for Name: employees; Type: TABLE DATA; Schema: public; Owner: -
 --
 
-COPY public.employees (id, name, phone, role, password_hash, is_active, unit, bank_account_number, bank_name, job_title, code) FROM stdin;
-1	Admin	0901234567	Admin	6G94qKPK8LYNjnTllCqm2G3BUM08AzOK7yW30tfjrMc=	t	Spa	\N	\N	Admin	NV00001
-2	Nguyễn Văn An	0912345001	Cashier	jZae727K08KaOmKSgOaGzww/XVqGr/PKEgIMkjrcbJI=	t	PKD	0071123456789	Vietcombank	NhanVienBanHang	NV00002
-3	Trần Thị Bích	0912345002	Cashier	jZae727K08KaOmKSgOaGzww/XVqGr/PKEgIMkjrcbJI=	t	Spa	19012345678	Techcombank	ThuNgan	NV00003
-4	Lê Văn Cường	0912345003	Warehouse	jZae727K08KaOmKSgOaGzww/XVqGr/PKEgIMkjrcbJI=	t	Kho	\N	\N	NhanVienKho	NV00004
-5	Phạm Thị Dung	0912345004	Cashier	jZae727K08KaOmKSgOaGzww/XVqGr/PKEgIMkjrcbJI=	t	GD	\N	\N	TruongPhong	NV00005
+COPY public.employees (id, name, phone, role, password_hash, is_active, unit, bank_account_number, bank_name, job_title, code, gender) FROM stdin;
+2	Nguyễn Văn An	0912345001	Cashier	jZae727K08KaOmKSgOaGzww/XVqGr/PKEgIMkjrcbJI=	t	Phòng Kinh Doanh	0071123456789	Vietcombank	NhanVienBanHang	NV00002	Nam
+1	Admin	0901234567	Admin	6G94qKPK8LYNjnTllCqm2G3BUM08AzOK7yW30tfjrMc=	t	Tiệm spa	\N	\N	Admin	NV00001	Nam
+3	Trần Thị Bích	0912345002	Cashier	jZae727K08KaOmKSgOaGzww/XVqGr/PKEgIMkjrcbJI=	t	Tiệm spa	19012345678	Techcombank	ThuNgan	NV00003	Nam
+5	Phạm Thị Dung	0912345004	Cashier	jZae727K08KaOmKSgOaGzww/XVqGr/PKEgIMkjrcbJI=	t	Phòng Giám Đốc	\N	\N	TruongPhong	NV00005	Nam
+4	Lê Văn Cường	0912345003	Warehouse	jZae727K08KaOmKSgOaGzww/XVqGr/PKEgIMkjrcbJI=	t	Kho và Quỹ	\N	\N	NhanVienKho	NV00004	Nam
 \.
 
 
@@ -1198,6 +1272,14 @@ COPY public.employees (id, name, phone, role, password_hash, is_active, unit, ba
 
 COPY public.expense_categories (id, code, name, department_id, description) FROM stdin;
 1	111	sale	6	zzzz
+2	01	PHÒNG SALES	\N	\N
+3	02	PHÒNG MARKETING	\N	\N
+4	03	PHÒNG KHO VẬN	\N	\N
+5	04	PHÒNG TÀI CHÍNH - KẾ TOÁN	\N	\N
+6	05	PHÒNG NHÂN SỰ	\N	\N
+7	06	PHÒNG ĐÀO TẠO	\N	\N
+8	07	PHÒNG SPA	\N	\N
+9	08	KHÁC	\N	\N
 \.
 
 
@@ -1206,6 +1288,11 @@ COPY public.expense_categories (id, code, name, department_id, description) FROM
 --
 
 COPY public.payment_entries ("Id", "PaymentId", "Description", "Amount", "SubjectCode", "SubjectName", "BankAccount", "ExpenseCategoryId", "CreditAccountSettingId", "DebitAccountSettingId") FROM stdin;
+1	1	thuee xe 	0.00	\N	\N	\N	1	8	10
+2	2	zzz	0.00	\N	\N	\N	1	8	10
+3	3	qqqq	10000000.00	\N	\N	\N	1	8	10
+4	4	tesst treo	5000000.00	\N	\N	\N	1	9	9
+5	6	sssss	1000000.00	\N	\N	\N	1	10	10
 \.
 
 
@@ -1213,7 +1300,13 @@ COPY public.payment_entries ("Id", "PaymentId", "Description", "Amount", "Subjec
 -- Data for Name: payments; Type: TABLE DATA; Schema: public; Owner: -
 --
 
-COPY public.payments ("Id", "SupplierId", "PayeeName", "Address", "PaymentReason", "PaymentEmployeeId", "Attachment", "Reference", "AccountingDate", "DocumentDate", "DocumentNumber", "CreatedAt", "ConfirmedAt", "ReasonDetail", "Status") FROM stdin;
+COPY public.payments ("Id", "PartnerId", "PayeeName", "Address", "PaymentReason", "PaymentEmployeeId", "Attachment", "Reference", "AccountingDate", "DocumentDate", "DocumentNumber", "CreatedAt", "ConfirmedAt", "ReasonDetail", "Status", "PartnerName", "PartnerType") FROM stdin;
+1	1	Công ty TNHH Mỹ phẩm Việt Hàn	12 Trường Sơn, P.15, Q.10, TP.HCM	ChiKhac	\N	\N	\N	2026-08-11 07:00:00+07	2026-08-11 07:00:00+07	PC00001	2026-08-11 19:37:01.482029+07	2026-08-11 19:37:01.665869+07	\N	Confirmed	Công ty TNHH Mỹ phẩm Việt Hàn	Supplier
+2	3	Nhà phân phối Dược mỹ phẩm An Khang	45 Lý Thường Kiệt, Q.10, TP.HCM	ChiKhac	\N	\N	\N	2026-08-11 07:00:00+07	2026-08-11 07:00:00+07	PC00002	2026-08-11 19:37:41.856871+07	2026-08-11 19:37:41.889463+07	\N	Confirmed	Nhà phân phối Dược mỹ phẩm An Khang	Supplier
+3	3	Nhà phân phối Dược mỹ phẩm An Khang	45 Lý Thường Kiệt, Q.10, TP.HCM	ChiKhac	\N	\N	\N	2026-08-11 07:00:00+07	2026-08-11 07:00:00+07	PC00003	2026-08-11 19:59:05.165112+07	2026-08-11 19:59:05.341128+07	\N	Confirmed	Nhà phân phối Dược mỹ phẩm An Khang	Supplier
+4	1	Công ty TNHH Mỹ phẩm Việt Hàn	12 Trường Sơn, P.15, Q.10, TP.HCM	ChiKhac	\N	\N	\N	2026-08-10 07:00:00+07	2026-08-10 07:00:00+07	PC00004	2026-08-11 20:01:26.946335+07	\N	\N	Treo	Công ty TNHH Mỹ phẩm Việt Hàn	Supplier
+5	1	Công ty TNHH Mỹ phẩm Việt Hàn	12 Trường Sơn, P.15, Q.10, TP.HCM	ChiKhac	\N	\N	\N	2026-08-11 07:00:00+07	2026-08-11 07:00:00+07	PC00005	2026-08-11 20:30:29.177568+07	\N	\N	Treo	Công ty TNHH Mỹ phẩm Việt Hàn	Supplier
+6	3	Nhà phân phối Dược mỹ phẩm An Khang	45 Lý Thường Kiệt, Q.10, TP.HCM	ChiKhac	\N	\N	\N	2026-08-11 07:00:00+07	2026-08-11 07:00:00+07	PC00006	2026-08-11 20:31:19.453806+07	\N	\N	Treo	Nhà phân phối Dược mỹ phẩm An Khang	Supplier
 \.
 
 
@@ -1241,14 +1334,110 @@ COPY public.product_units (id, name) FROM stdin;
 
 COPY public.product_warehouse_stocks (id, product_id, warehouse_id, quantity) FROM stdin;
 1	6	4	78
-2	9	4	0
-3	4	4	94
-4	3	4	58
-5	5	4	170
-6	1	4	43
-7	2	4	28
 8	8	4	36
-9	7	4	998
+10	6	1	1
+3	4	4	93
+11	11	5	3
+12	11	4	216
+14	13	4	107
+15	14	4	221
+16	15	4	207
+17	16	4	13
+18	17	5	3
+19	17	4	193
+20	18	5	3
+21	18	4	163
+22	20	4	106
+23	21	5	10
+24	21	4	318
+25	22	4	120
+26	23	5	3
+27	23	4	24
+28	24	5	3
+30	25	5	3
+31	25	4	30
+32	26	5	5
+33	26	4	152
+34	27	5	3
+35	27	4	1270
+36	28	5	3
+37	28	4	256
+38	29	5	3
+39	29	4	1436
+40	30	5	3
+41	30	4	151
+42	31	5	3
+43	31	4	1198
+44	32	4	2878
+45	33	4	143
+46	34	5	3
+47	34	4	65
+48	35	5	3
+49	35	4	400
+50	36	5	3
+51	36	4	227
+52	37	5	3
+53	37	4	23
+54	38	5	3
+55	38	4	50
+56	39	5	3
+57	39	4	80
+58	41	5	10
+59	41	4	357
+60	42	5	3
+61	42	4	69
+62	43	5	3
+63	43	4	127
+64	44	4	1
+65	45	5	3
+66	45	4	73
+67	46	5	3
+68	46	4	256
+69	47	5	3
+70	47	4	93
+71	48	5	3
+72	48	4	1375
+73	49	5	3
+74	49	4	664
+75	50	5	3
+76	50	4	172
+77	51	4	103
+78	52	4	172
+79	53	4	315
+80	54	4	211
+81	55	4	35
+82	56	4	120
+83	57	4	55
+84	58	4	163
+85	59	4	54
+86	60	4	93
+87	61	4	106
+88	62	5	3
+89	62	4	160
+90	63	4	246
+91	64	4	62
+92	65	4	65
+93	66	4	135
+94	67	4	182
+95	68	4	139
+96	69	4	101
+97	70	4	155
+98	71	4	99
+99	73	4	145
+100	74	4	188
+101	75	4	519
+102	76	4	280
+103	77	4	398
+104	78	4	71
+105	79	4	106
+106	2	1	0
+6	1	4	42
+7	2	4	31
+9	7	4	1013
+5	5	4	68
+29	24	4	14
+4	3	4	0
+13	12	4	0
 \.
 
 
@@ -1256,16 +1445,88 @@ COPY public.product_warehouse_stocks (id, product_id, warehouse_id, quantity) FR
 -- Data for Name: products; Type: TABLE DATA; Schema: public; Owner: -
 --
 
-COPY public.products (id, code, name, unit, cost_price, selling_price, stock_quantity, is_active, excise_tax_group, export_tax_rate, import_tax_rate, tax_reduction_type, vat_rate, category_id, cost_account_id, default_warehouse_id, description, discount_account_id, is_promotional_good, latest_purchase_price, min_stock_quantity, nature, origin, price_reduction_account_id, product_unit_id, purchase_description, return_account_id, revenue_account_id, sale_description, special_goods_type, stock_account_id, trade_discount_rate, warranty_period) FROM stdin;
-6	SP006	Kem chống nắng SPF50	Tuýp	180000.00	420000.00	78	t	\N	\N	\N	ChuaGiamThue	Eight	1	\N	\N	\N	\N	f	0.00	0	VatTuHangHoa	\N	\N	\N	\N	\N	\N	\N	\N	\N	0.00	\N
-9		222		0.00	0.00	0	t	\N	\N	\N	CoGiamThue	\N	4	\N	\N	\N	\N	f	0.00	0	VatTuHangHoa	\N	\N	\N	\N	\N	\N	\N	\N	\N	0.00	\N
-4	SP004	Sữa rửa mặt Cocoon	Chai	120000.00	280000.00	94	t	\N	\N	\N	CoGiamThue	Five	5	\N	\N	\N	\N	f	0.00	0	VatTuHangHoa	\N	\N	\N	\N	\N	\N	\N	\N	\N	0.00	\N
-3	SP003	Centella TC Cream	Hộp	280000.00	650000.00	58	t	\N	\N	\N	ChuaGiamThue	Eight	1	\N	\N	\N	\N	f	0.00	0	VatTuHangHoa	\N	\N	\N	\N	\N	\N	\N	\N	\N	0.00	\N
-5	SP005	Mặt nạ dưỡng ẩm	Miếng	15000.00	45000.00	170	t	\N	\N	\N	ChuaGiamThue	Ten	3	\N	\N	\N	\N	f	0.00	0	VatTuHangHoa	\N	\N	\N	\N	\N	\N	\N	\N	\N	0.00	\N
-1	SP001	Skin Hydration Gel Toner	Chai	500000.00	1200000.00	43	t	\N	\N	\N	ChuaGiamThue	Eight	1	\N	\N	\N	\N	f	0.00	0	VatTuHangHoa	\N	\N	\N	\N	\N	\N	\N	\N	\N	0.00	\N
-2	SP002	Time Reset Serum	Chai	900000.00	2160000.00	28	t	\N	\N	\N	ChuaGiamThue	Eight	1	\N	\N	\N	\N	f	0.00	0	VatTuHangHoa	\N	\N	\N	\N	\N	\N	\N	\N	\N	0.00	\N
-8	SP008	Tinh chất Vitamin C	Chai	650000.00	1450000.00	36	t	\N	\N	\N	\N	\N	1	\N	\N	\N	\N	f	0.00	0	VatTuHangHoa	\N	\N	\N	\N	\N	\N	\N	\N	\N	0.00	\N
-7	SP007	Combo quà tặng dùng thử	Bộ	0.00	0.00	998	t	\N	\N	\N	ChuaGiamThue	Zero	2	\N	\N	\N	\N	f	0.00	0	VatTuHangHoa	\N	\N	\N	\N	\N	\N	\N	\N	\N	0.00	\N
+COPY public.products (id, code, name, unit, cost_price, selling_price, stock_quantity, is_active, excise_tax_group, export_tax_rate, import_tax_rate, tax_reduction_type, vat_rate, category_id, cost_account_id, default_warehouse_id, description, discount_account_id, is_promotional_good, latest_purchase_price, min_stock_quantity, nature, origin, price_reduction_account_id, product_unit_id, purchase_description, return_account_id, revenue_account_id, sale_description, special_goods_type, stock_account_id, trade_discount_rate, warranty_period, is_deposit_product) FROM stdin;
+2	SP002	Time Reset Serum	Chai	900000.00	2160000.00	31	t	\N	\N	\N	ChuaGiamThue	Eight	1	\N	4	\N	\N	f	0.00	0	VatTuHangHoa	\N	\N	\N	\N	\N	\N	\N	\N	\N	0.00	\N	f
+1	SP001	Skin Hydration Gel Toner	Chai	500000.00	1200000.00	42	t	\N	\N	\N	ChuaGiamThue	Eight	1	\N	4	\N	\N	f	0.00	0	VatTuHangHoa	\N	\N	\N	\N	\N	\N	\N	\N	\N	0.00	\N	f
+3	SP003	Centella TC Cream	Hộp	280000.00	650000.00	0	t	\N	\N	\N	ChuaGiamThue	Eight	1	\N	4	\N	\N	f	0.00	0	VatTuHangHoa	\N	\N	\N	\N	\N	\N	\N	\N	\N	0.00	\N	f
+7	SP007	Combo quà tặng dùng thử	Bộ	0.00	0.00	1013	t	\N	\N	\N	ChuaGiamThue	Zero	2	\N	4	\N	\N	f	0.00	0	VatTuHangHoa	\N	\N	\N	\N	\N	\N	\N	\N	\N	0.00	\N	f
+8	SP008	Tinh chất Vitamin C	Chai	650000.00	1450000.00	36	t	\N	\N	\N	\N	\N	1	\N	4	\N	\N	f	0.00	0	VatTuHangHoa	\N	\N	\N	\N	\N	\N	\N	\N	\N	0.00	\N	f
+12	10	Meso Calming Ampoule Mask II 10M	Hộp	0.00	0.00	0	t	\N	\N	\N	ChuaXacDinh	\N	\N	\N	4	\N	\N	f	0.00	0	VatTuHangHoa	\N	\N	2	\N	\N	\N	\N	\N	\N	0.00	\N	f
+6	SP006	Kem chống nắng SPF50	Tuýp	180000.00	420000.00	79	t	\N	\N	\N	ChuaGiamThue	Eight	1	\N	4	\N	\N	f	0.00	0	VatTuHangHoa	\N	\N	\N	\N	\N	\N	\N	\N	\N	0.00	\N	f
+10	DATCOC	Đặt cọc	Lần	0.00	0.00	0	t	\N	\N	\N	\N	\N	\N	\N	4	\N	\N	f	0.00	0	VatTuHangHoa	\N	\N	\N	\N	\N	\N	\N	\N	\N	0.00	\N	t
+4	SP004	Sữa rửa mặt Cocoon	Chai	120000.00	280000.00	93	t	\N	\N	\N	CoGiamThue	Five	5	\N	4	\N	\N	f	0.00	0	VatTuHangHoa	\N	\N	\N	\N	\N	\N	\N	\N	\N	0.00	\N	f
+5	SP005	Mặt nạ dưỡng ẩm	Miếng	15000.00	45000.00	68	t	\N	\N	\N	ChuaGiamThue	Ten	3	\N	4	\N	\N	f	0.00	0	VatTuHangHoa	\N	\N	\N	\N	\N	\N	\N	\N	\N	0.00	\N	f
+24	21	Soothing Massage Cream	Chai	0.00	0.00	17	t	\N	\N	\N	CoGiamThue	\N	\N	\N	4	\N	\N	f	0.00	0	VatTuHangHoa	\N	\N	3	\N	\N	\N	\N	\N	\N	0.00	\N	f
+11	1	Biocell Face Scrub	Chai	0.00	0.00	219	t	\N	\N	\N	CoGiamThue	\N	\N	\N	4	\N	\N	f	0.00	0	VatTuHangHoa	\N	\N	3	\N	\N	\N	\N	\N	\N	0.00	\N	f
+13	11	Mesotox Skin Booster V-Plot	Hộp	0.00	0.00	107	t	\N	\N	\N	ChuaXacDinh	\N	\N	\N	4	\N	\N	f	0.00	0	VatTuHangHoa	\N	\N	2	\N	\N	\N	\N	\N	\N	0.00	\N	f
+14	12	EXO LLT Pro TRI Fills Solution	Hộp	0.00	0.00	221	t	\N	\N	\N	CoGiamThue	\N	\N	\N	4	\N	\N	f	0.00	0	VatTuHangHoa	\N	\N	2	\N	\N	\N	\N	\N	\N	0.00	\N	f
+15	13	EXO LLT Pro AC Fills Solution	Hộp	0.00	0.00	207	t	\N	\N	\N	CoGiamThue	\N	\N	\N	4	\N	\N	f	0.00	0	VatTuHangHoa	\N	\N	2	\N	\N	\N	\N	\N	\N	0.00	\N	f
+16	14	Meso Filler	Cái	0.00	0.00	13	t	\N	\N	\N	ChuaXacDinh	\N	\N	\N	4	\N	\N	f	0.00	0	VatTuHangHoa	\N	\N	1	\N	\N	\N	\N	\N	\N	0.00	\N	f
+17	15	Meso Fills	Hộp	0.00	0.00	196	t	\N	\N	\N	ChuaXacDinh	\N	\N	\N	4	\N	\N	f	0.00	0	VatTuHangHoa	\N	\N	2	\N	\N	\N	\N	\N	\N	0.00	\N	f
+18	16	Meso Hydro Ampoule Mask	Hộp	0.00	0.00	166	t	\N	\N	\N	CoGiamThue	\N	\N	\N	4	\N	\N	f	0.00	0	VatTuHangHoa	\N	\N	2	\N	\N	\N	\N	\N	\N	0.00	\N	f
+19	17	Meso Hydro Mask	Hộp	0.00	0.00	0	t	\N	\N	\N	ChuaXacDinh	\N	\N	\N	4	\N	\N	f	0.00	0	VatTuHangHoa	\N	\N	2	\N	\N	\N	\N	\N	\N	0.00	\N	f
+20	18	Numa Cream	Tuýp	0.00	0.00	106	t	\N	\N	\N	ChuaXacDinh	\N	\N	\N	4	\N	\N	f	0.00	0	VatTuHangHoa	\N	\N	4	\N	\N	\N	\N	\N	\N	0.00	\N	f
+21	19	Ống Xillanh	Cái	0.00	0.00	328	t	\N	\N	\N	ChuaXacDinh	\N	\N	\N	4	\N	\N	f	0.00	0	VatTuHangHoa	\N	\N	1	\N	\N	\N	\N	\N	\N	0.00	\N	f
+22	2	Antioxidant Cream Mask	Hộp	0.00	0.00	120	t	\N	\N	\N	CoGiamThue	\N	\N	\N	4	\N	\N	f	0.00	0	VatTuHangHoa	\N	\N	2	\N	\N	\N	\N	\N	\N	0.00	\N	f
+23	20	PH Balance Cleansing Lotion	Chai	0.00	0.00	27	t	\N	\N	\N	CoGiamThue	\N	\N	\N	4	\N	\N	f	0.00	0	VatTuHangHoa	\N	\N	3	\N	\N	\N	\N	\N	\N	0.00	\N	f
+25	22	PH Balance Toning Lotion	Chai	0.00	0.00	33	t	\N	\N	\N	CoGiamThue	\N	\N	\N	4	\N	\N	f	0.00	0	VatTuHangHoa	\N	\N	3	\N	\N	\N	\N	\N	\N	0.00	\N	f
+26	23	Skin Cooler	Hộp	0.00	0.00	157	t	\N	\N	\N	ChuaXacDinh	\N	\N	\N	4	\N	\N	f	0.00	0	VatTuHangHoa	\N	\N	2	\N	\N	\N	\N	\N	\N	0.00	\N	f
+27	24	UV Block	Hộp	0.00	0.00	1273	t	\N	\N	\N	CoGiamThue	\N	\N	\N	4	\N	\N	f	0.00	0	VatTuHangHoa	\N	\N	2	\N	\N	\N	\N	\N	\N	0.00	\N	f
+28	25	BB Cream	Tuýp	0.00	0.00	259	t	\N	\N	\N	CoGiamThue	\N	\N	\N	4	\N	\N	f	0.00	0	VatTuHangHoa	\N	\N	4	\N	\N	\N	\N	\N	\N	0.00	\N	f
+29	26	Ves Serum	Hộp	0.00	0.00	1439	t	\N	\N	\N	CoGiamThue	\N	\N	\N	4	\N	\N	f	0.00	0	VatTuHangHoa	\N	\N	2	\N	\N	\N	\N	\N	\N	0.00	\N	f
+30	27	Bubble Cleanser	Chai	0.00	0.00	154	t	\N	\N	\N	CoGiamThue	\N	\N	\N	4	\N	\N	f	0.00	0	VatTuHangHoa	\N	\N	3	\N	\N	\N	\N	\N	\N	0.00	\N	f
+31	28	Centella TC Cream	Tuýp	0.00	0.00	1201	t	\N	\N	\N	CoGiamThue	\N	\N	\N	4	\N	\N	f	0.00	0	VatTuHangHoa	\N	\N	4	\N	\N	\N	\N	\N	\N	0.00	\N	f
+32	29	Meso Calming Ampoule Mask II	Hộp	0.00	0.00	2878	t	\N	\N	\N	CoGiamThue	\N	\N	\N	4	\N	\N	f	0.00	0	VatTuHangHoa	\N	\N	2	\N	\N	\N	\N	\N	\N	0.00	\N	f
+33	3	Antioxidant Serum	Hộp	0.00	0.00	143	t	\N	\N	\N	CoGiamThue	\N	\N	\N	4	\N	\N	f	0.00	0	VatTuHangHoa	\N	\N	2	\N	\N	\N	\N	\N	\N	0.00	\N	f
+34	30	Skin Hydration Cleansing Gel	Chai	0.00	0.00	68	t	\N	\N	\N	CoGiamThue	\N	\N	\N	4	\N	\N	f	0.00	0	VatTuHangHoa	\N	\N	3	\N	\N	\N	\N	\N	\N	0.00	\N	f
+35	31	Skin Hydration Gel Toner	Chai	0.00	0.00	403	t	\N	\N	\N	CoGiamThue	\N	\N	\N	4	\N	\N	f	0.00	0	VatTuHangHoa	\N	\N	3	\N	\N	\N	\N	\N	\N	0.00	\N	f
+36	32	PH Balance Cleansing Cream	Chai	0.00	0.00	230	t	\N	\N	\N	CoGiamThue	\N	\N	\N	4	\N	\N	f	0.00	0	VatTuHangHoa	\N	\N	3	\N	\N	\N	\N	\N	\N	0.00	\N	f
+37	33	Centella Calmimg Gel Cream	Hộp	0.00	0.00	26	t	\N	\N	\N	CoGiamThue	\N	\N	\N	4	\N	\N	f	0.00	0	VatTuHangHoa	\N	\N	2	\N	\N	\N	\N	\N	\N	0.00	\N	f
+38	34	Complex AC Ampoule	Hộp	0.00	0.00	53	t	\N	\N	\N	CoGiamThue	\N	\N	\N	4	\N	\N	f	0.00	0	VatTuHangHoa	\N	\N	2	\N	\N	\N	\N	\N	\N	0.00	\N	f
+39	35	Complex AC Cleanser	Chai	0.00	0.00	83	t	\N	\N	\N	CoGiamThue	\N	\N	\N	4	\N	\N	f	0.00	0	VatTuHangHoa	\N	\N	3	\N	\N	\N	\N	\N	\N	0.00	\N	f
+41	37	Đầu Kim	Cái	0.00	0.00	367	t	\N	\N	\N	ChuaXacDinh	\N	\N	\N	4	\N	\N	f	0.00	0	VatTuHangHoa	\N	\N	1	\N	\N	\N	\N	\N	\N	0.00	\N	f
+42	38	Meso C Cream	Hộp	0.00	0.00	72	t	\N	\N	\N	ChuaXacDinh	\N	\N	\N	4	\N	\N	f	0.00	0	VatTuHangHoa	\N	\N	2	\N	\N	\N	\N	\N	\N	0.00	\N	f
+43	39	Brightening Fills Ampoule	Hộp	0.00	0.00	130	t	\N	\N	\N	CoGiamThue	\N	\N	\N	4	\N	\N	f	0.00	0	VatTuHangHoa	\N	\N	2	\N	\N	\N	\N	\N	\N	0.00	\N	f
+72	65	CỌC		0.00	0.00	0	t	\N	\N	\N	ChuaXacDinh	\N	\N	\N	4	\N	\N	f	0.00	0	VatTuHangHoa	\N	\N	\N	\N	\N	\N	\N	\N	\N	0.00	\N	t
+44	4	SÁCH 33 NHÂN HIỆU CHỦ SPA THÀNH CÔNG	Cuốn	0.00	0.00	1	t	\N	\N	\N	ChuaXacDinh	\N	\N	\N	4	\N	\N	f	0.00	0	VatTuHangHoa	\N	\N	5	\N	\N	\N	\N	\N	\N	0.00	\N	f
+45	40	Meso Fills Cream	Hộp	0.00	0.00	76	t	\N	\N	\N	ChuaXacDinh	\N	\N	\N	4	\N	\N	f	0.00	0	VatTuHangHoa	\N	\N	2	\N	\N	\N	\N	\N	\N	0.00	\N	f
+46	41	Wrinkle Care Eye Cream	Hộp	0.00	0.00	259	t	\N	\N	\N	CoGiamThue	\N	\N	\N	4	\N	\N	f	0.00	0	VatTuHangHoa	\N	\N	2	\N	\N	\N	\N	\N	\N	0.00	\N	f
+47	42	Anti Wrinkle Eye Mask	Hộp	0.00	0.00	96	t	\N	\N	\N	CoGiamThue	\N	\N	\N	4	\N	\N	f	0.00	0	VatTuHangHoa	\N	\N	2	\N	\N	\N	\N	\N	\N	0.00	\N	f
+48	43	Ethosome Astaxanthin	Hộp	0.00	0.00	1378	t	\N	\N	\N	CoGiamThue	\N	\N	\N	4	\N	\N	f	0.00	0	VatTuHangHoa	\N	\N	2	\N	\N	\N	\N	\N	\N	0.00	\N	f
+49	44	E.G.F Stem C	Hộp	0.00	0.00	667	t	\N	\N	\N	CoGiamThue	\N	\N	\N	4	\N	\N	f	0.00	0	VatTuHangHoa	\N	\N	2	\N	\N	\N	\N	\N	\N	0.00	\N	f
+50	45	Meso Hydro Mask (100ml)	Hộp	0.00	0.00	175	t	\N	\N	\N	ChuaXacDinh	\N	\N	\N	4	\N	\N	f	0.00	0	VatTuHangHoa	\N	\N	2	\N	\N	\N	\N	\N	\N	0.00	\N	f
+51	46	Multi- Vitamin B	Chai	0.00	0.00	103	t	\N	\N	\N	CoGiamThue	\N	\N	\N	4	\N	\N	f	0.00	0	VatTuHangHoa	\N	\N	3	\N	\N	\N	\N	\N	\N	0.00	\N	f
+52	47	Blue Energy	Chai	0.00	0.00	172	t	\N	\N	\N	CoGiamThue	\N	\N	\N	4	\N	\N	f	0.00	0	VatTuHangHoa	\N	\N	3	\N	\N	\N	\N	\N	\N	0.00	\N	f
+53	48	Time Reset	Chai	0.00	0.00	315	t	\N	\N	\N	CoGiamThue	\N	\N	\N	4	\N	\N	f	0.00	0	VatTuHangHoa	\N	\N	3	\N	\N	\N	\N	\N	\N	0.00	\N	f
+54	49	Multi- Vitamin C	Chai	0.00	0.00	211	t	\N	\N	\N	CoGiamThue	\N	\N	\N	4	\N	\N	f	0.00	0	VatTuHangHoa	\N	\N	3	\N	\N	\N	\N	\N	\N	0.00	\N	f
+55	5	Meso Filler Pro	Bộ	0.00	0.00	35	t	\N	\N	\N	ChuaXacDinh	\N	\N	\N	4	\N	\N	f	0.00	0	VatTuHangHoa	\N	\N	6	\N	\N	\N	\N	\N	\N	0.00	\N	f
+56	50	Pink Energy	Chai	0.00	0.00	120	t	\N	\N	\N	CoGiamThue	\N	\N	\N	4	\N	\N	f	0.00	0	VatTuHangHoa	\N	\N	3	\N	\N	\N	\N	\N	\N	0.00	\N	f
+57	51	Skin Brightening ACT	Chai	0.00	0.00	55	t	\N	\N	\N	CoGiamThue	\N	\N	\N	4	\N	\N	f	0.00	0	VatTuHangHoa	\N	\N	3	\N	\N	\N	\N	\N	\N	0.00	\N	f
+58	52	Skin Boosting ACT	Chai	0.00	0.00	163	t	\N	\N	\N	CoGiamThue	\N	\N	\N	4	\N	\N	f	0.00	0	VatTuHangHoa	\N	\N	3	\N	\N	\N	\N	\N	\N	0.00	\N	f
+59	53	Mesotox Lipo Cocktail	Hộp	0.00	0.00	54	t	\N	\N	\N	ChuaXacDinh	\N	\N	\N	4	\N	\N	f	0.00	0	VatTuHangHoa	\N	\N	2	\N	\N	\N	\N	\N	\N	0.00	\N	f
+60	54	Mesotox Skin Booster Glutathion	Hộp	0.00	0.00	93	t	\N	\N	\N	ChuaXacDinh	\N	\N	\N	4	\N	\N	f	0.00	0	VatTuHangHoa	\N	\N	2	\N	\N	\N	\N	\N	\N	0.00	\N	f
+61	55	Mesotox Skin Booster PDRN	Hộp	0.00	0.00	106	t	\N	\N	\N	ChuaXacDinh	\N	\N	\N	4	\N	\N	f	0.00	0	VatTuHangHoa	\N	\N	2	\N	\N	\N	\N	\N	\N	0.00	\N	f
+62	56	Meso Peel CL4 100ml	Chai	0.00	0.00	163	t	\N	\N	\N	CoGiamThue	\N	\N	\N	4	\N	\N	f	0.00	0	VatTuHangHoa	\N	\N	3	\N	\N	\N	\N	\N	\N	0.00	\N	f
+63	57	Clear Clarifying Cream Mask	Hộp	0.00	0.00	246	t	\N	\N	\N	CoGiamThue	\N	\N	\N	4	\N	\N	f	0.00	0	VatTuHangHoa	\N	\N	2	\N	\N	\N	\N	\N	\N	0.00	\N	f
+64	58	Vita Radiance Cream Mask	Hộp	0.00	0.00	62	t	\N	\N	\N	CoGiamThue	\N	\N	\N	4	\N	\N	f	0.00	0	VatTuHangHoa	\N	\N	2	\N	\N	\N	\N	\N	\N	0.00	\N	f
+65	59	Vita Radiance Serum	Hộp	0.00	0.00	65	t	\N	\N	\N	CoGiamThue	\N	\N	\N	4	\N	\N	f	0.00	0	VatTuHangHoa	\N	\N	2	\N	\N	\N	\N	\N	\N	0.00	\N	f
+66	6	Ống Xilanh Pro	Cái	0.00	0.00	135	t	\N	\N	\N	ChuaXacDinh	\N	\N	\N	4	\N	\N	f	0.00	0	VatTuHangHoa	\N	\N	1	\N	\N	\N	\N	\N	\N	0.00	\N	f
+67	60	Centella Soothing Serum	Hộp	0.00	0.00	182	t	\N	\N	\N	CoGiamThue	\N	\N	\N	4	\N	\N	f	0.00	0	VatTuHangHoa	\N	\N	2	\N	\N	\N	\N	\N	\N	0.00	\N	f
+68	61	Clear Clarifying Serum	Hộp	0.00	0.00	139	t	\N	\N	\N	CoGiamThue	\N	\N	\N	4	\N	\N	f	0.00	0	VatTuHangHoa	\N	\N	2	\N	\N	\N	\N	\N	\N	0.00	\N	f
+69	62	B5 Moisturizing Cream Mask	Hộp	0.00	0.00	101	t	\N	\N	\N	CoGiamThue	\N	\N	\N	4	\N	\N	f	0.00	0	VatTuHangHoa	\N	\N	2	\N	\N	\N	\N	\N	\N	0.00	\N	f
+70	63	B5 Moisturizing Serum	Hộp	0.00	0.00	155	t	\N	\N	\N	CoGiamThue	\N	\N	\N	4	\N	\N	f	0.00	0	VatTuHangHoa	\N	\N	2	\N	\N	\N	\N	\N	\N	0.00	\N	f
+71	64	Centella Cream Mask	Hộp	0.00	0.00	99	t	\N	\N	\N	CoGiamThue	\N	\N	\N	4	\N	\N	f	0.00	0	VatTuHangHoa	\N	\N	2	\N	\N	\N	\N	\N	\N	0.00	\N	f
+73	66	Radiance Lha Peel Pad	Hộp	0.00	0.00	145	t	\N	\N	\N	CoGiamThue	\N	\N	\N	4	\N	\N	f	0.00	0	VatTuHangHoa	\N	\N	2	\N	\N	\N	\N	\N	\N	0.00	\N	f
+74	67	Azulene Care Mist	Chai	0.00	0.00	188	t	\N	\N	\N	CoGiamThue	\N	\N	\N	4	\N	\N	f	0.00	0	VatTuHangHoa	\N	\N	3	\N	\N	\N	\N	\N	\N	0.00	\N	f
+75	68	Honeybush Skinsolution	Hộp	0.00	0.00	519	t	\N	\N	\N	ChuaXacDinh	\N	\N	\N	4	\N	\N	f	0.00	0	VatTuHangHoa	\N	\N	2	\N	\N	\N	\N	\N	\N	0.00	\N	f
+76	69	DERMA MATRIX EXO-PN	Hộp	0.00	0.00	280	t	\N	\N	\N	ChuaXacDinh	\N	\N	\N	4	\N	\N	f	0.00	0	VatTuHangHoa	\N	\N	2	\N	\N	\N	\N	\N	\N	0.00	\N	f
+77	7	Nút Cao Su	Cái	0.00	0.00	398	t	\N	\N	\N	ChuaXacDinh	\N	\N	\N	4	\N	\N	f	0.00	0	VatTuHangHoa	\N	\N	1	\N	\N	\N	\N	\N	\N	0.00	\N	f
+78	8	Đầu Kim Pro	Cái	0.00	0.00	71	t	\N	\N	\N	ChuaXacDinh	\N	\N	\N	4	\N	\N	f	0.00	0	VatTuHangHoa	\N	\N	1	\N	\N	\N	\N	\N	\N	0.00	\N	f
+79	9	Mesotox Skin Booster Scalp	Hộp	0.00	0.00	106	t	\N	\N	\N	ChuaXacDinh	\N	\N	\N	4	\N	\N	f	0.00	0	VatTuHangHoa	\N	\N	2	\N	\N	\N	\N	\N	\N	0.00	\N	f
+80	CPMH	Chi phí mua hàng		0.00	0.00	0	t	\N	\N	\N	ChuaXacDinh	\N	\N	\N	4	\N	\N	f	0.00	0	DichVu	\N	\N	\N	\N	\N	\N	\N	\N	\N	0.00	\N	f
+81	KHACHSAN_PHI_PHUCVU	Phí phục vụ		0.00	0.00	0	t	\N	\N	\N	ChuaXacDinh	\N	\N	\N	4	\N	\N	f	0.00	0	DichVu	\N	\N	\N	\N	\N	\N	\N	\N	\N	0.00	\N	f
+82	LPXD	Lệ phí xăng dầu		0.00	0.00	0	t	\N	\N	\N	ChuaXacDinh	\N	\N	\N	4	\N	\N	f	0.00	0	DichVu	\N	\N	\N	\N	\N	\N	\N	\N	\N	0.00	\N	f
+83	36	Trừ Cọc		0.00	0.00	0	t	\N	\N	\N	ChuaXacDinh	\N	\N	\N	4	\N	\N	f	0.00	0	VatTuHangHoa	\N	\N	\N	\N	\N	\N	\N	\N	\N	0.00	\N	f
 \.
 
 
@@ -1273,7 +1534,7 @@ COPY public.products (id, code, name, unit, cost_price, selling_price, stock_qua
 -- Data for Name: receipt_entries; Type: TABLE DATA; Schema: public; Owner: -
 --
 
-COPY public.receipt_entries ("Id", "ReceiptId", "Description", "DebitAccount", "CreditAccount", "Amount", "SubjectCode", "SubjectName", "BankAccount") FROM stdin;
+COPY public.receipt_entries ("Id", "ReceiptId", "Description", "DebitAccount", "CreditAccount", "Amount", "SubjectCode", "SubjectName", "BankAccount", "SalesOrderId") FROM stdin;
 \.
 
 
@@ -1281,7 +1542,7 @@ COPY public.receipt_entries ("Id", "ReceiptId", "Description", "DebitAccount", "
 -- Data for Name: receipts; Type: TABLE DATA; Schema: public; Owner: -
 --
 
-COPY public.receipts ("Id", "CustomerId", "PayerName", "Address", "PaymentReason", "CollectorEmployeeId", "Attachment", "Reference", "AccountingDate", "DocumentDate", "DocumentNumber", "CreatedAt") FROM stdin;
+COPY public.receipts ("Id", "CustomerId", "PayerName", "Address", "PaymentReason", "CollectorEmployeeId", "Attachment", "Reference", "AccountingDate", "DocumentDate", "DocumentNumber", "CreatedAt", "ConfirmedAt", "Status") FROM stdin;
 \.
 
 
@@ -1289,27 +1550,60 @@ COPY public.receipts ("Id", "CustomerId", "PayerName", "Address", "PaymentReason
 -- Data for Name: sales_order_lines; Type: TABLE DATA; Schema: public; Owner: -
 --
 
-COPY public.sales_order_lines (id, sales_order_id, product_id, product_code, product_name, is_promotion, unit, quantity, unit_price, amount, receivable_account, revenue_account, discount_rate, tax_amount, tax_rate, is_amount_manual, warehouse_id) FROM stdin;
-1	1	1	SP001	Skin Hydration Gel Toner	f	Chai	2	1200000.00	2400000.00	131	511	0.00	192000.00	8.00	f	4
-2	1	3	SP003	Centella TC Cream	f	Hộp	3	650000.00	1852500.00	131	511	5.00	148200.00	8.00	f	4
-3	2	4	SP004	Sữa rửa mặt Cocoon	f	Chai	5	280000.00	1400000.00	131	511	0.00	70000.00	5.00	f	4
-4	2	5	SP005	Mặt nạ dưỡng ẩm	f	Miếng	10	45000.00	450000.00	131	511	0.00	45000.00	10.00	f	4
-5	3	2	SP002	Time Reset Serum	f	Chai	1	2160000.00	1944000.00	131	511	10.00	155520.00	8.00	f	4
-6	3	6	SP006	Kem chống nắng SPF50	f	Tuýp	2	420000.00	840000.00	131	511	0.00	67200.00	8.00	f	4
-7	4	8	SP008	Tinh chất Vitamin C	f	Chai	2	1450000.00	2900000.00	131	511	0.00	0.00	0.00	f	4
-8	4	7	SP007	Combo quà tặng dùng thử	t	Bộ	1	0.00	0.00	131	511	0.00	0.00	0.00	f	4
-9	5	1	SP001	Skin Hydration Gel Toner	f	Chai	4	1200000.00	4800000.00	131	511	0.00	384000.00	8.00	f	4
-10	5	5	SP005	Mặt nạ dưỡng ẩm	f	Miếng	20	45000.00	900000.00	131	511	0.00	90000.00	10.00	f	4
-22	7	4	SP004	Sữa rửa mặt Cocoon	f	Chai	1	280000.00	280000.00	131	511	0.00	14000.00	5.00	f	4
-23	6	3	SP003	Centella TC Cream	t	Hộp	1	0.00	0.00	131	511	0.00	0.00	0.00	f	4
-24	6	7	SP007	Combo quà tặng dùng thử	t	Bộ	1	0.00	0.00	131	511	0.00	0.00	0.00	f	4
-25	8	1	SP001	Skin Hydration Gel Toner	f	Chai	1	1200000.00	1200000.00	131	511	0.00	96000.00	8.00	f	4
-26	8	5	SP005	Mặt nạ dưỡng ẩm	t	Miếng	1	0.00	0.00	131	511	0.00	0.00	0.00	f	4
-29	11	2	SP002	Time Reset Serum	f	Chai	1	2160000.00	2160000.00	131	511	0.00	172800.00	8.00	f	4
-30	9	4	SP004	Sữa rửa mặt Cocoon	t	Chai	1	0.00	0.00	131	511	0.00	0.00	0.00	f	4
-31	9	8	SP008	Tinh chất Vitamin C	f	Chai	1	1450000.00	1450000.00	131	511	0.00	0.00	0.00	f	4
-32	10	8	SP008	Tinh chất Vitamin C	f	Chai	1	1450000.00	1450000.00	131	511	0.00	0.00	0.00	f	4
-33	12	7	SP007	Combo quà tặng dùng thử	f	Bộ	1	0.00	0.00	131	511	0.00	0.00	0.00	f	4
+COPY public.sales_order_lines (id, sales_order_id, product_id, product_code, product_name, is_promotion, unit, quantity, unit_price, amount, receivable_account, revenue_account, discount_rate, tax_amount, tax_rate, is_amount_manual, warehouse_id, is_deposit_product) FROM stdin;
+1	1	1	SP001	Skin Hydration Gel Toner	f	Chai	2	1200000.00	2400000.00	131	511	0.00	192000.00	8.00	f	4	f
+2	1	3	SP003	Centella TC Cream	f	Hộp	3	650000.00	1852500.00	131	511	5.00	148200.00	8.00	f	4	f
+3	2	4	SP004	Sữa rửa mặt Cocoon	f	Chai	5	280000.00	1400000.00	131	511	0.00	70000.00	5.00	f	4	f
+4	2	5	SP005	Mặt nạ dưỡng ẩm	f	Miếng	10	45000.00	450000.00	131	511	0.00	45000.00	10.00	f	4	f
+5	3	2	SP002	Time Reset Serum	f	Chai	1	2160000.00	1944000.00	131	511	10.00	155520.00	8.00	f	4	f
+6	3	6	SP006	Kem chống nắng SPF50	f	Tuýp	2	420000.00	840000.00	131	511	0.00	67200.00	8.00	f	4	f
+7	4	8	SP008	Tinh chất Vitamin C	f	Chai	2	1450000.00	2900000.00	131	511	0.00	0.00	0.00	f	4	f
+8	4	7	SP007	Combo quà tặng dùng thử	t	Bộ	1	0.00	0.00	131	511	0.00	0.00	0.00	f	4	f
+9	5	1	SP001	Skin Hydration Gel Toner	f	Chai	4	1200000.00	4800000.00	131	511	0.00	384000.00	8.00	f	4	f
+10	5	5	SP005	Mặt nạ dưỡng ẩm	f	Miếng	20	45000.00	900000.00	131	511	0.00	90000.00	10.00	f	4	f
+22	7	4	SP004	Sữa rửa mặt Cocoon	f	Chai	1	280000.00	280000.00	131	511	0.00	14000.00	5.00	f	4	f
+23	6	3	SP003	Centella TC Cream	t	Hộp	1	0.00	0.00	131	511	0.00	0.00	0.00	f	4	f
+24	6	7	SP007	Combo quà tặng dùng thử	t	Bộ	1	0.00	0.00	131	511	0.00	0.00	0.00	f	4	f
+25	8	1	SP001	Skin Hydration Gel Toner	f	Chai	1	1200000.00	1200000.00	131	511	0.00	96000.00	8.00	f	4	f
+26	8	5	SP005	Mặt nạ dưỡng ẩm	t	Miếng	1	0.00	0.00	131	511	0.00	0.00	0.00	f	4	f
+29	11	2	SP002	Time Reset Serum	f	Chai	1	2160000.00	2160000.00	131	511	0.00	172800.00	8.00	f	4	f
+30	9	4	SP004	Sữa rửa mặt Cocoon	t	Chai	1	0.00	0.00	131	511	0.00	0.00	0.00	f	4	f
+31	9	8	SP008	Tinh chất Vitamin C	f	Chai	1	1450000.00	1450000.00	131	511	0.00	0.00	0.00	f	4	f
+32	10	8	SP008	Tinh chất Vitamin C	f	Chai	1	1450000.00	1450000.00	131	511	0.00	0.00	0.00	f	4	f
+33	12	7	SP007	Combo quà tặng dùng thử	f	Bộ	1	0.00	0.00	131	511	0.00	0.00	0.00	f	4	f
+35	14	4	SP004	Sữa rửa mặt Cocoon	f	Chai	1	280000.00	0.00	131	511	0.00	0.00	5.00	t	4	f
+34	13	10	DATCOC	Đặt cọc	f	Lần	1	20000000.00	20000000.00	131	511	0.00	0.00	0.00	f	4	t
+36	15	72	65	CỌC	f		1	2000000.00	2000000.00	131	511	0.00	0.00	0.00	t	\N	t
+37	16	10	DATCOC	Đặt cọc	f	Lần	1	2000000.00	2000000.00	131	511	0.00	0.00	0.00	t	\N	t
+38	17	24	21	Soothing Massage Cream	f	Chai	1	10000000.00	10000000.00	131	511	0.00	0.00	0.00	t	4	f
+39	18	3	SP003	Centella TC Cream	f	Hộp	1	650000.00	650000.00	131	511	0.00	52000.00	8.00	f	4	f
+40	19	24	21	Soothing Massage Cream	f	Chai	1	100000.00	100000.00	131	511	0.00	0.00	0.00	t	4	f
+41	20	24	21	Soothing Massage Cream	f	Chai	1	1000000.00	1000000.00	131	511	0.00	0.00	0.00	t	4	f
+42	21	3	SP003	Centella TC Cream	f	Hộp	1	650000.00	650000.00	131	511	0.00	52000.00	8.00	f	4	f
+43	22	24	21	Soothing Massage Cream	f	Chai	1	10000.00	10000.00	131	511	0.00	0.00	0.00	t	4	f
+44	23	12	10	Meso Calming Ampoule Mask II 10M	f	Hộp	1	10000000.00	10000000.00	131	511	0.00	0.00	0.00	t	4	f
+45	24	3	SP003	Centella TC Cream	f	Hộp	10	650000.00	6500000.00	131	511	0.00	520000.00	8.00	f	4	f
+46	24	24	21	Soothing Massage Cream	f	Chai	1	1000000.00	1000000.00	131	511	0.00	0.00	0.00	t	4	f
+47	25	3	SP003	Centella TC Cream	f	Hộp	10	650000.00	6500000.00	131	511	0.00	520000.00	8.00	f	4	f
+48	26	24	21	Soothing Massage Cream	f	Chai	1	300000.00	300000.00	131	511	0.00	0.00	0.00	t	4	f
+49	27	5	SP005	Mặt nạ dưỡng ẩm	f	Miếng	1	45000.00	45000.00	131	511	0.00	4500.00	10.00	f	4	f
+50	28	3	SP003	Centella TC Cream	f	Hộp	1	650000.00	650000.00	131	511	0.00	52000.00	8.00	f	4	f
+51	29	10	DATCOC	Đặt cọc	f	Lần	1	2000000.00	2000000.00	131	511	0.00	0.00	0.00	f	\N	t
+52	31	1	SP001	Skin Hydration Gel Toner	f	Chai	1	1200000.00	1200000.00	131	511	0.00	96000.00	8.00	f	4	f
+53	32	24	21	Soothing Massage Cream	f	Chai	1	10000.00	10000.00	131	511	0.00	0.00	0.00	t	4	f
+54	33	5	SP005	Mặt nạ dưỡng ẩm	f	Miếng	1	45000.00	45000.00	131	511	0.00	4500.00	10.00	f	4	f
+55	34	5	SP005	Mặt nạ dưỡng ẩm	f	Miếng	100	45000.00	4500000.00	131	511	0.00	450000.00	10.00	f	4	f
+56	35	3	SP003	Centella TC Cream	f	Hộp	35	650000.00	22750000.00	131	511	0.00	1820000.00	8.00	f	4	f
+57	36	24	21	Soothing Massage Cream	f	Chai	1	10000.00	10000.00	131	511	0.00	0.00	0.00	t	4	f
+58	37	5	SP005	Mặt nạ dưỡng ẩm	f	Miếng	1	45000.00	45000.00	131	511	0.00	4500.00	10.00	f	4	f
+59	38	5	SP005	Mặt nạ dưỡng ẩm	f	Miếng	1	45000.00	45000.00	131	511	0.00	4500.00	10.00	f	4	f
+60	39	5	SP005	Mặt nạ dưỡng ẩm	f	Miếng	1	45000.00	45000.00	131	511	0.00	4500.00	10.00	f	4	f
+61	40	24	21	Soothing Massage Cream	f	Chai	1	0.00	0.00	131	511	0.00	0.00	0.00	f	4	f
+62	41	24	21	Soothing Massage Cream	f	Chai	1	0.00	0.00	131	511	0.00	0.00	0.00	f	4	f
+63	42	3	SP003	Centella TC Cream	f	Hộp	1	650000.00	650000.00	131	511	0.00	52000.00	8.00	f	4	f
+64	43	12	10	Meso Calming Ampoule Mask II 10M	f	Hộp	1	0.00	0.00	131	511	0.00	0.00	0.00	f	4	f
+65	44	24	21	Soothing Massage Cream	f	Chai	1	0.00	0.00	131	511	0.00	0.00	0.00	f	4	f
+66	47	7	SP007	Combo quà tặng dùng thử	f	Bộ	1	0.00	0.00	131	511	0.00	0.00	0.00	f	4	f
 \.
 
 
@@ -1317,19 +1611,54 @@ COPY public.sales_order_lines (id, sales_order_id, product_id, product_code, pro
 -- Data for Name: sales_orders; Type: TABLE DATA; Schema: public; Owner: -
 --
 
-COPY public.sales_orders (id, document_number, accounting_date, document_date, customer_id, employee_id, description, reference, payment_terms, payment_due_days, payment_due_date, notes, delivery_method, payment_method, total_amount, created_at, status, grand_total, total_tax_amount) FROM stdin;
-1	BC00001	2026-07-02 15:00:00+07	2026-07-02 15:00:00+07	1	2	Bán hàng PHƯƠNG HOA SPA	\N	\N	\N	\N	\N	\N	\N	4252500.00	2026-07-18 04:58:18.104896+07	0	4592700.00	340200.00
-2	BC00002	2026-07-05 15:00:00+07	2026-07-05 15:00:00+07	2	3	Bán hàng CHI NHI COSMETICS	\N	\N	\N	\N	\N	\N	\N	1850000.00	2026-07-18 04:58:18.104896+07	0	1965000.00	115000.00
-3	BC00003	2026-07-10 15:00:00+07	2026-07-10 15:00:00+07	1	2	Bán hàng PHƯƠNG HOA SPA	\N	\N	\N	\N	\N	\N	\N	2784000.00	2026-07-18 04:58:18.104896+07	0	3006720.00	222720.00
-4	BC00004	2026-07-14 15:00:00+07	2026-07-14 15:00:00+07	3	4	Bán hàng NGỌC ANH SALON	\N	\N	\N	\N	\N	\N	\N	2900000.00	2026-07-18 04:58:18.104896+07	0	2900000.00	0.00
-5	BC00005	2026-07-16 15:00:00+07	2026-07-16 15:00:00+07	4	5	Bán hàng HOÀNG GIA SPA & CLINIC	\N	\N	\N	\N	\N	\N	\N	5700000.00	2026-07-18 04:58:18.104896+07	0	6174000.00	474000.00
-7	BC00007	2026-07-23 07:00:00+07	2026-07-23 07:00:00+07	2	3	Bán hàng CHI NHI COSMETICS	\N	\N	\N	\N	\N	\N	\N	280000.00	2026-07-25 15:52:19.007019+07	0	294000.00	14000.00
-6	BC00006	2026-07-24 07:00:00+07	2026-07-24 07:00:00+07	1	2	Bán hàng PHƯƠNG HOA SPA	\N	\N	\N	\N	\N	\N	\N	0.00	2026-07-25 15:48:02.356293+07	0	0.00	0.00
-8	BC00008	2026-07-23 07:00:00+07	2026-07-23 07:00:00+07	4	2	Bán hàng HOÀNG GIA SPA & CLINIC	\N	\N	\N	\N	\N	\N	\N	1200000.00	2026-07-25 15:52:54.398638+07	0	1296000.00	96000.00
-11	BC00011	2026-07-29 07:00:00+07	2026-07-29 07:00:00+07	1	2	Bán hàng PHƯƠNG HOA SPA	\N	\N	\N	\N	\N	\N	\N	2160000.00	2026-07-31 09:29:01.872846+07	0	2332800.00	172800.00
-9	BC00009	2026-07-24 07:00:00+07	2026-07-24 07:00:00+07	4	2	Bán hàng HOÀNG GIA SPA & CLINIC	\N	\N	\N	\N	\N	\N	\N	1450000.00	2026-07-25 15:53:25.002318+07	1	1450000.00	0.00
-10	BC00010	2026-07-29 07:00:00+07	2026-07-29 07:00:00+07	1	2	Bán hàng PHƯƠNG HOA SPA	\N	\N	\N	\N	\N	\N	\N	1450000.00	2026-07-30 20:57:04.849404+07	0	1450000.00	0.00
-12	BC00012	2026-07-29 07:00:00+07	2026-07-29 07:00:00+07	1	2	Bán hàng PHƯƠNG HOA SPA	\N	\N	\N	\N	\N	\N	\N	0.00	2026-07-31 09:35:25.07385+07	0	0.00	0.00
+COPY public.sales_orders (id, document_number, accounting_date, document_date, customer_id, employee_id, description, reference, payment_terms, payment_due_days, payment_due_date, notes, delivery_method, payment_method, total_amount, created_at, status, grand_total, total_tax_amount, customer_name_override, customer_address_override) FROM stdin;
+28	BH00005	2026-08-21 07:00:00+07	2026-08-21 07:00:00+07	1	2	Bán hàng demo	\N	\N	\N	\N	\N	\N	\N	650000.00	2026-08-22 11:39:52.5051+07	0	702000.00	52000.00	demo	\N
+29	BH00006	2026-08-25 07:00:00+07	2026-08-25 07:00:00+07	1	2	Bán hàng PHƯƠNG HOA SPA	\N	\N	\N	\N	\N	\N	\N	2000000.00	2026-08-25 20:37:48.201293+07	0	2000000.00	0.00	\N	\N
+1	XK00001	2026-07-02 15:00:00+07	2026-07-02 15:00:00+07	1	2	Bán hàng PHƯƠNG HOA SPA	\N	\N	\N	\N	\N	\N	\N	4252500.00	2026-07-18 04:58:18.104896+07	0	4592700.00	340200.00	\N	\N
+2	XK00002	2026-07-05 15:00:00+07	2026-07-05 15:00:00+07	2	3	Bán hàng CHI NHI COSMETICS	\N	\N	\N	\N	\N	\N	\N	1850000.00	2026-07-18 04:58:18.104896+07	0	1965000.00	115000.00	\N	\N
+3	XK00003	2026-07-10 15:00:00+07	2026-07-10 15:00:00+07	1	2	Bán hàng PHƯƠNG HOA SPA	\N	\N	\N	\N	\N	\N	\N	2784000.00	2026-07-18 04:58:18.104896+07	0	3006720.00	222720.00	\N	\N
+4	XK00004	2026-07-14 15:00:00+07	2026-07-14 15:00:00+07	3	4	Bán hàng NGỌC ANH SALON	\N	\N	\N	\N	\N	\N	\N	2900000.00	2026-07-18 04:58:18.104896+07	0	2900000.00	0.00	\N	\N
+5	XK00005	2026-07-16 15:00:00+07	2026-07-16 15:00:00+07	4	5	Bán hàng HOÀNG GIA SPA & CLINIC	\N	\N	\N	\N	\N	\N	\N	5700000.00	2026-07-18 04:58:18.104896+07	0	6174000.00	474000.00	\N	\N
+7	XK00007	2026-07-23 07:00:00+07	2026-07-23 07:00:00+07	2	3	Bán hàng CHI NHI COSMETICS	\N	\N	\N	\N	\N	\N	\N	280000.00	2026-07-25 15:52:19.007019+07	0	294000.00	14000.00	\N	\N
+6	XK00006	2026-07-24 07:00:00+07	2026-07-24 07:00:00+07	1	2	Bán hàng PHƯƠNG HOA SPA	\N	\N	\N	\N	\N	\N	\N	0.00	2026-07-25 15:48:02.356293+07	0	0.00	0.00	\N	\N
+8	XK00008	2026-07-23 07:00:00+07	2026-07-23 07:00:00+07	4	2	Bán hàng HOÀNG GIA SPA & CLINIC	\N	\N	\N	\N	\N	\N	\N	1200000.00	2026-07-25 15:52:54.398638+07	0	1296000.00	96000.00	\N	\N
+11	XK00011	2026-07-29 07:00:00+07	2026-07-29 07:00:00+07	1	2	Bán hàng PHƯƠNG HOA SPA	\N	\N	\N	\N	\N	\N	\N	2160000.00	2026-07-31 09:29:01.872846+07	0	2332800.00	172800.00	\N	\N
+9	XK00009	2026-07-24 07:00:00+07	2026-07-24 07:00:00+07	4	2	Bán hàng HOÀNG GIA SPA & CLINIC	\N	\N	\N	\N	\N	\N	\N	1450000.00	2026-07-25 15:53:25.002318+07	1	1450000.00	0.00	\N	\N
+10	XK00010	2026-07-29 07:00:00+07	2026-07-29 07:00:00+07	1	2	Bán hàng PHƯƠNG HOA SPA	\N	\N	\N	\N	\N	\N	\N	1450000.00	2026-07-30 20:57:04.849404+07	0	1450000.00	0.00	\N	\N
+12	XK00012	2026-07-29 07:00:00+07	2026-07-29 07:00:00+07	1	2	Bán hàng PHƯƠNG HOA SPA	\N	\N	\N	\N	\N	\N	\N	0.00	2026-07-31 09:35:25.07385+07	0	0.00	0.00	\N	\N
+13	XK00013	2026-08-14 07:00:00+07	2026-08-14 07:00:00+07	1	2	Bán hàng PHƯƠNG HOA SPA	\N	\N	\N	\N	\N	\N	\N	20000000.00	2026-08-15 11:06:57.993424+07	0	20000000.00	0.00	\N	\N
+14	XK00014	2026-08-14 07:00:00+07	2026-08-14 07:00:00+07	1	2	Bán hàng PHƯƠNG HOA SPA	\N	\N	\N	\N	\N	\N	\N	0.00	2026-08-15 11:08:11.814957+07	0	0.00	0.00	\N	\N
+15	XK00015	2026-08-19 07:00:00+07	2026-08-19 07:00:00+07	1	2	Bán hàng PHƯƠNG HOA SPA	\N	\N	\N	\N	\N	\N	\N	2000000.00	2026-08-19 20:16:43.967934+07	0	2000000.00	0.00	\N	\N
+16	XK00016	2026-08-19 07:00:00+07	2026-08-19 07:00:00+07	1	2	Bán hàng PHƯƠNG HOA SPA	\N	\N	\N	\N	\N	\N	\N	2000000.00	2026-08-19 20:28:28.252301+07	0	2000000.00	0.00	\N	\N
+17	XK00017	2026-08-20 07:00:00+07	2026-08-20 07:00:00+07	1	2	Bán hàng PHƯƠNG HOA SPA	\N	\N	\N	\N	\N	\N	\N	10000000.00	2026-08-20 20:06:13.572566+07	0	10000000.00	0.00	\N	\N
+18	XK00018	2026-08-20 07:00:00+07	2026-08-20 07:00:00+07	1	2	Bán hàng PHƯƠNG HOA SPA	\N	\N	\N	\N	\N	\N	\N	650000.00	2026-08-20 20:13:19.66911+07	0	702000.00	52000.00	\N	\N
+19	XK00019	2026-08-20 07:00:00+07	2026-08-20 07:00:00+07	1	2	Bán hàng PHƯƠNG HOA SPA	\N	\N	\N	\N	\N	\N	\N	100000.00	2026-08-20 20:19:39.220185+07	0	100000.00	0.00	\N	\N
+20	XK00020	2026-08-20 07:00:00+07	2026-08-20 07:00:00+07	2	3	Bán hàng CHI NHI COSMETICS	\N	\N	\N	\N	\N	\N	\N	1000000.00	2026-08-20 20:28:52.572226+07	0	1000000.00	0.00	\N	\N
+21	XK00021	2026-08-20 07:00:00+07	2026-08-20 07:00:00+07	1	2	Bán hàng PHƯƠNG HOA SPA	\N	\N	\N	\N	\N	\N	\N	650000.00	2026-08-20 20:35:19.979537+07	0	702000.00	52000.00	\N	\N
+22	XK00022	2026-08-20 07:00:00+07	2026-08-20 07:00:00+07	1	2	Bán hàng PHƯƠNG HOA SPA	\N	\N	\N	\N	\N	\N	\N	10000.00	2026-08-20 20:47:37.987804+07	0	10000.00	0.00	\N	\N
+23	XK00023	2026-08-20 07:00:00+07	2026-08-20 07:00:00+07	1	2	Bán hàng PHƯƠNG HOA SPA	\N	\N	\N	\N	\N	\N	\N	10000000.00	2026-08-20 20:51:18.972171+07	0	10000000.00	0.00	\N	\N
+24	BH00001	2026-08-21 07:00:00+07	2026-08-21 07:00:00+07	1	2	Bán hàng PHƯƠNG HOA SPA	\N	\N	\N	\N	\N	\N	\N	7500000.00	2026-08-22 10:39:11.210119+07	0	8020000.00	520000.00	\N	\N
+25	BH00002	2026-08-21 07:00:00+07	2026-08-21 07:00:00+07	1	2	Bán hàng PHƯƠNG HOA SPA	\N	\N	\N	\N	\N	\N	\N	6500000.00	2026-08-22 10:45:48.114311+07	0	7020000.00	520000.00	\N	\N
+26	BH00003	2026-08-21 07:00:00+07	2026-08-21 07:00:00+07	1	2	Bán hàng PHƯƠNG HOA SPA	\N	\N	\N	\N	\N	\N	\N	300000.00	2026-08-22 10:52:53.382834+07	0	300000.00	0.00	\N	\N
+27	BH00004	2026-08-21 07:00:00+07	2026-08-21 07:00:00+07	1	2	Bán hàng xuat demo	\N	\N	\N	\N	\N	\N	\N	45000.00	2026-08-22 11:23:45.584927+07	0	49500.00	4500.00	xuat demo	\N
+30	BH00007	2026-08-27 07:00:00+07	2026-08-27 07:00:00+07	1	2	Bán hàng PHƯƠNG HOA SPA	\N	\N	\N	\N	\N	\N	\N	0.00	2026-08-27 22:20:08.249055+07	0	0.00	0.00	\N	\N
+31	BH00008	2026-08-27 07:00:00+07	2026-08-27 07:00:00+07	1	2	Bán hàng PHƯƠNG HOA SPA	\N	\N	\N	\N	\N	\N	\N	1200000.00	2026-08-28 12:01:09.665911+07	0	1296000.00	96000.00	\N	\N
+32	BH00009	2026-08-27 07:00:00+07	2026-08-27 07:00:00+07	1	2	Bán hàng PHƯƠNG HOA SPA	\N	\N	\N	\N	\N	\N	\N	10000.00	2026-08-28 13:42:04.230233+07	0	10000.00	0.00	\N	\N
+33	BH00010	2026-08-27 07:00:00+07	2026-08-27 07:00:00+07	1	2	Bán hàng PHƯƠNG HOA SPA	\N	\N	\N	\N	\N	\N	\N	45000.00	2026-08-28 13:49:46.993811+07	0	49500.00	4500.00	\N	\N
+34	BH00011	2026-08-27 07:00:00+07	2026-08-27 07:00:00+07	1	2	Bán hàng PHƯƠNG HOA SPA	\N	\N	\N	\N	\N	\N	\N	4500000.00	2026-08-28 13:50:20.796898+07	0	4950000.00	450000.00	\N	\N
+35	BH00012	2026-08-27 07:00:00+07	2026-08-27 07:00:00+07	1	2	Bán hàng PHƯƠNG HOA SPA	\N	\N	\N	\N	\N	\N	\N	22750000.00	2026-08-28 13:56:07.248179+07	0	24570000.00	1820000.00	\N	\N
+36	BH00013	2026-08-28 07:00:00+07	2026-08-28 07:00:00+07	1	2	Bán hàng PHƯƠNG HOA SPA	\N	\N	\N	\N	\N	\N	\N	10000.00	2026-08-28 15:31:09.140461+07	0	10000.00	0.00	\N	\N
+37	BH00014	2026-08-28 07:00:00+07	2026-08-28 07:00:00+07	1	2	Bán hàng PHƯƠNG HOA SPA	\N	\N	\N	\N	\N	\N	\N	45000.00	2026-08-28 15:31:27.883623+07	0	49500.00	4500.00	\N	\N
+38	BH00015	2026-08-28 07:00:00+07	2026-08-28 07:00:00+07	1	2	Bán hàng PHƯƠNG HOA SPA	\N	\N	\N	\N	\N	\N	\N	45000.00	2026-08-28 15:31:34.320144+07	0	49500.00	4500.00	\N	\N
+39	BH00016	2026-08-28 07:00:00+07	2026-08-28 07:00:00+07	1	2	Bán hàng PHƯƠNG HOA SPA	\N	\N	\N	\N	\N	\N	\N	45000.00	2026-08-28 15:40:29.522225+07	0	49500.00	4500.00	\N	\N
+40	BH00017	2026-08-30 07:00:00+07	2026-08-30 07:00:00+07	2	3	Bán hàng CHI NHI COSMETICS	\N	\N	\N	\N	\N	\N	\N	0.00	2026-08-31 11:10:54.332625+07	0	0.00	0.00	\N	\N
+41	BH00018	2026-08-31 07:00:00+07	2026-08-31 07:00:00+07	1	2	Bán hàng PHƯƠNG HOA SPA	\N	\N	\N	\N	\N	\N	\N	0.00	2026-09-01 08:56:49.370396+07	0	0.00	0.00	\N	\N
+42	BH00019	2026-08-31 07:00:00+07	2026-08-31 07:00:00+07	1	2	Bán hàng PHƯƠNG HOA SPA	\N	\N	\N	\N	\N	\N	\N	650000.00	2026-09-01 10:01:41.028159+07	0	702000.00	52000.00	\N	\N
+43	BH00020	2026-08-31 07:00:00+07	2026-08-31 07:00:00+07	1	2	Bán hàng PHƯƠNG HOA SPA	\N	\N	\N	\N	\N	\N	\N	0.00	2026-09-01 10:08:56.858703+07	0	0.00	0.00	\N	\N
+44	BH00021	2026-08-31 07:00:00+07	2026-08-31 07:00:00+07	1	2	Bán hàng PHƯƠNG HOA SPA	\N	\N	\N	\N	\N	\N	\N	0.00	2026-09-01 10:35:56.215235+07	1	0.00	0.00	\N	\N
+45	BH00022	2026-09-09 07:00:00+07	2026-09-09 07:00:00+07	1	2	Bán hàng PHƯƠNG HOA SPA	\N	\N	\N	\N	\N	\N	\N	0.00	2026-09-09 21:54:32.912005+07	0	0.00	0.00	\N	\N
+46	BH00023	2026-09-09 07:00:00+07	2026-09-09 07:00:00+07	1	2	Bán hàng PHƯƠNG HOA SPA	\N	\N	\N	\N	\N	\N	\N	0.00	2026-09-09 21:59:28.693518+07	0	0.00	0.00	\N	\N
+47	BH00024	2026-09-11 07:00:00+07	2026-09-11 07:00:00+07	1	2	Bán hàng PHƯƠNG HOA SPA	\N	\N	\N	\N	\N	\N	\N	0.00	2026-09-11 14:57:25.545148+07	0	0.00	0.00	\N	\N
 \.
 
 
@@ -1337,8 +1666,44 @@ COPY public.sales_orders (id, document_number, accounting_date, document_date, c
 -- Data for Name: sales_return_lines; Type: TABLE DATA; Schema: public; Owner: -
 --
 
-COPY public.sales_return_lines (id, sales_return_id, product_id, product_code, product_name, return_account, debt_account, discount_account, unit, quantity, unit_price, amount, discount_rate, discount_amount, sales_order_number, warehouse_id) FROM stdin;
-1	1	3	SP003	Centella TC Cream	5212	131	5211	Hộp	1	650000.00	650000.00	5.00	32500.00	\N	4
+COPY public.sales_return_lines (id, sales_return_id, product_id, product_code, product_name, return_account, debt_account, discount_account, unit, quantity, unit_price, amount, discount_rate, discount_amount, sales_order_number, warehouse_id, cogs_account, cost_account, cost_amount, cost_price, department_id, tax_account, tax_amount, tax_rate) FROM stdin;
+1	1	3	SP003	Centella TC Cream	5212	131	5211	Hộp	1	650000.00	650000.00	5.00	32500.00	\N	4	632	1561	0.00	0.00	\N	33311	0.00	0.00
+2	2	7	SP007	Combo quà tặng dùng thử	5212	131	5211	Bộ	1	0.00	0.00	0.00	0.00	\N	4	632	1561	0.00	0.00	\N	33311	0.00	0.00
+3	3	3	SP003	Centella TC Cream	5212	131	5211	Hộp	1	650000.00	650000.00	0.00	0.00	\N	4	632	1561	280000.00	280000.00	\N	33311	52000.00	8.00
+4	4	12	10	Meso Calming Ampoule Mask II 10M	5212	131	5211	Hộp	1	0.00	0.00	0.00	0.00	\N	4	632	1561	0.00	0.00	\N	33311	0.00	0.00
+6	5	5	SP005	Mặt nạ dưỡng ẩm	5212	131	5211	Miếng	1	45000.00	45000.00	0.00	0.00	\N	4	632	1561	15000.00	15000.00	\N	33311	4500.00	10.00
+7	6	7	SP007	Combo quà tặng dùng thử	5212	131	5211	Bộ	1	0.00	0.00	0.00	0.00	\N	4	632	1561	0.00	0.00	\N	33311	0.00	0.00
+8	7	7	SP007	Combo quà tặng dùng thử	5212	131	5211	Bộ	1	0.00	0.00	0.00	0.00	\N	4	632	1561	0.00	0.00	\N	33311	0.00	0.00
+9	8	7	SP007	Combo quà tặng dùng thử	5212	131	5211	Bộ	1	0.00	0.00	0.00	0.00	\N	4	632	1561	0.00	0.00	\N	33311	0.00	0.00
+10	9	7	SP007	Combo quà tặng dùng thử	5212	131	5211	Bộ	1	0.00	0.00	0.00	0.00	\N	4	632	1561	0.00	0.00	\N	33311	0.00	0.00
+11	10	7	SP007	Combo quà tặng dùng thử	5212	131	5211	Bộ	1	0.00	0.00	0.00	0.00	\N	4	632	1561	0.00	0.00	\N	33311	0.00	0.00
+12	11	7	SP007	Combo quà tặng dùng thử	5212	131	5211	Bộ	1	0.00	0.00	0.00	0.00	\N	4	632	1561	0.00	0.00	\N	33311	0.00	0.00
+13	12	24	21	Soothing Massage Cream	5212	131	5211	Chai	1	0.00	0.00	0.00	0.00	\N	4	632	1561	0.00	0.00	\N	33311	0.00	0.00
+14	13	7	SP007	Combo quà tặng dùng thử	5212	131	5211	Bộ	1	0.00	0.00	0.00	0.00	\N	4	632	1561	0.00	0.00	\N	33311	0.00	0.00
+15	14	7	SP007	Combo quà tặng dùng thử	5212	131	5211	Bộ	1	0.00	0.00	0.00	0.00	\N	4	632	1561	0.00	0.00	\N	33311	0.00	0.00
+16	15	24	21	Soothing Massage Cream	5212	131	5211	Chai	1	0.00	0.00	0.00	0.00	\N	4	632	1561	0.00	0.00	\N	33311	0.00	0.00
+19	18	24	21	Soothing Massage Cream	5212	131	5211	Chai	1	100000.00	100000.00	0.00	0.00	\N	4	632	1561	0.00	0.00	\N	33311	0.00	0.00
+20	19	7	SP007	Combo quà tặng dùng thử	5212	131	5211	Bộ	1	1000000.00	1000000.00	0.00	0.00	\N	4	632	1561	0.00	0.00	\N	33311	0.00	0.00
+21	20	24	21	Soothing Massage Cream	5212	131	5211	Chai	1	100000.00	100000.00	0.00	0.00	\N	4	632	1561	0.00	0.00	\N	33311	0.00	0.00
+23	16	24	21	Soothing Massage Cream	5212	131	5211	Chai	1	1000000.00	1000000.00	0.00	0.00	\N	4	632	1561	0.00	0.00	\N	33311	0.00	0.00
+24	16	7	SP007	Combo quà tặng dùng thử	5212	131	5211	Bộ	1	10000.00	10000.00	0.00	0.00	\N	4	632	1561	0.00	0.00	\N	33311	0.00	0.00
+25	16	2	SP002	Time Reset Serum	5212	131	5211	Chai	1	2160000.00	2160000.00	0.00	0.00	\N	4	632	1561	900000.00	900000.00	\N	33311	172800.00	8.00
+26	17	7	SP007	Combo quà tặng dùng thử	5212	131	5211	Bộ	1	0.00	0.00	0.00	0.00	\N	4	632	1561	0.00	0.00	\N	33311	0.00	0.00
+31	22	7	SP007	Combo quà tặng dùng thử	5212	131	5211	Bộ	1	0.00	0.00	0.00	0.00	\N	4	632	1561	0.00	0.00	\N	33311	0.00	0.00
+32	24	7	SP007	Combo quà tặng dùng thử	5212	131	5211	Bộ	1	0.00	0.00	0.00	0.00	\N	4	632	1561	0.00	0.00	\N	33311	0.00	0.00
+35	26	24	21	Soothing Massage Cream	5212	131	5211	Chai	1	0.00	0.00	0.00	0.00	\N	4	632	1561	0.00	0.00	\N	33311	0.00	0.00
+38	28	2	SP002	Time Reset Serum	5212	131	5211	Chai	1	2160000.00	2160000.00	0.00	0.00	\N	4	632	1561	900000.00	900000.00	\N	33311	172800.00	8.00
+39	29	2	SP002	Time Reset Serum	5212	131	5211	Chai	1	2160000.00	2160000.00	0.00	0.00	\N	4	632	1561	900000.00	900000.00	\N	33311	172800.00	8.00
+40	30	7	SP007	Combo quà tặng dùng thử	5212	131	5211	Bộ	1	0.00	0.00	0.00	0.00	\N	4	632	1561	0.00	0.00	\N	33311	0.00	0.00
+41	31	24	21	Soothing Massage Cream	5212	131	5211	Chai	1	100000.00	100000.00	0.00	0.00	\N	4	632	1561	0.00	0.00	\N	33311	0.00	0.00
+42	32	7	SP007	Combo quà tặng dùng thử	5212	131	5211	Bộ	1	0.00	0.00	0.00	0.00	\N	4	632	1561	0.00	0.00	\N	33311	0.00	0.00
+43	33	2	SP002	Time Reset Serum	5212	131	5211	Chai	1	2160000.00	2160000.00	0.00	0.00	\N	4	632	1561	900000.00	900000.00	\N	33311	172800.00	8.00
+44	34	2	SP002	Time Reset Serum	5212	131	5211	Chai	1	2160000.00	2160000.00	0.00	0.00	\N	4	632	1561	900000.00	900000.00	\N	33311	172800.00	8.00
+46	35	7	SP007	Combo quà tặng dùng thử	5212	131	5211	Bộ	1	0.00	0.00	0.00	0.00	\N	4	632	1561	0.00	0.00	\N	33311	0.00	0.00
+47	35	5	SP005	Mặt nạ dưỡng ẩm	5212	131	5211	Miếng	1	45000.00	45000.00	0.00	0.00	\N	4	632	1561	15000.00	15000.00	\N	33311	4500.00	10.00
+49	36	7	SP007	Combo quà tặng dùng thử	5212	131	5211	Bộ	1	0.00	0.00	0.00	0.00	\N	4	632	1561	0.00	0.00	\N	33311	0.00	0.00
+50	36	5	SP005	Mặt nạ dưỡng ẩm	5212	131	5211	Miếng	1	45000.00	45000.00	0.00	0.00	\N	4	632	1561	15000.00	15000.00	\N	33311	4500.00	10.00
+51	37	24	21	Soothing Massage Cream	5212	131	5211	Chai	1	0.00	0.00	0.00	0.00	\N	4	632	1561	0.00	0.00	\N	33311	0.00	0.00
 \.
 
 
@@ -1346,8 +1711,40 @@ COPY public.sales_return_lines (id, sales_return_id, product_id, product_code, p
 -- Data for Name: sales_returns; Type: TABLE DATA; Schema: public; Owner: -
 --
 
-COPY public.sales_returns (id, document_number, accounting_date, document_date, customer_id, employee_id, description, reference, return_type, total_amount, total_discount, total_payment, created_at) FROM stdin;
-1	BTL00001	2026-07-11 15:00:00+07	2026-07-11 15:00:00+07	1	2	Trả lại hàng PHƯƠNG HOA SPA	\N	0	650000.00	32500.00	617500.00	2026-07-18 04:58:18.104896+07
+COPY public.sales_returns (id, document_number, accounting_date, document_date, customer_id, employee_id, description, reference, return_type, total_amount, total_discount, total_payment, created_at, confirmed_at, status) FROM stdin;
+1	BTL00001	2026-07-11 15:00:00+07	2026-07-11 15:00:00+07	1	2	Trả lại hàng PHƯƠNG HOA SPA	\N	0	650000.00	32500.00	617500.00	2026-07-18 04:58:18.104896+07	\N	1
+2	BTL00002	2026-08-28 07:00:00+07	2026-08-28 07:00:00+07	1	2	Thu hồi hàng PHƯƠNG HOA SPA	\N	0	0.00	0.00	0.00	2026-08-28 20:50:18.355469+07	\N	1
+3	BTL00003	2026-08-31 07:00:00+07	2026-08-31 07:00:00+07	1	2	Thu hồi hàng PHƯƠNG HOA SPA	\N	0	650000.00	0.00	650000.00	2026-08-31 16:37:10.280246+07	\N	1
+4	BTL00004	2026-08-31 07:00:00+07	2026-08-31 07:00:00+07	1	2	Thu hồi hàng PHƯƠNG HOA SPA	\N	0	0.00	0.00	0.00	2026-08-31 16:47:35.52692+07	\N	1
+5	BTL00005	2026-08-31 07:00:00+07	2026-08-31 07:00:00+07	1	2	Thu hồi hàng PHƯƠNG HOA SPA	\N	0	45000.00	0.00	45000.00	2026-08-31 16:57:54.992644+07	\N	1
+6	BTL00006	2026-08-31 07:00:00+07	2026-08-31 07:00:00+07	1	2	Thu hồi hàng PHƯƠNG HOA SPA	\N	0	0.00	0.00	0.00	2026-08-31 17:13:52.999118+07	\N	1
+7	BTL00007	2026-08-31 07:00:00+07	2026-08-31 07:00:00+07	1	2	Thu hồi hàng PHƯƠNG HOA SPA	\N	0	0.00	0.00	0.00	2026-08-31 17:20:58.318331+07	\N	1
+8	BTL00008	2026-08-31 07:00:00+07	2026-08-31 07:00:00+07	1	2	Thu hồi hàng PHƯƠNG HOA SPA	\N	0	0.00	0.00	0.00	2026-08-31 17:29:18.661306+07	\N	1
+9	BTL00009	2026-08-31 07:00:00+07	2026-08-31 07:00:00+07	1	2	Thu hồi hàng PHƯƠNG HOA SPA	\N	0	0.00	0.00	0.00	2026-08-31 18:23:20.141105+07	\N	1
+10	BTL00010	2026-08-31 07:00:00+07	2026-08-31 07:00:00+07	1	2	Thu hồi hàng PHƯƠNG HOA SPA	\N	0	0.00	0.00	0.00	2026-08-31 18:29:26.094225+07	\N	1
+11	BTL00011	2026-08-31 07:00:00+07	2026-08-31 07:00:00+07	1	2	Thu hồi hàng PHƯƠNG HOA SPA	\N	0	0.00	0.00	0.00	2026-08-31 18:37:38.276829+07	\N	1
+12	BTL00012	2026-08-31 07:00:00+07	2026-08-31 07:00:00+07	1	2	Thu hồi hàng PHƯƠNG HOA SPA	\N	0	0.00	0.00	0.00	2026-08-31 19:00:25.95085+07	\N	1
+13	BTL00013	2026-08-31 07:00:00+07	2026-08-31 07:00:00+07	1	2	Thu hồi hàng PHƯƠNG HOA SPA	\N	0	0.00	0.00	0.00	2026-08-31 19:12:56.103354+07	\N	1
+14	BTL00014	2026-08-31 07:00:00+07	2026-08-31 07:00:00+07	1	2	\N	\N	0	0.00	0.00	0.00	2026-09-01 10:00:00.642555+07	2026-09-01 10:00:00.873121+07	1
+15	BTL00015	2026-09-08 07:00:00+07	2026-09-08 07:00:00+07	1	2	\N	\N	0	0.00	0.00	0.00	2026-09-09 11:17:19.478608+07	2026-09-09 11:17:19.478071+07	1
+33	BTL00029	2026-09-11 07:00:00+07	2026-09-11 07:00:00+07	1	2	\N	\N	0	2160000.00	0.00	2160000.00	2026-09-11 14:44:56.470623+07	2026-09-11 15:53:45.614527+07	1
+35	BTL00031	2026-09-10 07:00:00+07	2026-09-10 07:00:00+07	1	2	\N	\N	0	45000.00	0.00	45000.00	2026-09-11 16:55:30.245082+07	2026-09-11 16:56:14.372313+07	1
+16	BTL00016	2026-09-08 07:00:00+07	2026-09-08 07:00:00+07	1	2	\N	\N	0	3170000.00	0.00	3170000.00	2026-09-09 20:16:07.372735+07	2026-09-09 21:47:44.53645+07	1
+17	BTL00017	2026-09-08 07:00:00+07	2026-09-08 07:00:00+07	1	2	\N	\N	0	0.00	0.00	0.00	2026-09-09 20:28:45.987403+07	2026-09-09 21:48:07.830649+07	1
+36	BTL00032	2026-09-10 07:00:00+07	2026-09-10 07:00:00+07	1	2	\N	\N	0	45000.00	0.00	45000.00	2026-09-11 17:26:01.740113+07	2026-09-11 17:26:23.502479+07	1
+37	BTL00033	2026-09-12 07:00:00+07	2026-09-12 07:00:00+07	1	2	\N	\N	0	0.00	0.00	0.00	2026-09-12 20:18:17.403753+07	2026-09-12 20:18:17.403327+07	1
+22	BTL00021	2026-09-10 07:00:00+07	2026-09-10 07:00:00+07	1	2	\N	\N	0	0.00	0.00	0.00	2026-09-10 21:07:27.275822+07	\N	2
+24	BTL00022	2026-09-10 07:00:00+07	2026-09-10 07:00:00+07	1	2	\N	\N	0	0.00	0.00	0.00	2026-09-10 21:25:47.858013+07	\N	2
+26	BTL00023	2026-09-10 07:00:00+07	2026-09-10 07:00:00+07	1	2	\N	\N	0	0.00	0.00	0.00	2026-09-10 21:37:32.579758+07	\N	2
+28	BTL00024	2026-09-10 07:00:00+07	2026-09-10 07:00:00+07	1	2	\N	\N	0	2160000.00	0.00	2160000.00	2026-09-11 09:39:46.294001+07	\N	2
+18	BTL00018	2026-09-09 07:00:00+07	2026-09-09 07:00:00+07	1	2	\N	\N	0	100000.00	0.00	100000.00	2026-09-09 20:33:04.197923+07	2026-09-11 09:52:58.680333+07	1
+19	BTL00019	2026-09-09 07:00:00+07	2026-09-09 07:00:00+07	1	2	thu hooif 2000	\N	0	1000000.00	0.00	1000000.00	2026-09-09 20:40:30.948752+07	2026-09-11 09:53:06.708676+07	1
+30	BTL00026	2026-09-11 07:00:00+07	2026-09-11 07:00:00+07	1	2	\N	\N	0	0.00	0.00	0.00	2026-09-11 14:18:51.78995+07	2026-09-11 14:18:51.789935+07	1
+31	BTL00027	2026-09-11 07:00:00+07	2026-09-11 07:00:00+07	1	2	\N	\N	0	100000.00	0.00	100000.00	2026-09-11 14:19:22.686737+07	2026-09-11 14:19:22.68672+07	1
+32	BTL00028	2026-09-11 07:00:00+07	2026-09-11 07:00:00+07	1	2	\N	\N	0	0.00	0.00	0.00	2026-09-11 14:37:28.838467+07	2026-09-11 14:37:28.838051+07	1
+34	BTL00030	2026-09-11 07:00:00+07	2026-09-11 07:00:00+07	1	2	\N	\N	0	2160000.00	0.00	2160000.00	2026-09-11 14:55:38.15616+07	2026-09-11 14:55:38.155266+07	1
+20	BTL00020	2026-09-09 07:00:00+07	2026-09-09 07:00:00+07	1	2	\N	\N	0	100000.00	0.00	100000.00	2026-09-09 21:03:30.458697+07	\N	2
+29	BTL00025	2026-09-11 07:00:00+07	2026-09-11 07:00:00+07	1	2	\N	\N	0	2160000.00	0.00	2160000.00	2026-09-11 14:18:11.2567+07	\N	2
 \.
 
 
@@ -1366,7 +1763,30 @@ COPY public.suppliers (id, code, name, address, "group", tax_code, phone, is_sto
 -- Data for Name: warehouse_receipt_lines; Type: TABLE DATA; Schema: public; Owner: -
 --
 
-COPY public.warehouse_receipt_lines (id, warehouse_receipt_id, product_id, warehouse_id, quantity, unit_price, amount, debit_account, credit_account) FROM stdin;
+COPY public.warehouse_receipt_lines (id, warehouse_receipt_id, product_id, warehouse_id, quantity, unit_price, amount, debit_account, credit_account, cost_item, cost_object, loan_contract_number, project, purchase_order_number, sales_contract_number, statistics_code) FROM stdin;
+1	1	6	1	1	180000.00	180000.00	111	131	\N	\N	\N	\N	\N	\N	\N
+2	2	5	4	1	15000.00	15000.00	1561	632	\N	\N	\N	\N	\N	\N	\N
+3	3	7	4	1	0.00	0.00	1561	632	\N	\N	\N	\N	\N	\N	\N
+4	4	7	4	1	0.00	0.00	1561	632	\N	\N	\N	\N	\N	\N	\N
+5	5	7	4	1	0.00	0.00	1561	632	\N	\N	\N	\N	\N	\N	\N
+6	6	7	4	1	0.00	0.00	1561	632	\N	\N	\N	\N	\N	\N	\N
+7	7	7	4	1	0.00	0.00	1561	632	\N	\N	\N	\N	\N	\N	\N
+8	8	7	4	1	0.00	0.00	1561	632	\N	\N	\N	\N	\N	\N	\N
+9	9	24	4	1	0.00	0.00	1561	632	\N	\N	\N	\N	\N	\N	\N
+10	10	7	4	1	0.00	0.00	1561	632	\N	\N	\N	\N	\N	\N	\N
+11	11	7	4	1	0.00	0.00	1561	632	\N	\N	\N	\N	\N	\N	\N
+12	12	7	4	1	0.00	0.00	1561	632	\N	\N	\N	\N	\N	\N	\N
+13	13	24	4	1	0.00	0.00	1561	632	\N	\N	\N	\N	\N	\N	\N
+14	14	7	4	1	0.00	0.00	1561	632	\N	\N	\N	\N	\N	\N	\N
+15	15	24	4	1	0.00	0.00	1561	632	\N	\N	\N	\N	\N	\N	\N
+16	15	7	4	1	0.00	0.00	1561	632	\N	\N	\N	\N	\N	\N	\N
+17	15	2	4	1	900000.00	900000.00	1561	632	\N	\N	\N	\N	\N	\N	\N
+18	16	2	4	1	900000.00	900000.00	1561	632	\N	\N	\N	\N	\N	\N	\N
+19	17	7	4	1	0.00	0.00	1561	632	\N	\N	\N	\N	\N	\N	\N
+20	18	7	4	1	0.00	0.00	1561	632	\N	\N	\N	\N	\N	\N	\N
+21	19	7	4	1	0.00	0.00	1561	632	\N	\N	\N	\N	\N	\N	\N
+22	19	5	4	1	15000.00	15000.00	1561	632	\N	\N	\N	\N	\N	\N	\N
+23	20	24	4	1	0.00	0.00	1561	632	\N	\N	\N	\N	\N	\N	\N
 \.
 
 
@@ -1374,7 +1794,27 @@ COPY public.warehouse_receipt_lines (id, warehouse_receipt_id, product_id, wareh
 -- Data for Name: warehouse_receipts; Type: TABLE DATA; Schema: public; Owner: -
 --
 
-COPY public.warehouse_receipts (id, receipt_number, receipt_type, status, customer_id, employee_id, accounting_date, document_date, description, delivery_person, reference, total_amount, created_at, confirmed_at) FROM stdin;
+COPY public.warehouse_receipts (id, receipt_number, receipt_type, status, customer_id, employee_id, accounting_date, document_date, description, delivery_person, reference, total_amount, created_at, confirmed_at, supplier_id, is_superseded) FROM stdin;
+1	NK00001	1	1	\N	2	2026-08-14 07:00:00+07	2026-08-14 07:00:00+07	\N	\N	\N	180000.00	2026-08-15 09:54:49.09453+07	2026-08-15 09:54:49.35598+07	\N	f
+2	NK00002	2	1	1	2	2026-08-31 07:00:00+07	2026-08-31 07:00:00+07	Thu hồi hàng PHƯƠNG HOA SPA	PHƯƠNG HOA SPA	BTL00005	15000.00	2026-08-31 16:57:55.238462+07	2026-08-31 16:57:55.238471+07	\N	f
+3	NK00003	2	1	1	2	2026-08-31 07:00:00+07	2026-08-31 07:00:00+07	Thu hồi hàng PHƯƠNG HOA SPA	PHƯƠNG HOA SPA	BTL00006	0.00	2026-08-31 17:13:53.253403+07	2026-08-31 17:13:53.25341+07	\N	f
+4	NK00004	2	1	1	2	2026-08-31 07:00:00+07	2026-08-31 07:00:00+07	Thu hồi hàng PHƯƠNG HOA SPA	PHƯƠNG HOA SPA	BTL00007	0.00	2026-08-31 17:20:58.560207+07	2026-08-31 17:20:58.560214+07	\N	f
+5	NK00005	2	1	1	2	2026-08-31 07:00:00+07	2026-08-31 07:00:00+07	Thu hồi hàng PHƯƠNG HOA SPA	PHƯƠNG HOA SPA	BTL00008	0.00	2026-08-31 17:29:18.727404+07	2026-08-31 17:29:18.727404+07	\N	f
+6	NK00006	2	1	1	2	2026-08-31 07:00:00+07	2026-08-31 07:00:00+07	Thu hồi hàng PHƯƠNG HOA SPA	PHƯƠNG HOA SPA	BTL00009	0.00	2026-08-31 18:23:20.178992+07	2026-08-31 18:23:20.178992+07	\N	f
+7	NK00007	2	1	1	2	2026-08-31 07:00:00+07	2026-08-31 07:00:00+07	Thu hồi hàng PHƯƠNG HOA SPA	PHƯƠNG HOA SPA	BTL00010	0.00	2026-08-31 18:29:26.133706+07	2026-08-31 18:29:26.133706+07	\N	f
+8	NK00008	2	1	1	2	2026-08-31 07:00:00+07	2026-08-31 07:00:00+07	Thu hồi hàng PHƯƠNG HOA SPA	PHƯƠNG HOA SPA	BTL00011	0.00	2026-08-31 18:37:38.312173+07	2026-08-31 18:37:38.312173+07	\N	f
+9	NK00009	2	1	1	2	2026-08-31 07:00:00+07	2026-08-31 07:00:00+07	Thu hồi hàng PHƯƠNG HOA SPA	PHƯƠNG HOA SPA	BTL00012	0.00	2026-08-31 19:00:25.995146+07	2026-08-31 19:00:25.995146+07	\N	f
+10	NK00010	2	1	1	2	2026-08-31 07:00:00+07	2026-08-31 07:00:00+07	Thu hồi hàng PHƯƠNG HOA SPA	PHƯƠNG HOA SPA	BTL00013	0.00	2026-08-31 19:12:56.185842+07	2026-08-31 19:12:56.185843+07	\N	f
+11	NK00011	2	1	1	2	2026-08-31 07:00:00+07	2026-08-31 07:00:00+07	\N	PHƯƠNG HOA SPA	BTL00014	0.00	2026-09-01 10:00:00.947306+07	2026-09-01 10:00:00.947312+07	\N	f
+12	NK00012	2	1	1	2	2026-09-09 07:00:00+07	2026-09-09 07:00:00+07	\N	PHƯƠNG HOA SPA	BTL00017	0.00	2026-09-09 20:28:53.578652+07	2026-09-09 20:28:53.57866+07	\N	f
+13	NK00013	2	1	1	2	2026-09-09 07:00:00+07	2026-09-09 07:00:00+07	\N	PHƯƠNG HOA SPA	BTL00018	0.00	2026-09-09 20:33:11.497501+07	2026-09-09 20:33:11.497502+07	\N	f
+14	NK00014	2	1	1	2	2026-09-09 07:00:00+07	2026-09-09 07:00:00+07	thu hooif 2000	PHƯƠNG HOA SPA	BTL00019	0.00	2026-09-09 20:40:32.259264+07	2026-09-09 20:40:32.259264+07	\N	f
+15	NK00015	2	1	1	2	2026-09-08 07:00:00+07	2026-09-08 07:00:00+07	\N	PHƯƠNG HOA SPA	BTL00016	900000.00	2026-09-09 21:47:45.75679+07	2026-09-09 21:47:45.7568+07	\N	f
+16	NK00016	2	1	1	2	2026-09-10 07:00:00+07	2026-09-10 07:00:00+07	\N	PHƯƠNG HOA SPA	BTL00024	900000.00	2026-09-11 09:39:52.246666+07	2026-09-11 09:39:52.246676+07	\N	f
+17	NK00017	2	1	1	2	2026-09-11 07:00:00+07	2026-09-11 07:00:00+07	\N	PHƯƠNG HOA SPA	BTL00031	0.00	2026-09-11 16:55:31.568421+07	2026-09-11 16:55:31.568429+07	\N	f
+18	NK00018	2	1	1	2	2026-09-11 07:00:00+07	2026-09-11 07:00:00+07	\N	PHƯƠNG HOA SPA	BTL00032	0.00	2026-09-11 17:26:03.016188+07	2026-09-11 17:26:03.016198+07	\N	t
+19	NK00019	2	1	1	2	2026-09-10 07:00:00+07	2026-09-10 07:00:00+07	\N	PHƯƠNG HOA SPA	BTL00032	15000.00	2026-09-11 17:26:24.275722+07	2026-09-11 17:26:24.275722+07	\N	f
+20	NK00020	2	1	1	2	2026-09-12 07:00:00+07	2026-09-12 07:00:00+07	\N	PHƯƠNG HOA SPA	BTL00033	0.00	2026-09-12 20:18:18.347984+07	2026-09-12 20:18:18.347993+07	\N	f
 \.
 
 
@@ -1383,10 +1823,10 @@ COPY public.warehouse_receipts (id, receipt_number, receipt_type, status, custom
 --
 
 COPY public.warehouses (id, code, name, is_active) FROM stdin;
-1	KHO01	Kho chính	t
-3	KHO02	Kho chi nhánh Q.1	t
 4	HH	Hàng hoá	t
 5	TB	Trưng bày	t
+1	KHO01	Kho chính	f
+3	KHO02	Kho chi nhánh Q.1	f
 \.
 
 
@@ -1408,7 +1848,7 @@ SELECT pg_catalog.setval('public.backup_schedule_id_seq', 2, false);
 -- Name: cash_transactions_id_seq; Type: SEQUENCE SET; Schema: public; Owner: -
 --
 
-SELECT pg_catalog.setval('public.cash_transactions_id_seq', 14, false);
+SELECT pg_catalog.setval('public.cash_transactions_id_seq', 16, true);
 
 
 --
@@ -1436,14 +1876,14 @@ SELECT pg_catalog.setval('public.departments_id_seq', 9, false);
 -- Name: deposit_deductions_id_seq; Type: SEQUENCE SET; Schema: public; Owner: -
 --
 
-SELECT pg_catalog.setval('public.deposit_deductions_id_seq', 1, false);
+SELECT pg_catalog.setval('public.deposit_deductions_id_seq', 7, true);
 
 
 --
 -- Name: deposits_id_seq; Type: SEQUENCE SET; Schema: public; Owner: -
 --
 
-SELECT pg_catalog.setval('public.deposits_id_seq', 1, true);
+SELECT pg_catalog.setval('public.deposits_id_seq', 5, true);
 
 
 --
@@ -1457,21 +1897,21 @@ SELECT pg_catalog.setval('public.employees_id_seq', 5, true);
 -- Name: expense_categories_id_seq; Type: SEQUENCE SET; Schema: public; Owner: -
 --
 
-SELECT pg_catalog.setval('public.expense_categories_id_seq', 1, true);
+SELECT pg_catalog.setval('public.expense_categories_id_seq', 10, false);
 
 
 --
 -- Name: payment_entries_Id_seq; Type: SEQUENCE SET; Schema: public; Owner: -
 --
 
-SELECT pg_catalog.setval('public."payment_entries_Id_seq"', 1, false);
+SELECT pg_catalog.setval('public."payment_entries_Id_seq"', 5, true);
 
 
 --
 -- Name: payments_Id_seq; Type: SEQUENCE SET; Schema: public; Owner: -
 --
 
-SELECT pg_catalog.setval('public."payments_Id_seq"', 1, false);
+SELECT pg_catalog.setval('public."payments_Id_seq"', 6, true);
 
 
 --
@@ -1485,14 +1925,14 @@ SELECT pg_catalog.setval('public.product_units_id_seq', 11, false);
 -- Name: product_warehouse_stocks_id_seq; Type: SEQUENCE SET; Schema: public; Owner: -
 --
 
-SELECT pg_catalog.setval('public.product_warehouse_stocks_id_seq', 9, true);
+SELECT pg_catalog.setval('public.product_warehouse_stocks_id_seq', 106, true);
 
 
 --
 -- Name: products_id_seq; Type: SEQUENCE SET; Schema: public; Owner: -
 --
 
-SELECT pg_catalog.setval('public.products_id_seq', 9, true);
+SELECT pg_catalog.setval('public.products_id_seq', 83, true);
 
 
 --
@@ -1513,28 +1953,28 @@ SELECT pg_catalog.setval('public."receipts_Id_seq"', 1, false);
 -- Name: sales_order_lines_Id_seq; Type: SEQUENCE SET; Schema: public; Owner: -
 --
 
-SELECT pg_catalog.setval('public."sales_order_lines_Id_seq"', 33, true);
+SELECT pg_catalog.setval('public."sales_order_lines_Id_seq"', 66, true);
 
 
 --
 -- Name: sales_orders_Id_seq; Type: SEQUENCE SET; Schema: public; Owner: -
 --
 
-SELECT pg_catalog.setval('public."sales_orders_Id_seq"', 12, true);
+SELECT pg_catalog.setval('public."sales_orders_Id_seq"', 47, true);
 
 
 --
 -- Name: sales_return_lines_id_seq; Type: SEQUENCE SET; Schema: public; Owner: -
 --
 
-SELECT pg_catalog.setval('public.sales_return_lines_id_seq', 1, true);
+SELECT pg_catalog.setval('public.sales_return_lines_id_seq', 51, true);
 
 
 --
 -- Name: sales_returns_id_seq; Type: SEQUENCE SET; Schema: public; Owner: -
 --
 
-SELECT pg_catalog.setval('public.sales_returns_id_seq', 1, true);
+SELECT pg_catalog.setval('public.sales_returns_id_seq', 37, true);
 
 
 --
@@ -1548,14 +1988,14 @@ SELECT pg_catalog.setval('public.suppliers_id_seq', 3, true);
 -- Name: warehouse_receipt_lines_id_seq; Type: SEQUENCE SET; Schema: public; Owner: -
 --
 
-SELECT pg_catalog.setval('public.warehouse_receipt_lines_id_seq', 1, false);
+SELECT pg_catalog.setval('public.warehouse_receipt_lines_id_seq', 23, true);
 
 
 --
 -- Name: warehouse_receipts_id_seq; Type: SEQUENCE SET; Schema: public; Owner: -
 --
 
-SELECT pg_catalog.setval('public.warehouse_receipts_id_seq', 1, false);
+SELECT pg_catalog.setval('public.warehouse_receipts_id_seq', 20, true);
 
 
 --
@@ -1921,17 +2361,17 @@ CREATE INDEX "IX_payment_entries_PaymentId" ON public.payment_entries USING btre
 
 
 --
+-- Name: IX_payments_PartnerType_PartnerId; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX "IX_payments_PartnerType_PartnerId" ON public.payments USING btree ("PartnerType", "PartnerId");
+
+
+--
 -- Name: IX_payments_PaymentEmployeeId; Type: INDEX; Schema: public; Owner: -
 --
 
 CREATE INDEX "IX_payments_PaymentEmployeeId" ON public.payments USING btree ("PaymentEmployeeId");
-
-
---
--- Name: IX_payments_SupplierId; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE INDEX "IX_payments_SupplierId" ON public.payments USING btree ("SupplierId");
 
 
 --
@@ -2033,6 +2473,13 @@ CREATE INDEX "IX_receipt_entries_ReceiptId" ON public.receipt_entries USING btre
 
 
 --
+-- Name: IX_receipt_entries_SalesOrderId; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX "IX_receipt_entries_SalesOrderId" ON public.receipt_entries USING btree ("SalesOrderId");
+
+
+--
 -- Name: IX_receipts_CollectorEmployeeId; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -2093,6 +2540,13 @@ CREATE UNIQUE INDEX "IX_sales_orders_document_number" ON public.sales_orders USI
 --
 
 CREATE INDEX "IX_sales_orders_employee_id" ON public.sales_orders USING btree (employee_id);
+
+
+--
+-- Name: IX_sales_return_lines_department_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX "IX_sales_return_lines_department_id" ON public.sales_return_lines USING btree (department_id);
 
 
 --
@@ -2201,6 +2655,13 @@ CREATE INDEX "IX_warehouse_receipts_status" ON public.warehouse_receipts USING b
 
 
 --
+-- Name: IX_warehouse_receipts_supplier_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX "IX_warehouse_receipts_supplier_id" ON public.warehouse_receipts USING btree (supplier_id);
+
+
+--
 -- Name: IX_warehouses_code; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -2296,19 +2757,11 @@ ALTER TABLE ONLY public.payments
 
 
 --
--- Name: payments FK_payments_suppliers_SupplierId; Type: FK CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.payments
-    ADD CONSTRAINT "FK_payments_suppliers_SupplierId" FOREIGN KEY ("SupplierId") REFERENCES public.suppliers(id) ON DELETE RESTRICT;
-
-
---
 -- Name: product_warehouse_stocks FK_product_warehouse_stocks_products_product_id; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.product_warehouse_stocks
-    ADD CONSTRAINT "FK_product_warehouse_stocks_products_product_id" FOREIGN KEY (product_id) REFERENCES public.products(id) ON DELETE RESTRICT;
+    ADD CONSTRAINT "FK_product_warehouse_stocks_products_product_id" FOREIGN KEY (product_id) REFERENCES public.products(id) ON DELETE CASCADE;
 
 
 --
@@ -2400,6 +2853,14 @@ ALTER TABLE ONLY public.receipt_entries
 
 
 --
+-- Name: receipt_entries FK_receipt_entries_sales_orders_SalesOrderId; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.receipt_entries
+    ADD CONSTRAINT "FK_receipt_entries_sales_orders_SalesOrderId" FOREIGN KEY ("SalesOrderId") REFERENCES public.sales_orders(id) ON DELETE RESTRICT;
+
+
+--
 -- Name: receipts FK_receipts_customers_CustomerId; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -2453,6 +2914,14 @@ ALTER TABLE ONLY public.sales_orders
 
 ALTER TABLE ONLY public.sales_orders
     ADD CONSTRAINT "FK_sales_orders_employees_employee_id" FOREIGN KEY (employee_id) REFERENCES public.employees(id) ON DELETE SET NULL;
+
+
+--
+-- Name: sales_return_lines FK_sales_return_lines_departments_department_id; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.sales_return_lines
+    ADD CONSTRAINT "FK_sales_return_lines_departments_department_id" FOREIGN KEY (department_id) REFERENCES public.departments(id) ON DELETE SET NULL;
 
 
 --
@@ -2536,8 +3005,16 @@ ALTER TABLE ONLY public.warehouse_receipts
 
 
 --
+-- Name: warehouse_receipts FK_warehouse_receipts_suppliers_supplier_id; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.warehouse_receipts
+    ADD CONSTRAINT "FK_warehouse_receipts_suppliers_supplier_id" FOREIGN KEY (supplier_id) REFERENCES public.suppliers(id) ON DELETE RESTRICT;
+
+
+--
 -- PostgreSQL database dump complete
 --
 
-\unrestrict GHxBYsiNkmwgaCiMfz5eCp949D0ZvjxhxHIDqTDUuE8hBFp5P37OeJfsh9Jj83t
+\unrestrict WoZSNDAUon4zuUbjvsRmNflMnwHWiMz03g3cmibdrB9ZdAve00oc3kTUXXG5Yx3
 

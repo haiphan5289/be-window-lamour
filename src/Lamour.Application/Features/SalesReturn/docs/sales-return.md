@@ -127,7 +127,34 @@ cho kế toán.
 
 ---
 
-## Review Artifact — workflow cho kế toán (đối chiếu lại lần 2 — 2026-09-11) — ⚠️ NỘI DUNG BÊN DƯỚI ĐÃ LỖI THỜI SAU MỤC "Update — 2026-09-11" Ở TRÊN
+## Review Artifact — đối chiếu lại lần 3 (2026-09-11, cùng ngày, mục mới nhất)
+
+Sau khi "Cất = Ghi sổ ngay" + gộp Nháp/Treo (2 mục "Update — 2026-09-11" ở trên) + fix bug "in ra
+PN cũ sau khi sửa chứng từ" (mục cuối file), đã dựng lại **toàn bộ** artifact cho kế toán từ đầu
+(không chỉ vá thêm) — mô hình cũ "bấm 2 lần mới ghi sổ thật" trong artifact lần 2 (mục ngay dưới đây)
+không còn đúng gì nữa, nên viết lại cả 7 bước thao tác, cả 2 mockup, và toàn bộ 6 điểm cần xác nhận.
+
+**https://claude.ai/code/artifact/099e21eb-0bc7-4ee8-899e-7483f0093092** (cùng 1 link, update-in-place
+qua `ct-audience-persona-pattern` → `ct-review-artifact`)
+
+- 6 điểm cần xác nhận (mới, thay hẳn 6 điểm lần 2): (1) Cất không qua bước duyệt riêng; (2) Sửa 1
+  chứng từ đã ghi sổ không bắt buộc Bỏ ghi trước; (3) **bất nhất mới phát hiện** — "Bỏ ghi" từ danh
+  sách làm ngay không hỏi, từ popup vẫn hỏi Yes/No (`SalesReturnListViewModel.UnconfirmSalesReturnAsync`
+  vs `SalesReturnViewModel.ToggleConfirmAsync` — xác nhận qua đọc code, không phải suy đoán); (4)
+  Ghi sổ/Bỏ ghi không kiểm tra PN liên kết; (5) số PN tự đổi khi lập lại, PN cũ không hiển thị cho kế
+  toán biết đã bị thay thế; (6) toàn bộ mô hình mới đổi trong ngày, chưa test UTM thật.
+- Nguồn đã verify (đối chiếu lại lần 3, đọc trực tiếp — không chỉ theo doc): `SalesReturnsController.cs`,
+  `Create/Update/Delete/Confirm/UnconfirmSalesReturnUseCase.cs`, `CreateSalesReturnWarehouseReceiptUseCase.cs`
+  (BE); `SalesReturnViewModel.cs` (SaveAsync/ToggleConfirmAsync/Edit/CanDeleteReturn/CanEdit/IsReadOnly/
+  PrintAsync), `SalesReturnListViewModel.cs` (UnconfirmSalesReturnAsync/ConfirmSalesReturnAsync),
+  `DocumentToolbar.xaml`, `SalesReturnWindow.xaml`, `SalesReturnListView.xaml` (WPF).
+- **Export tĩnh đồng bộ cùng lúc**: [`docs/ChungTuTraHangBan-Review.html`](ChungTuTraHangBan-Review.html)
+  ghi đè lại toàn bộ theo đúng nội dung artifact lần 3 này (bỏ phần ô tích tương tác — chỉ có ý nghĩa
+  trên bản online).
+
+---
+
+## Review Artifact — workflow cho kế toán (đối chiếu lại lần 2 — 2026-09-11) — ⚠️ NỘI DUNG BÊN DƯỚI ĐÃ LỖI THỜI SAU MỤC "Update — 2026-09-11" Ở TRÊN VÀ SAU MỤC "đối chiếu lại lần 3" NGAY TRÊN ĐÂY
 
 Trang Artifact mô tả toàn bộ workflow (2 màn hình mockup + 7 bước + bảng quy tắc + 6 điểm cần xác nhận), tạo qua skill `ct-audience-persona-pattern` → `ct-review-artifact`, đã đối chiếu trực tiếp với code BE + WPF mới nhất (không chỉ đọc doc). **Đây là bản UPDATE-IN-PLACE cùng 1 link** — bản trước (2026-09-10) mô tả luồng "Cất = Ghi sổ ngay" đã lỗi thời hoàn toàn sau khi tách Cất/Ghi sổ (xem mục "Update — 2026-09-10" ngay dưới), bản này mô tả đúng luồng 2-lần-bấm-để-Ghi-sổ / 1-lần-bấm-để-Bỏ-ghi hiện tại:
 
