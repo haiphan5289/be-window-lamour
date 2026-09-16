@@ -18,6 +18,7 @@ public class SalesReturnsController : ControllerBase
     private readonly IConfirmSalesReturnUseCase     _confirm;
     private readonly IUnconfirmSalesReturnUseCase   _unconfirm;
     private readonly ICreateSalesReturnWarehouseReceiptUseCase _createWarehouseReceipt;
+    private readonly IDuplicateSalesReturnUseCase   _duplicate;
 
     public SalesReturnsController(
         IGetSalesReturnsUseCase        getAll,
@@ -28,7 +29,8 @@ public class SalesReturnsController : ControllerBase
         IDeleteSalesReturnUseCase      delete,
         IConfirmSalesReturnUseCase     confirm,
         IUnconfirmSalesReturnUseCase   unconfirm,
-        ICreateSalesReturnWarehouseReceiptUseCase createWarehouseReceipt)
+        ICreateSalesReturnWarehouseReceiptUseCase createWarehouseReceipt,
+        IDuplicateSalesReturnUseCase   duplicate)
     {
         _getAll      = getAll;
         _getById     = getById;
@@ -39,6 +41,7 @@ public class SalesReturnsController : ControllerBase
         _confirm     = confirm;
         _unconfirm   = unconfirm;
         _createWarehouseReceipt = createWarehouseReceipt;
+        _duplicate   = duplicate;
     }
 
     [HttpGet]
@@ -90,5 +93,12 @@ public class SalesReturnsController : ControllerBase
     {
         var result = await _createWarehouseReceipt.ExecuteAsync(id, ct);
         return Created($"/api/v1/warehouse-receipts/{result.Id}", result);
+    }
+
+    [HttpPost("{id:int}/duplicate")]
+    public async Task<IActionResult> Duplicate(int id, CancellationToken ct)
+    {
+        var result = await _duplicate.ExecuteAsync(id, ct);
+        return Created($"/api/v1/sales-returns/{result.Id}", result);
     }
 }
