@@ -44,6 +44,8 @@ public class UpdateCustomerUseCase : IUpdateCustomerUseCase
         customer.Name               = request.Name.Trim();
         customer.Address            = request.Address;
         customer.Province           = request.Province;
+        customer.District           = request.District;
+        customer.Ward               = request.Ward;
         customer.CustomerGroup      = request.CustomerGroup;
         customer.TaxCode            = request.TaxCode;
         customer.Phone              = request.Phone;
@@ -59,6 +61,8 @@ public class UpdateCustomerUseCase : IUpdateCustomerUseCase
             Name                 = updated.Name,
             Address              = updated.Address,
             Province             = updated.Province,
+            District             = updated.District,
+            Ward                 = updated.Ward,
             CustomerGroup        = updated.CustomerGroup,
             TaxCode              = updated.TaxCode,
             Phone                = updated.Phone,

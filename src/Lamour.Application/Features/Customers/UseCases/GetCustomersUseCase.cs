@@ -30,6 +30,8 @@ public class GetCustomersUseCase : IGetCustomersUseCase
         Name                 = c.Name,
         Address              = c.Address,
         Province             = c.Province,
+        District             = c.District,
+        Ward                 = c.Ward,
         CustomerGroup        = c.CustomerGroup,
         TaxCode              = c.TaxCode,
         Phone                = c.Phone,

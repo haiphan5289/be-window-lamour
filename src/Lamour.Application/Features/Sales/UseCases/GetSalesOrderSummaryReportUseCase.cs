@@ -46,7 +46,8 @@ public class GetSalesOrderSummaryReportUseCase : IGetSalesOrderSummaryReportUseC
         SalesOrderSummaryLineDto GetOrAdd(
             int productId, string productCode, string productName, string unitName,
             int customerId, string customerCode, string customerName, string customerGroupName,
-            int? employeeId, string? employeeCode, string? employeeName)
+            string customerProvince, string customerDistrict, string customerWard,
+            int? employeeId, string? employeeCode, string? employeeName, string? employeeUnit)
         {
             var key = (productId, customerId, employeeId);
             if (!map.TryGetValue(key, out var dto))
@@ -61,9 +62,13 @@ public class GetSalesOrderSummaryReportUseCase : IGetSalesOrderSummaryReportUseC
                     CustomerCode      = customerCode,
                     CustomerName      = customerName,
                     CustomerGroupName = customerGroupName,
+                    CustomerProvince  = customerProvince,
+                    CustomerDistrict  = customerDistrict,
+                    CustomerWard      = customerWard,
                     EmployeeId        = employeeId,
                     EmployeeCode      = employeeCode,
                     EmployeeName      = employeeName,
+                    EmployeeUnit      = employeeUnit,
                 };
                 map[key] = dto;
             }
@@ -76,7 +81,8 @@ public class GetSalesOrderSummaryReportUseCase : IGetSalesOrderSummaryReportUseC
                 l.ProductId, l.ProductCode, l.ProductName, l.Unit,
                 l.SalesOrder.CustomerId, l.SalesOrder.Customer?.Code ?? "", l.SalesOrder.Customer?.Name ?? "",
                 l.SalesOrder.Customer?.CustomerGroup ?? "",
-                l.SalesOrder.EmployeeId, l.SalesOrder.Employee?.Code, l.SalesOrder.Employee?.Name);
+                l.SalesOrder.Customer?.Province ?? "", l.SalesOrder.Customer?.District ?? "", l.SalesOrder.Customer?.Ward ?? "",
+                l.SalesOrder.EmployeeId, l.SalesOrder.Employee?.Code, l.SalesOrder.Employee?.Name, l.SalesOrder.Employee?.Unit);
 
             dto.QuantitySold   += l.Quantity;
             dto.SalesAmount    += l.Quantity * l.UnitPrice;
@@ -90,7 +96,8 @@ public class GetSalesOrderSummaryReportUseCase : IGetSalesOrderSummaryReportUseC
                 l.ProductId, l.ProductCode, l.ProductName, l.Unit,
                 l.SalesReturn.CustomerId, l.SalesReturn.Customer?.Code ?? "", l.SalesReturn.Customer?.Name ?? "",
                 l.SalesReturn.Customer?.CustomerGroup ?? "",
-                l.SalesReturn.EmployeeId, l.SalesReturn.Employee?.Code, l.SalesReturn.Employee?.Name);
+                l.SalesReturn.Customer?.Province ?? "", l.SalesReturn.Customer?.District ?? "", l.SalesReturn.Customer?.Ward ?? "",
+                l.SalesReturn.EmployeeId, l.SalesReturn.Employee?.Code, l.SalesReturn.Employee?.Name, l.SalesReturn.Employee?.Unit);
 
             dto.ReturnQuantity += l.Quantity;
             dto.ReturnValue    += l.Amount - l.DiscountAmount;

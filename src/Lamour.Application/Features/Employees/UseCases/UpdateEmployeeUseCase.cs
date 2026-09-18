@@ -29,7 +29,7 @@ public class UpdateEmployeeUseCase : IUpdateEmployeeUseCase
             throw new DomainException("Tên nhân viên không được để trống.");
 
         if (!Enum.TryParse<EmployeeRole>(request.Role, ignoreCase: true, out var role))
-            throw new DomainException($"Role '{request.Role}' không hợp lệ. Giá trị hợp lệ: Admin, Cashier, Warehouse.");
+            throw new DomainException($"Role '{request.Role}' không hợp lệ. Giá trị hợp lệ: Admin, Cashier, Warehouse, Staff.");
 
         var unit = EmployeeUnits.AllowedValues.FirstOrDefault(v => v.Equals(request.Unit, StringComparison.OrdinalIgnoreCase))
             ?? throw new DomainException($"Đơn vị '{request.Unit}' không hợp lệ. Giá trị hợp lệ: {string.Join(", ", EmployeeUnits.AllowedValues)}.");
@@ -37,8 +37,9 @@ public class UpdateEmployeeUseCase : IUpdateEmployeeUseCase
         var gender = EmployeeGenders.AllowedValues.FirstOrDefault(v => v.Equals(request.Gender, StringComparison.OrdinalIgnoreCase))
             ?? throw new DomainException($"Giới tính '{request.Gender}' không hợp lệ. Giá trị hợp lệ: {string.Join(", ", EmployeeGenders.AllowedValues)}.");
 
-        if (!Enum.TryParse<EmployeeJobTitle>(request.JobTitle, ignoreCase: true, out var jobTitle))
-            throw new DomainException($"Chức danh '{request.JobTitle}' không hợp lệ. Giá trị hợp lệ: Admin, TruongPhong, NhanVienBanHang, NhanVienKho, ThuNgan, Khac.");
+        if (string.IsNullOrWhiteSpace(request.JobTitle))
+            throw new DomainException("Chức danh không được để trống.");
+        var jobTitle = request.JobTitle.Trim();
 
         employee.Name              = request.Name.Trim();
         employee.Gender            = gender;

@@ -71,7 +71,7 @@ public class ImportExcelEmployeesUseCase : IImportExcelEmployeesUseCase
             if (string.IsNullOrWhiteSpace(roleStr)) roleStr = "Cashier";
             if (!Enum.TryParse<EmployeeRole>(roleStr, ignoreCase: true, out var role))
             {
-                errors.Add(new ImportRowErrorDto { Row = rowNum, Reason = $"Vai trò '{roleStr}' không hợp lệ (Admin/Cashier/Warehouse)." });
+                errors.Add(new ImportRowErrorDto { Row = rowNum, Reason = $"Vai trò '{roleStr}' không hợp lệ (Admin/Cashier/Warehouse/Staff)." });
                 continue;
             }
 
@@ -94,12 +94,7 @@ public class ImportExcelEmployeesUseCase : IImportExcelEmployeesUseCase
             }
 
             var jobTitleStr = GetCell(row, colMap, "job_title");
-            if (string.IsNullOrWhiteSpace(jobTitleStr)) jobTitleStr = "Khac";
-            if (!Enum.TryParse<EmployeeJobTitle>(jobTitleStr, ignoreCase: true, out var jobTitle))
-            {
-                errors.Add(new ImportRowErrorDto { Row = rowNum, Reason = $"Chức danh '{jobTitleStr}' không hợp lệ (Admin/TruongPhong/NhanVienBanHang/NhanVienKho/ThuNgan/Khac)." });
-                continue;
-            }
+            var jobTitle    = string.IsNullOrWhiteSpace(jobTitleStr) ? "Khac" : jobTitleStr.Trim();
 
             var bankAccountNumber = GetCell(row, colMap, "bank_account_number");
             var bankName          = GetCell(row, colMap, "bank_name");

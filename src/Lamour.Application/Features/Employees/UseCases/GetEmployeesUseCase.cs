@@ -32,7 +32,7 @@ public class GetEmployeesUseCase : IGetEmployeesUseCase
         Phone             = e.Phone,
         Role              = e.Role.ToString(),
         Unit              = e.Unit,
-        JobTitle          = e.JobTitle.ToString(),
+        JobTitle          = e.JobTitle,
         BankAccountNumber = e.BankAccountNumber,
         BankName          = e.BankName,
         IsActive          = e.IsActive,

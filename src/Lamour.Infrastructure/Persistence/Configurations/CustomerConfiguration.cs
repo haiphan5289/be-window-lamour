@@ -15,6 +15,8 @@ public class CustomerConfiguration : IEntityTypeConfiguration<Customer>
         builder.Property(c => c.Name).HasColumnName("name").HasMaxLength(200).IsRequired();
         builder.Property(c => c.Address).HasColumnName("address").HasMaxLength(500);
         builder.Property(c => c.Province).HasColumnName("province").HasMaxLength(100);
+        builder.Property(c => c.District).HasColumnName("district").HasMaxLength(100);
+        builder.Property(c => c.Ward).HasColumnName("ward").HasMaxLength(100);
         builder.Property(c => c.CustomerGroup).HasColumnName("customer_group").HasMaxLength(100);
         builder.Property(c => c.TaxCode).HasColumnName("tax_code").HasMaxLength(20);
         builder.Property(c => c.Phone).HasColumnName("phone").HasMaxLength(20);

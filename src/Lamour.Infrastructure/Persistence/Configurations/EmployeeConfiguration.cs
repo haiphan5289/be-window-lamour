@@ -21,8 +21,7 @@ public class EmployeeConfiguration : IEntityTypeConfiguration<Employee>
             .HasConversion<string>().HasMaxLength(20).IsRequired();
         builder.Property(e => e.Unit).HasColumnName("unit").HasMaxLength(30).IsRequired();
         builder.Property(e => e.PasswordHash).HasColumnName("password_hash").HasMaxLength(500).IsRequired();
-        builder.Property(e => e.JobTitle).HasColumnName("job_title")
-            .HasConversion<string>().HasMaxLength(30).IsRequired();
+        builder.Property(e => e.JobTitle).HasColumnName("job_title").HasMaxLength(30).IsRequired();
         builder.Property(e => e.BankAccountNumber).HasColumnName("bank_account_number").HasMaxLength(30);
         builder.Property(e => e.BankName).HasColumnName("bank_name").HasMaxLength(100);
         builder.Property(e => e.IsActive).HasColumnName("is_active").HasDefaultValue(true);
