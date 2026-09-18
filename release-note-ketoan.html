@@ -1,0 +1,259 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Cập Nhật Tháng 9 - Phần Mềm Lamour</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:wght@500;600;700&family=Be+Vietnam+Pro:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#FAF8F5;
+    --surface:#FFFFFF;
+    --surface-2:#F2EFE9;
+    --text:#242220;
+    --muted:#6E6A63;
+    --border:#E4E0D8;
+    --accent:#2F6B5C;
+    --accent-soft:#E3EFEA;
+    --accent-2:#B4622A;
+    --accent-2-soft:#F5E9DE;
+    --accent-3:#8A5FB0;
+    --accent-3-soft:#EFE7F5;
+  }
+  @media (prefers-color-scheme: dark){
+    :root{
+      --bg:#1B1917;
+      --surface:#242220;
+      --surface-2:#2C2A27;
+      --text:#EFEBE4;
+      --muted:#A39D92;
+      --border:#3A3733;
+      --accent:#7FBFA9;
+      --accent-soft:#28352F;
+      --accent-2:#E0975A;
+      --accent-2-soft:#3A2C1F;
+      --accent-3:#C4A3E0;
+      --accent-3-soft:#332A3D;
+    }
+  }
+
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body{
+    background: var(--bg);
+    color: var(--text);
+    font-family: "Be Vietnam Pro", "Segoe UI", sans-serif;
+    padding-inline: 16px;
+    padding-block: 32px;
+  }
+  h1,h2,h3{
+    font-family: "Fraunces", Georgia, serif;
+    font-weight: 600;
+    margin: 0;
+  }
+  .wrap{
+    max-width: 720px;
+    margin-inline: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 40px;
+  }
+
+  /* header */
+  .head{
+    display:flex;
+    flex-direction: column;
+    gap: 10px;
+    padding-bottom: 24px;
+    border-bottom: 1px solid var(--border);
+  }
+  .head .eyebrow{
+    display:flex;
+    align-items:center;
+    gap:10px;
+    font-size: 13px;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--muted);
+    font-weight: 600;
+  }
+  .head .eyebrow .dot{
+    width:6px; height:6px; border-radius:50%;
+    background: var(--accent);
+  }
+  .head h1{
+    font-size: clamp(28px, 5vw, 38px);
+    text-wrap: balance;
+  }
+  .head p{
+    margin:0;
+    color: var(--muted);
+    font-size: 16px;
+    max-width: 56ch;
+    line-height: 1.55;
+  }
+
+  /* section */
+  .section{
+    display:flex;
+    flex-direction: column;
+    gap: 16px;
+  }
+  .section-head{
+    display:flex;
+    align-items: baseline;
+    gap: 12px;
+  }
+  .section-head h2{
+    font-size: 21px;
+  }
+  .tag{
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    padding: 3px 10px;
+    border-radius: 999px;
+    white-space: nowrap;
+  }
+  .tag.new{ background: var(--accent-soft); color: var(--accent); }
+  .tag.fix{ background: var(--accent-2-soft); color: var(--accent-2); }
+  .tag.note{ background: var(--accent-3-soft); color: var(--accent-3); }
+
+  .items{
+    display:flex;
+    flex-direction: column;
+    gap: 1px;
+    background: var(--border);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    overflow: hidden;
+  }
+  .item{
+    background: var(--surface);
+    padding: 16px 18px;
+    display:flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+  .item .title{
+    font-weight: 600;
+    font-size: 15.5px;
+  }
+  .item .desc{
+    color: var(--muted);
+    font-size: 14.5px;
+    line-height: 1.6;
+  }
+  .item .desc b{ color: var(--text); font-weight: 600; }
+
+  /* callout */
+  .callout{
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 18px 20px;
+    display:flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+  .callout .title{
+    font-weight: 700;
+    font-size: 14.5px;
+    color: var(--accent-3);
+  }
+  .callout ul{
+    margin:0;
+    padding-left: 20px;
+    display:flex;
+    flex-direction: column;
+    gap: 8px;
+    color: var(--muted);
+    font-size: 14.5px;
+    line-height: 1.6;
+  }
+  .callout li b{ color: var(--text); font-weight: 600; }
+
+  footer{
+    color: var(--muted);
+    font-size: 13px;
+    text-align: center;
+    padding-top: 8px;
+  }
+
+  @media (max-width: 480px){
+    .section-head{ flex-wrap: wrap; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="head">
+    <div class="eyebrow"><span class="dot"></span>Phần mềm Lamour · 18/09/2026</div>
+    <h1>Cập nhật tháng 9</h1>
+  </div>
+
+  <div class="section">
+    <div class="section-head">
+      <h2>Tính năng mới</h2>
+      <span class="tag new">MỚI</span>
+    </div>
+    <div class="items">
+      <div class="item">
+        <div class="title">Thêm 2 báo cáo bán hàng mới</div>
+        <div class="desc">Vào <b>Báo cáo → Báo cáo bán hàng</b>, chọn kiểu xem sẽ thấy thêm: báo cáo theo <b>"Đơn vị kinh doanh"</b> (theo phòng ban) và báo cáo theo <b>"Nhân viên, Khách hàng và Mặt hàng"</b> (xem cả 3 cùng lúc).</div>
+      </div>
+      <div class="item">
+        <div class="title">Báo cáo "Khách hàng" có thêm địa chỉ chi tiết</div>
+        <div class="desc">Báo cáo tổng hợp theo Khách hàng giờ hiển thị thêm 3 cột: <b>Tỉnh/Thành phố, Quận/Huyện, Xã/Phường</b>.</div>
+      </div>
+      <div class="item">
+        <div class="title">Form Khách hàng có thêm 2 ô nhập địa chỉ</div>
+        <div class="desc">Khi thêm hoặc sửa thông tin khách hàng, có thêm 2 ô: <b>Quận/Huyện</b> và <b>Xã/Phường</b> (trước đây chỉ có Tỉnh/Thành và Địa chỉ chung).</div>
+      </div>
+      <div class="item">
+        <div class="title">Form Nhân viên thay đổi cách nhập "Chức danh"</div>
+        <div class="desc">Ô <b>"Chức danh"</b> giờ cho gõ tự do (ví dụ: "Trưởng phòng kinh doanh") thay vì chỉ chọn trong danh sách có sẵn.</div>
+      </div>
+      <div class="item">
+        <div class="title">Bỏ ô "Chức vụ" khi thêm nhân viên</div>
+        <div class="desc">Hệ thống tự gán chức vụ mặc định cho nhân viên mới, không cần chọn tay nữa — bớt 1 bước khi tạo hồ sơ.</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="section-head">
+      <h2>Đã sửa lỗi</h2>
+      <span class="tag fix">SỬA LỖI</span>
+    </div>
+    <div class="items">
+      <div class="item">
+        <div class="title">Dòng chứng từ "Treo" mất màu khi bấm chọn</div>
+        <div class="desc">Trước đây, khi click vào 1 dòng "Treo" trong danh sách chứng từ bán hàng, màu cam đánh dấu bị biến mất. Đã sửa để dòng vẫn giữ đúng màu khi được chọn.</div>
+      </div>
+      <div class="item">
+        <div class="title">Bỏ ô tìm kiếm thừa ở màn Chứng từ bán hàng</div>
+        <div class="desc">Đã bỏ ô "Tìm kiếm chứng từ..." và nút "Lọc" không còn cần thiết. Các bộ lọc khác (theo kỳ, ngày, trạng thái, hoặc lọc từng cột) vẫn hoạt động và áp dụng ngay khi bạn chọn.</div>
+      </div>
+      <div class="item">
+        <div class="title">Chỉnh độ rộng cột khi in hoá đơn</div>
+        <div class="desc">Cột "Tên sản phẩm" trên hoá đơn in được mở rộng thêm để tên sản phẩm dài không bị cắt chữ.</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="callout">
+    <div class="title">Cần lưu ý khi dùng</div>
+    <ul>
+      <li><b>Sổ chi tiết bán hàng theo Nhân viên</b> (mở ra khi bấm vào 1 dòng trong báo cáo Nhân viên): hiện mới chỉ đổi đúng tên tiêu đề, các cột số liệu bên trong tạm thời vẫn giữ như màn chi tiết thông thường. Nếu thấy chưa khớp với báo cáo MISA quen dùng, báo lại để bổ sung.</li>
+      <li>Một vài báo cáo bán hàng vừa được chỉnh lại cột "Lãi gộp" / cách gom nhóm cho khớp mẫu chuẩn hơn — nếu thấy báo cáo nào hiện thiếu/thừa cột so với thực tế đang dùng, gửi ảnh chụp màn hình lại để điều chỉnh cho đúng.</li>
+    </ul>
+  </div>
+
+  <footer>Có thắc mắc gì cứ nhắn lại — bản ghi chi tiết kỹ thuật lưu ở file CHANGELOG.md trong dự án.</footer>
+
+</div>
+</body>
+</html>
