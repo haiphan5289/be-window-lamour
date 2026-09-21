@@ -726,3 +726,18 @@ Verify: `dotnet build` 0 lỗi, `dotnet test` 6/6 pass. Chi tiết thay đổi p
 (`SalesOrderListItem.StatusLabel`, `SalesOrderListView.xaml` RowStyle, `SalesOrderViewModel.IsHeld`)
 ở `desktop-lamour/.../Sales/docs/sales.md` mục cùng tên. **Chưa restart BE process** (user tự quản
 lý). **Chưa test thật trên UTM.**
+
+## Update — 2026-09-21: "Đặt cọc" / "Trừ cọc" chỉ còn là dòng hàng bình thường
+
+Theo yêu cầu: không còn logic số dư cọc / `DepositDeduction` gắn với Chứng từ bán hàng — 2 sản phẩm này lưu
+như mọi `SalesOrderLine`, mở lại đơn thì hiện lại đúng.
+
+| Thay đổi | Chi tiết |
+|---|---|
+| Migration `MarkTruCocProductAsDeposit` | `UPDATE products SET is_deposit_product = true WHERE code = '36'` — sản phẩm "Trừ Cọc" (mã 36) dùng chung đường xử lý sản phẩm cọc: không kho, không trừ tồn, `warehouse_id = null`. **Cần chạy migration này trên môi trường deploy.** |
+| Create/UpdateSalesOrderUseCase | Cho phép `Thành tiền` manual **âm** khi `product.IsDepositProduct` (Trừ cọc lưu số âm, tự trừ vào `TotalAmount`/`GrandTotal`). Hàng thường vẫn không được âm |
+| WPF `SalesOrderViewModel` | Bỏ hẳn gọi `CreateDepositDeductionUseCase`/`GetDepositDeductions`/`GetDepositsByCustomer`, bỏ gợi ý số dư cọc và khoá dòng. Dòng Trừ cọc (`IsDepositDeductionRow`) được gửi lên BE như dòng thường (`IsAmountManual = true`, Amount âm); `RecalculateTotals` = Σ Amount mọi dòng |
+| WPF in hóa đơn | Bỏ tham số `depositDeductionAmount` — dòng Trừ cọc in từ `order.Lines` (dạng "(300.000)" đỏ), tổng = `TotalAmount + TotalTaxAmount` |
+
+Bảng `deposit_deductions` và màn Đặt Cọc/Trừ Cọc riêng không đổi. Đơn cũ từng "trừ cọc" qua `DepositDeduction` sẽ
+không còn hiển thị dòng trừ trong chứng từ (dữ liệu vẫn còn trong DB).

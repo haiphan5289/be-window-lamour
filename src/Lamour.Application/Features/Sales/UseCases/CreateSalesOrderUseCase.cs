@@ -80,7 +80,9 @@ public class CreateSalesOrderUseCase : ICreateSalesOrderUseCase
             var unitPrice      = dto.IsPromotion ? 0m : dto.UnitPrice;
             var discountRate   = dto.IsPromotion ? 0m : Math.Max(0, Math.Min(100, dto.DiscountRate));
             var isAmountManual = !dto.IsPromotion && dto.IsAmountManual;
-            if (isAmountManual && dto.Amount < 0)
+            // Sản phẩm cọc (Đặt cọc / Trừ cọc) là dòng "chỉ có Thành tiền" — Trừ cọc lưu số ÂM để
+            // tự trừ vào tổng đơn; hàng thường vẫn không được âm.
+            if (isAmountManual && dto.Amount < 0 && !product.IsDepositProduct)
                 throw new DomainException($"Thành tiền dòng '{product.Name}' không được âm.");
             var amount = dto.IsPromotion
                 ? 0m
