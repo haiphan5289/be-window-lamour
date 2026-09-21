@@ -32,6 +32,7 @@ public class AppDbContext : DbContext
     public DbSet<ProductWarehouseStock> ProductWarehouseStocks => Set<ProductWarehouseStock>();
     public DbSet<Department>            Departments            => Set<Department>();
     public DbSet<ExpenseCategory>       ExpenseCategories      => Set<ExpenseCategory>();
+    public DbSet<AppState>              AppStates              => Set<AppState>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

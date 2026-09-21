@@ -371,12 +371,15 @@ builder.Services.AddScoped<Lamour.Application.Features.Auth.UseCases.ILoginUseCa
                            Lamour.Application.Features.Auth.UseCases.LoginUseCase>();
 
 // ── Realtime DI ──────────────────────────────────────────────────────────────
+builder.Services.AddSingleton<Lamour.Application.Abstractions.ILicenseService,
+    Lamour.Infrastructure.Licensing.LicenseService>();
 builder.Services.AddSingleton<Lamour.Application.Abstractions.INotificationBroadcaster,
                               SignalRNotificationBroadcaster>();
 
 var app = builder.Build();
 
 app.UseExceptionHandler();
+app.UseMiddleware<LicenseMiddleware>();
 app.UseAuthentication();
 app.UseAuthorization();
 app.MapControllers();
