@@ -130,6 +130,8 @@ public class CreateSalesReturnUseCase : ICreateSalesReturnUseCase
             TotalAmount    = lines.Sum(l => l.Amount),
             TotalDiscount  = lines.Sum(l => l.DiscountAmount),
             TotalPayment   = lines.Sum(l => l.Amount) - lines.Sum(l => l.DiscountAmount),
+            TotalTaxAmount = lines.Sum(l => l.TaxAmount),
+            GrandTotal     = lines.Sum(l => l.Amount) - lines.Sum(l => l.DiscountAmount) + lines.Sum(l => l.TaxAmount),
             CreatedAt      = DateTime.UtcNow,
             Lines          = lines,
         };

@@ -18,6 +18,8 @@ public class SalesReturnResponseDto
     [JsonPropertyName("total_amount")]    public decimal  TotalAmount    { get; set; }
     [JsonPropertyName("total_discount")]  public decimal  TotalDiscount  { get; set; }
     [JsonPropertyName("total_payment")]   public decimal  TotalPayment   { get; set; }
+    [JsonPropertyName("total_tax_amount")] public decimal TotalTaxAmount { get; set; }
+    [JsonPropertyName("grand_total")]     public decimal  GrandTotal     { get; set; }
     [JsonPropertyName("created_at")]      public DateTime CreatedAt      { get; set; }
     // Luôn "Confirmed" — vòng đời Nháp → Ghi sổ đã bỏ (2026-09-07). Giữ field để không phá
     // hợp đồng JSON với client; string-enum như PaymentResponseDto/WarehouseReceiptResponseDto.

@@ -41,6 +41,8 @@ public class GetSalesReturnsUseCase : IGetSalesReturnsUseCase
         TotalAmount    = sr.TotalAmount,
         TotalDiscount  = sr.TotalDiscount,
         TotalPayment   = sr.TotalPayment,
+        TotalTaxAmount = sr.TotalTaxAmount,
+        GrandTotal     = sr.GrandTotal,
         CreatedAt      = sr.CreatedAt,
         Status         = sr.Status.ToString(),
         ConfirmedAt    = sr.ConfirmedAt,

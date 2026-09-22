@@ -43,9 +43,11 @@ public class SalesReturn
 
     public SalesReturnType ReturnType { get; set; } = SalesReturnType.ReduceDebt;
 
-    public decimal TotalAmount   { get; set; }  // Tổng tiền hàng (gross = sum qty×price)
-    public decimal TotalDiscount { get; set; }  // Tổng chiết khấu
-    public decimal TotalPayment  { get; set; }  // = TotalAmount - TotalDiscount
+    public decimal TotalAmount    { get; set; }  // Tổng tiền hàng (gross = sum qty×price)
+    public decimal TotalDiscount  { get; set; }  // Tổng chiết khấu
+    public decimal TotalPayment   { get; set; }  // = TotalAmount - TotalDiscount (chưa gồm thuế)
+    public decimal TotalTaxAmount { get; set; }  // = SUM(line.TaxAmount) — thêm 2026-09-22
+    public decimal GrandTotal     { get; set; }  // = TotalPayment + TotalTaxAmount — thêm 2026-09-22
 
     public DateTime CreatedAt { get; set; }
 

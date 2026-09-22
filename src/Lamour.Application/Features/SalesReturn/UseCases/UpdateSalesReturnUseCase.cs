@@ -162,6 +162,8 @@ public class UpdateSalesReturnUseCase : IUpdateSalesReturnUseCase
             salesReturn.TotalAmount    = newLines.Sum(l => l.Amount);
             salesReturn.TotalDiscount  = newLines.Sum(l => l.DiscountAmount);
             salesReturn.TotalPayment   = newLines.Sum(l => l.Amount) - newLines.Sum(l => l.DiscountAmount);
+            salesReturn.TotalTaxAmount = newLines.Sum(l => l.TaxAmount);
+            salesReturn.GrandTotal     = newLines.Sum(l => l.Amount) - newLines.Sum(l => l.DiscountAmount) + newLines.Sum(l => l.TaxAmount);
 
             salesReturn.Lines.Clear();
             foreach (var newLine in newLines)

@@ -36,6 +36,8 @@ public class SalesReturnConfiguration : IEntityTypeConfiguration<SalesReturn>
         builder.Property(x => x.TotalAmount).HasColumnName("total_amount").HasPrecision(18, 2).IsRequired();
         builder.Property(x => x.TotalDiscount).HasColumnName("total_discount").HasPrecision(18, 2).IsRequired();
         builder.Property(x => x.TotalPayment).HasColumnName("total_payment").HasPrecision(18, 2).IsRequired();
+        builder.Property(x => x.TotalTaxAmount).HasColumnName("total_tax_amount").HasPrecision(18, 2).IsRequired().HasDefaultValue(0m);
+        builder.Property(x => x.GrandTotal).HasColumnName("grand_total").HasPrecision(18, 2).IsRequired().HasDefaultValue(0m);
         builder.Property(x => x.CreatedAt).HasColumnName("created_at").IsRequired();
 
         builder.HasOne(x => x.Customer)
