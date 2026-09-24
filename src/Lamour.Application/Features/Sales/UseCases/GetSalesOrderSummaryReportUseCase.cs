@@ -84,10 +84,21 @@ public class GetSalesOrderSummaryReportUseCase : IGetSalesOrderSummaryReportUseC
                 l.SalesOrder.Customer?.Province ?? "", l.SalesOrder.Customer?.District ?? "", l.SalesOrder.Customer?.Ward ?? "",
                 l.SalesOrder.EmployeeId, l.SalesOrder.Employee?.Code, l.SalesOrder.Employee?.Name, l.SalesOrder.Employee?.Unit);
 
-            dto.QuantitySold   += l.Quantity;
-            dto.SalesAmount    += l.Quantity * l.UnitPrice;
-            dto.DiscountAmount += l.Quantity * l.UnitPrice * l.DiscountRate / 100m;
-            dto.CostAmount     += l.Quantity * l.Product.CostPrice;
+            dto.QuantitySold += l.Quantity;
+            if (l.IsAmountManual)
+            {
+                // Thành tiền thủ công (vd. dòng "Cọc"/"Trừ cọc" — Quantity/UnitPrice luôn = 0 nên
+                // Quantity×UnitPrice mất hết giá trị thật): dùng thẳng Amount đã lưu (có thể âm với
+                // Trừ cọc) để phản ánh đúng số tiền vào doanh số/doanh thu thuần. Không cộng riêng
+                // DiscountAmount vì Amount đã là số cuối cùng, không tách chiết khấu.
+                dto.SalesAmount += l.Amount;
+            }
+            else
+            {
+                dto.SalesAmount    += l.Quantity * l.UnitPrice;
+                dto.DiscountAmount += l.Quantity * l.UnitPrice * l.DiscountRate / 100m;
+            }
+            dto.CostAmount += l.Quantity * l.Product.CostPrice;
         }
 
         foreach (var l in returnLines)
