@@ -21,7 +21,8 @@ public class GetCashLedgerUseCaseTests
         List<Payment>? unconfirmedPayments = null,
         List<Receipt>? unconfirmedReceipts = null,
         Dictionary<string, int>? receiptIds = null,
-        Dictionary<string, int>? paymentIds = null)
+        Dictionary<string, int>? paymentIds = null,
+        HashSet<int>? bulkReceiptIds = null)
     {
         _cash.Setup(r => r.GetBalanceBeforeDateAsync(It.IsAny<DateTime>(), It.IsAny<CancellationToken>())).ReturnsAsync(1_000m);
         _cash.Setup(r => r.GetByDateRangeAsync(It.IsAny<DateTime>(), It.IsAny<DateTime>(), It.IsAny<CancellationToken>()))
@@ -34,6 +35,8 @@ public class GetCashLedgerUseCaseTests
                  .ReturnsAsync(receiptIds ?? new Dictionary<string, int>());
         _payments.Setup(r => r.GetIdsByDocumentNumbersAsync(It.IsAny<IEnumerable<string>>(), It.IsAny<CancellationToken>()))
                  .ReturnsAsync(paymentIds ?? new Dictionary<string, int>());
+        _receipts.Setup(r => r.GetBulkReceiptIdsAsync(It.IsAny<IEnumerable<int>>(), It.IsAny<CancellationToken>()))
+                 .ReturnsAsync(bulkReceiptIds ?? new HashSet<int>());
 
         return new GetCashLedgerUseCase(_cash.Object, _payments.Object, _receipts.Object,
             Mock.Of<ILogger<GetCashLedgerUseCase>>());
@@ -99,5 +102,31 @@ public class GetCashLedgerUseCaseTests
         var row = Assert.Single(result.Entries);
         Assert.Equal(5, row.PaymentId);
         Assert.Equal(1_000m, row.Balance);
+    }
+
+    [Fact]
+    public async Task BulkReceipts_AreFlagged_BothPostedAndTreo()
+    {
+        var treoBulk = new Receipt
+        {
+            Id = 9, DocumentNumber = "PT00009", PayerName = "Thu tiền khách hàng hàng loạt", CustomerId = null,
+            AccountingDate = Day, DocumentDate = Day, Status = ReceiptStatus.Draft,
+            Entries = { new ReceiptEntry { Amount = 800m, DebitAccount = AccountCode.Cash111, CreditAccount = AccountCode.Receivable131 } },
+        };
+        var sut = CreateSut(
+            transactions: new()
+            {
+                new CashTransaction { AccountingDate = Day, ReceiptNumber = "PT00001", DebitAmount = 300m }, // phiếu thường
+                new CashTransaction { AccountingDate = Day, ReceiptNumber = "PT00004", DebitAmount = 400m }, // hàng loạt
+            },
+            unconfirmedReceipts: new() { treoBulk },
+            receiptIds: new() { ["PT00001"] = 11, ["PT00004"] = 14 },
+            bulkReceiptIds: new() { 14 });
+
+        var result = await sut.ExecuteAsync(Day, Day);
+
+        Assert.False(result.Entries.Single(e => e.ReceiptNumber == "PT00001").IsBulkReceipt);
+        Assert.True(result.Entries.Single(e => e.ReceiptNumber == "PT00004").IsBulkReceipt);
+        Assert.True(result.Entries.Single(e => e.ReceiptNumber == "PT00009").IsBulkReceipt);
     }
 }

@@ -52,6 +52,20 @@ public class ReceiptRepository : IReceiptRepository
         return rows.GroupBy(r => r.DocumentNumber).ToDictionary(g => g.Key, g => g.Max(r => r.Id));
     }
 
+    public async Task<HashSet<int>> GetBulkReceiptIdsAsync(
+        IEnumerable<int> receiptIds, CancellationToken ct = default)
+    {
+        var ids = receiptIds.Distinct().ToList();
+        if (ids.Count == 0) return new HashSet<int>();
+
+        var bulk = await _db.Receipts
+            .AsNoTracking()
+            .Where(x => ids.Contains(x.Id) && x.CustomerId == null)
+            .Select(x => x.Id)
+            .ToListAsync(ct);
+        return bulk.ToHashSet();
+    }
+
     public async Task<Receipt?> GetByIdAsync(int id, CancellationToken ct = default)
         => await _db.Receipts
             .AsNoTracking()

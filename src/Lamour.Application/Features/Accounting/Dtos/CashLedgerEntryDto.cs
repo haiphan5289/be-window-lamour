@@ -25,4 +25,8 @@ public class CashLedgerEntryDto
     // không tìm thấy phiếu gốc (vd. phiếu đã bị xoá nhưng giao dịch quỹ cũ còn lại).
     [JsonPropertyName("receipt_id")]      public int? ReceiptId { get; set; }
     [JsonPropertyName("payment_id")]      public int? PaymentId { get; set; }
+
+    // 2026-09-26: true = phiếu thu HÀNG LOẠT (Receipt.CustomerId == null) — WPF mở BulkCustomerReceiptWindow
+    // thay vì ReceiptWindow khi double-click/Sửa (trước đây mở nhầm, Cất báo "Vui lòng chọn đối tượng").
+    [JsonPropertyName("is_bulk_receipt")] public bool IsBulkReceipt { get; set; }
 }

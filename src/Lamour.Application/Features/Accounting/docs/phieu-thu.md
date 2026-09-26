@@ -380,3 +380,17 @@ Test: `ConfirmPaymentUseCaseTests.cs` (Draft + Treo ghi sổ được, Confirmed
 | 📗 Ghi sổ / ↩️ Bỏ ghi | 1 nút toggle, chỉ bật khi form đang khóa, **không hỏi xác nhận** | Chỉ có Bỏ ghi; phiếu thu hỏi Yes/No |
 | 🗑️ Xóa | Chỉ khi chưa ghi sổ + form đang khóa, hỏi Yes/No, xóa xong đóng popup | Không hỏi, không đóng |
 | ⏸ Treo | **Bỏ** khỏi popup Phiếu chi | Có |
+
+---
+
+## Update — 2026-09-26: Cất phiếu thu thường = CHỈ LƯU (giống phiếu thu hàng loạt)
+
+Kế toán chốt (review trang "Quỹ & Phiếu Thu Hàng Loạt"): phiếu thu thường làm **giống** phiếu thu hàng loạt, khớp MISA. Thay thế dòng "💾 Cất = Lưu + Ghi sổ ngay" ở bảng phía trên.
+
+| Nút | Trước | Sau |
+|---|---|---|
+| 💾 Cất | Lưu + Ghi sổ ngay | **Chỉ lưu**, phiếu ở **Treo**, form khóa, popup vẫn mở |
+| Ghi sổ / Bỏ ghi (popup) hoặc 📗 Ghi sổ (màn Quỹ) | Chỉ dùng sau khi Bỏ ghi | Bước **bắt buộc** để phiếu lên sổ quỹ và tính vào số tồn |
+
+- Chỉ đổi WPF (`ReceiptViewModel.SaveAsync` bỏ lệnh gọi `IConfirmReceiptUseCase` sau Create/Update). BE không đổi: `CreateReceiptUseCase`/`UpdateReceiptUseCase` vốn để phiếu ở `Draft` (= Treo).
+- Phiếu chi **chưa đổi**, vẫn Cất = Ghi sổ ngay.

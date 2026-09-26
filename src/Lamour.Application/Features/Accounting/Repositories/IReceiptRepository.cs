@@ -13,6 +13,10 @@ public interface IReceiptRepository
 
     // Số chứng từ → Id của phiếu thu (dùng để gắn receipt_id vào dòng sổ quỹ đã ghi sổ).
     Task<Dictionary<string, int>> GetIdsByDocumentNumbersAsync(IEnumerable<string> documentNumbers, CancellationToken ct = default);
+
+    // Trong các id cho trước, id nào là phiếu thu HÀNG LOẠT (CustomerId == null) — màn Quỹ dùng để mở
+    // đúng cửa sổ Phiếu thu hàng loạt thay vì cửa sổ Phiếu thu thường khi double-click/Sửa.
+    Task<HashSet<int>> GetBulkReceiptIdsAsync(IEnumerable<int> receiptIds, CancellationToken ct = default);
     Task<Receipt?> GetByIdTrackedAsync(int id, CancellationToken ct = default);
     Task<Receipt> AddAsync(Receipt receipt, CancellationToken ct = default);
     Task UpdateAsync(Receipt receipt, CancellationToken ct = default);

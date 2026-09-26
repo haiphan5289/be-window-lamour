@@ -39,6 +39,8 @@ public class GetCashLedgerUseCase : IGetCashLedgerUseCase
             transactions.Where(t => t.ReceiptNumber != null).Select(t => t.ReceiptNumber!), ct);
         var paymentIds = await _paymentRepo.GetIdsByDocumentNumbersAsync(
             transactions.Where(t => t.PaymentNumber != null).Select(t => t.PaymentNumber!), ct);
+        // Dòng đã ghi sổ chỉ có số phiếu — tra thêm phiếu nào là hàng loạt (dòng Treo đã có sẵn CustomerId).
+        var bulkReceiptIds = await _receiptRepo.GetBulkReceiptIdsAsync(receiptIds.Values, ct);
 
         // Confirmed rows come from posted CashTransactions; Draft/Treo rows are Payments (và từ
         // 2026-09-26 cả Receipts) not yet ghi số — shown for visibility only, they must not move
@@ -62,6 +64,7 @@ public class GetCashLedgerUseCase : IGetCashLedgerUseCase
                 Status         = "Confirmed",
                 ReceiptId      = t.ReceiptNumber != null && receiptIds.TryGetValue(t.ReceiptNumber, out var rid) ? rid : null,
                 PaymentId      = t.PaymentNumber != null && paymentIds.TryGetValue(t.PaymentNumber, out var pid) ? pid : null,
+                IsBulkReceipt  = t.ReceiptNumber != null && receiptIds.TryGetValue(t.ReceiptNumber, out var bid) && bulkReceiptIds.Contains(bid),
             })
             .Concat(unconfirmedPayments
                 .Where(p => p.Entries.Count > 0)
@@ -114,6 +117,7 @@ public class GetCashLedgerUseCase : IGetCashLedgerUseCase
                             : "Phiếu thu tiền mặt khách hàng",
                         Status         = "Treo",
                         ReceiptId      = r.Id,
+                        IsBulkReceipt  = r.CustomerId is null,
                     };
                 }))
             .OrderBy(e => e.AccountingDate)
