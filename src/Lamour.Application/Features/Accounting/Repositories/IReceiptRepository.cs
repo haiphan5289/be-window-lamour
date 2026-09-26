@@ -6,6 +6,13 @@ public interface IReceiptRepository
 {
     Task<IEnumerable<Receipt>> GetAllAsync(CancellationToken ct = default);
     Task<Receipt?> GetByIdAsync(int id, CancellationToken ct = default);
+
+    // Phiếu thu CHƯA ghi sổ trong khoảng ngày (theo AccountingDate) — hiện trên sổ quỹ để Ghi sổ ngay
+    // từ màn Quỹ, không làm thay đổi số tồn (giống IPaymentRepository.GetUnconfirmedByDateRangeAsync).
+    Task<IEnumerable<Receipt>> GetUnconfirmedByDateRangeAsync(DateTime from, DateTime to, CancellationToken ct = default);
+
+    // Số chứng từ → Id của phiếu thu (dùng để gắn receipt_id vào dòng sổ quỹ đã ghi sổ).
+    Task<Dictionary<string, int>> GetIdsByDocumentNumbersAsync(IEnumerable<string> documentNumbers, CancellationToken ct = default);
     Task<Receipt?> GetByIdTrackedAsync(int id, CancellationToken ct = default);
     Task<Receipt> AddAsync(Receipt receipt, CancellationToken ct = default);
     Task UpdateAsync(Receipt receipt, CancellationToken ct = default);
@@ -28,4 +35,15 @@ public interface IReceiptRepository
         decimal GrandTotal, string? PaymentTerms, DateTime? PaymentDueDate,
         decimal RemainingAmount)>> GetOutstandingSalesOrdersAsync(
         DateOnly fromDate, DateOnly toDate, int? employeeId, CancellationToken ct = default);
+
+    // Lấy đúng các SalesOrder theo id — KHÔNG lọc theo còn nợ/khoảng ngày (khác
+    // GetOutstandingSalesOrdersAsync) — dùng để dựng lại tab "2. Chứng từ" khi Sửa 1 phiếu thu
+    // hàng loạt ĐÃ LƯU: các đơn đã gắn vào phiếu này có thể hết nợ (đã thu đủ) hoặc ngoài khoảng
+    // ngày tìm kiếm ban đầu, nhưng vẫn phải hiện lại để sửa số tiền dòng đó.
+    Task<IEnumerable<(
+        int OrderId, string DocumentNumber, DateTime AccountingDate, DateTime DocumentDate,
+        int CustomerId, string CustomerCode, string CustomerName, string? Description,
+        decimal GrandTotal, string? PaymentTerms, DateTime? PaymentDueDate,
+        decimal RemainingAmount)>> GetSalesOrdersByIdsAsync(
+        IEnumerable<int> salesOrderIds, CancellationToken ct = default);
 }

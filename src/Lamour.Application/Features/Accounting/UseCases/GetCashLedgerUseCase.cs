@@ -8,15 +8,18 @@ public class GetCashLedgerUseCase : IGetCashLedgerUseCase
 {
     private readonly ICashLedgerRepository _repo;
     private readonly IPaymentRepository _paymentRepo;
+    private readonly IReceiptRepository _receiptRepo;
     private readonly ILogger<GetCashLedgerUseCase> _logger;
 
     public GetCashLedgerUseCase(
         ICashLedgerRepository repo,
         IPaymentRepository paymentRepo,
+        IReceiptRepository receiptRepo,
         ILogger<GetCashLedgerUseCase> logger)
     {
         _repo        = repo;
         _paymentRepo = paymentRepo;
+        _receiptRepo = receiptRepo;
         _logger      = logger;
     }
 
@@ -28,9 +31,18 @@ public class GetCashLedgerUseCase : IGetCashLedgerUseCase
         var openingBalance      = await _repo.GetBalanceBeforeDateAsync(from, ct);
         var transactions        = await _repo.GetByDateRangeAsync(from, to, ct);
         var unconfirmedPayments = await _paymentRepo.GetUnconfirmedByDateRangeAsync(from, to, ct);
+        var unconfirmedReceipts = await _receiptRepo.GetUnconfirmedByDateRangeAsync(from, to, ct);
 
-        // Confirmed rows come from posted CashTransactions; Draft/Treo rows are Payments not
-        // yet ghi số — shown for visibility only, they must not move the running balance.
+        // CashTransaction chỉ lưu số chứng từ — tra lại id phiếu gốc để màn Quỹ Ghi sổ/Bỏ ghi/Xóa
+        // được trên dòng đã ghi sổ.
+        var receiptIds = await _receiptRepo.GetIdsByDocumentNumbersAsync(
+            transactions.Where(t => t.ReceiptNumber != null).Select(t => t.ReceiptNumber!), ct);
+        var paymentIds = await _paymentRepo.GetIdsByDocumentNumbersAsync(
+            transactions.Where(t => t.PaymentNumber != null).Select(t => t.PaymentNumber!), ct);
+
+        // Confirmed rows come from posted CashTransactions; Draft/Treo rows are Payments (và từ
+        // 2026-09-26 cả Receipts) not yet ghi số — shown for visibility only, they must not move
+        // the running balance.
         var rows = transactions
             .Select(t => new CashLedgerEntryDto
             {
@@ -48,6 +60,8 @@ public class GetCashLedgerUseCase : IGetCashLedgerUseCase
                 PaymentReason  = t.PaymentReason,
                 DocumentType   = t.DocumentType,
                 Status         = "Confirmed",
+                ReceiptId      = t.ReceiptNumber != null && receiptIds.TryGetValue(t.ReceiptNumber, out var rid) ? rid : null,
+                PaymentId      = t.PaymentNumber != null && paymentIds.TryGetValue(t.PaymentNumber, out var pid) ? pid : null,
             })
             .Concat(unconfirmedPayments
                 .Where(p => p.Entries.Count > 0)
@@ -69,7 +83,37 @@ public class GetCashLedgerUseCase : IGetCashLedgerUseCase
                         PersonName     = p.PayeeName,
                         PaymentReason  = p.PaymentReason.ToString(),
                         DocumentType   = "Phiếu chi",
-                        Status         = p.Status.ToString(),
+                        Status         = "Treo", // không còn "Nháp" (khớp Chứng từ bán hàng): Draft/Treo đều là "chưa ghi sổ"
+                        PaymentId      = p.Id,
+                    };
+                }))
+            // Phiếu thu chưa ghi sổ — cùng field-mapping với ConfirmReceiptUseCase (lúc ghi sổ sẽ
+            // tạo CashTransaction đúng các giá trị này), để dòng không "nhảy" nội dung sau khi ghi sổ.
+            .Concat(unconfirmedReceipts
+                .Where(r => r.Entries.Count > 0)
+                .Select(r =>
+                {
+                    var totalAmount = r.Entries.Sum(e => e.Amount);
+                    var first       = r.Entries.First();
+                    return new CashLedgerEntryDto
+                    {
+                        AccountingDate = r.AccountingDate,
+                        DocumentDate   = r.DocumentDate,
+                        ReceiptNumber  = r.DocumentNumber,
+                        PaymentNumber  = null,
+                        Description    = r.PayerName,
+                        Account        = CreateReceiptUseCase.MapAccountCodeToString(first.DebitAccount),
+                        CounterAccount = CreateReceiptUseCase.MapAccountCodeToString(first.CreditAccount),
+                        DebitAmount    = totalAmount,
+                        CreditAmount   = 0m,
+                        Amount         = totalAmount,
+                        PersonName     = r.PayerName,
+                        PaymentReason  = r.PaymentReason.ToString(),
+                        DocumentType   = r.CustomerId is null
+                            ? "Phiếu thu tiền mặt khách hàng hàng loạt"
+                            : "Phiếu thu tiền mặt khách hàng",
+                        Status         = "Treo",
+                        ReceiptId      = r.Id,
                     };
                 }))
             .OrderBy(e => e.AccountingDate)

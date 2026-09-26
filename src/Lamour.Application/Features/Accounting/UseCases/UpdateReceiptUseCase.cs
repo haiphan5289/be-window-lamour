@@ -27,7 +27,7 @@ public class UpdateReceiptUseCase : IUpdateReceiptUseCase
             ?? throw new NotFoundException($"Receipt with id {id} not found.");
 
         if (receipt.Status != ReceiptStatus.Draft)
-            throw new DomainException("Chỉ chứng từ ở trạng thái Nháp mới được sửa. Bỏ ghi trước khi sửa.");
+            throw new DomainException("Chứng từ đã ghi sổ, không thể sửa. Bỏ ghi trước khi sửa.");
 
         if (!Enum.TryParse<PaymentReason>(request.PaymentReason, out var paymentReason))
             throw new DomainException($"Invalid payment_reason '{request.PaymentReason}'.");

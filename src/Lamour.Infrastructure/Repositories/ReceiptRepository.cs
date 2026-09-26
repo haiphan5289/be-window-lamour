@@ -21,6 +21,37 @@ public class ReceiptRepository : IReceiptRepository
             .OrderByDescending(r => r.CreatedAt)
             .ToListAsync(ct);
 
+    public async Task<IEnumerable<Receipt>> GetUnconfirmedByDateRangeAsync(
+        DateTime from, DateTime to, CancellationToken ct = default)
+    {
+        var utcFrom = DateTime.SpecifyKind(from, DateTimeKind.Utc);
+        var utcTo   = DateTime.SpecifyKind(to,   DateTimeKind.Utc);
+        return await _db.Receipts
+            .AsNoTracking()
+            .Where(r => r.Status != ReceiptStatus.Confirmed
+                     && r.AccountingDate >= utcFrom
+                     && r.AccountingDate <= utcTo)
+            .Include(r => r.Entries)
+            .OrderBy(r => r.AccountingDate)
+            .ThenBy(r => r.Id)
+            .ToListAsync(ct);
+    }
+
+    public async Task<Dictionary<string, int>> GetIdsByDocumentNumbersAsync(
+        IEnumerable<string> documentNumbers, CancellationToken ct = default)
+    {
+        var numbers = documentNumbers.Where(n => !string.IsNullOrEmpty(n)).Distinct().ToList();
+        if (numbers.Count == 0) return new Dictionary<string, int>();
+
+        // Số chứng từ trùng (hiếm, do user tự nhập) → lấy phiếu tạo sau cùng.
+        var rows = await _db.Receipts
+            .AsNoTracking()
+            .Where(x => numbers.Contains(x.DocumentNumber))
+            .Select(x => new { x.DocumentNumber, x.Id })
+            .ToListAsync(ct);
+        return rows.GroupBy(r => r.DocumentNumber).ToDictionary(g => g.Key, g => g.Max(r => r.Id));
+    }
+
     public async Task<Receipt?> GetByIdAsync(int id, CancellationToken ct = default)
         => await _db.Receipts
             .AsNoTracking()
@@ -141,5 +172,46 @@ public class ReceiptRepository : IReceiptRepository
                 RemainingAmount: r.GrandTotal - r.Paid - r.Deducted))
             .Where(r => r.RemainingAmount > 0m)
             .OrderBy(r => r.AccountingDate).ThenBy(r => r.DocumentNumber);
+    }
+
+    public async Task<IEnumerable<(
+        int OrderId, string DocumentNumber, DateTime AccountingDate, DateTime DocumentDate,
+        int CustomerId, string CustomerCode, string CustomerName, string? Description,
+        decimal GrandTotal, string? PaymentTerms, DateTime? PaymentDueDate,
+        decimal RemainingAmount)>> GetSalesOrdersByIdsAsync(
+        IEnumerable<int> salesOrderIds, CancellationToken ct = default)
+    {
+        var idList = salesOrderIds.Distinct().ToList();
+        if (idList.Count == 0) return Enumerable.Empty<(int, string, DateTime, DateTime, int, string, string, string?, decimal, string?, DateTime?, decimal)>();
+
+        var rows = await _db.SalesOrders
+            .AsNoTracking()
+            .Where(o => idList.Contains(o.Id))
+            .Select(o => new
+            {
+                o.Id,
+                o.DocumentNumber,
+                o.AccountingDate,
+                o.DocumentDate,
+                o.CustomerId,
+                CustomerCode = o.Customer.Code,
+                CustomerName = o.CustomerNameOverride ?? o.Customer.Name,
+                o.Description,
+                o.GrandTotal,
+                o.PaymentTerms,
+                o.PaymentDueDate,
+                Paid     = _db.ReceiptEntries.Where(e => e.SalesOrderId == o.Id).Sum(e => (decimal?)e.Amount) ?? 0m,
+                Deducted = _db.DepositDeductions.Where(d => d.SalesOrderId == o.Id).Sum(d => (decimal?)d.Amount) ?? 0m,
+            })
+            .ToListAsync(ct);
+
+        // Không lọc RemainingAmount > 0 / theo ngày — mục đích khác GetOutstandingSalesOrdersAsync
+        // (xem doc comment ở interface): phải hiện lại đúng đơn đang gắn vào phiếu, kể cả đã hết nợ.
+        return rows
+            .Select(r => (
+                r.Id, r.DocumentNumber, r.AccountingDate, r.DocumentDate,
+                r.CustomerId, r.CustomerCode, r.CustomerName, r.Description,
+                r.GrandTotal, r.PaymentTerms, r.PaymentDueDate,
+                RemainingAmount: r.GrandTotal - r.Paid - r.Deducted));
     }
 }

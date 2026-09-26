@@ -27,8 +27,11 @@ public class ConfirmPaymentUseCase : IConfirmPaymentUseCase
         var payment = await _repo.GetByIdTrackedAsync(id, ct)
             ?? throw new NotFoundException($"Payment with id {id} not found.");
 
-        if (payment.Status != PaymentStatus.Treo)
-            throw new DomainException("Chỉ phiếu chi ở trạng thái Treo mới có thể ghi số.");
+        // 2026-09-26: bỏ khái niệm "Nháp" khỏi quy trình (khớp Chứng từ bán hàng — chỉ còn Treo / Đã
+        // ghi sổ). Draft cũ được coi như Treo nên ghi sổ thẳng được — trước đây bắt buộc Treo khiến
+        // nút "Cất" (= Ghi sổ) trên phiếu chi mới tạo (Draft) luôn bị từ chối.
+        if (payment.Status == PaymentStatus.Confirmed)
+            throw new DomainException("Phiếu chi này đã được ghi sổ.");
 
         if (payment.Entries.Count == 0)
             throw new DomainException("Phiếu chi phải có ít nhất 1 dòng hạch toán.");

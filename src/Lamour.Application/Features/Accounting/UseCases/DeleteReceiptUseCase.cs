@@ -24,7 +24,7 @@ public class DeleteReceiptUseCase : IDeleteReceiptUseCase
             ?? throw new NotFoundException($"Receipt with id {id} not found.");
 
         if (receipt.Status != ReceiptStatus.Draft)
-            throw new DomainException("Chỉ chứng từ ở trạng thái Nháp mới được xóa. Bỏ ghi trước khi xóa.");
+            throw new DomainException("Chứng từ đã ghi sổ, không thể xóa. Bỏ ghi trước khi xóa.");
 
         // Draft receipt never had a CashTransaction — nothing to clean up here anymore.
 

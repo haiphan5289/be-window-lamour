@@ -31,7 +31,7 @@ public class ConfirmReceiptUseCase : IConfirmReceiptUseCase
             ?? throw new NotFoundException($"Receipt with id {id} not found.");
 
         if (receipt.Status != ReceiptStatus.Draft)
-            throw new DomainException("Chỉ chứng từ ở trạng thái Nháp mới có thể ghi sổ.");
+            throw new DomainException("Chứng từ này đã được ghi sổ.");
 
         // Cùng field-mapping logic đã có ở CreateReceiptUseCase (trước khi bị gỡ khỏi Create) — chỉ
         // chuyển thời điểm thực thi từ Create sang đây.

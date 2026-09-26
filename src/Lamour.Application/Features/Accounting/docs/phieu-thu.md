@@ -345,3 +345,38 @@ Migration: `ReceiptStatus` (`src/Lamour.Infrastructure/Migrations/`).
 - DB tables: `payment_receipts`, `payment_receipt_lines` (dropped via `RebuildReceipts` migration)
 - Endpoint: `POST /api/v1/accounting/payment-receipts`
 - Endpoint: `GET /api/v1/accounting/payment-receipts`
+
+## Update — 2026-09-26: Sổ quỹ hiện phiếu thu Nháp + trả id phiếu gốc
+
+Theo yêu cầu màn Quỹ (WPF `AccountingView`) có thanh công cụ giống Chứng từ bán hàng (Thêm ▾ / Sửa / Ghi sổ / Bỏ ghi / Xóa / Xuất khẩu / Gửi email / Gửi Zalo).
+
+| Thay đổi | Chi tiết |
+|---|---|
+| `GetCashLedgerUseCase` | Thêm dòng **phiếu thu chưa ghi sổ** (`IReceiptRepository.GetUnconfirmedByDateRangeAsync`), mapping giống `ConfirmReceiptUseCase` — chỉ để hiển thị/Ghi sổ, **không** làm đổi số tồn (giống phiếu chi Nháp/Treo có sẵn) |
+| `CashLedgerEntryDto` | Thêm `receipt_id` / `payment_id` (nullable). Dòng đã ghi sổ tra id theo số chứng từ (`GetIdsByDocumentNumbersAsync` ở cả 2 repo — số trùng thì lấy id lớn nhất); dòng chưa ghi sổ lấy thẳng `Id` |
+| Quy tắc nút (WPF) | Ghi sổ: chưa ghi sổ. Bỏ ghi: đã ghi sổ, không hỏi xác nhận. Sửa/Xóa: chỉ khi chưa ghi sổ (Xóa hỏi Yes/No). Dòng không có id → không thao tác được |
+
+Không có migration. Test: `tests/Lamour.Application.Tests/Features/Accounting/UseCases/GetCashLedgerUseCaseTests.cs` (3 test).
+
+### Cùng ngày — bỏ trạng thái "Nháp" khỏi Quỹ (khớp `Sales/docs/ChungTuTraHangBan-Review.html`)
+
+Quy trình Chứng từ bán hàng chỉ có **Treo** (chưa ghi sổ) và **Đã ghi sổ** — áp dụng y hệt cho phiếu thu/chi trên màn Quỹ:
+
+| Thay đổi | Chi tiết |
+|---|---|
+| Sổ quỹ | Mọi dòng chưa ghi sổ (phiếu thu `Draft`, phiếu chi `Draft`/`Treo`) trả `status = "Treo"`. Enum trong DB **không đổi** (không migration) — `ReceiptStatus.Draft` giờ chỉ mang nghĩa "Treo" |
+| `ConfirmPaymentUseCase` | Nhận cả `Draft` lẫn `Treo`, chỉ chặn `Confirmed`. Trước đây bắt buộc `Treo` ⇒ nút "Cất" (= Ghi sổ) trên phiếu chi **mới tạo** luôn bị từ chối |
+| Thông báo lỗi | Bỏ chữ "Nháp" ở `UpdateReceipt`/`DeleteReceipt`/`ConfirmReceipt`/`SetPaymentTreo` — nói theo "đã ghi sổ / Bỏ ghi trước" |
+| WPF | Bộ lọc Trạng thái: Tất cả / Treo / Đã ghi sổ. Popup Phiếu chi: Cất ghi sổ thẳng, không còn "Vui lòng bấm Treo trước" |
+
+Test: `ConfirmPaymentUseCaseTests.cs` (Draft + Treo ghi sổ được, Confirmed bị chặn).
+
+### Cùng ngày — popup Phiếu thu / Phiếu chi theo đúng quy trình Chứng từ bán hàng (WPF)
+
+| Bước | Hành vi mới (cả 2 popup) | Trước đây |
+|---|---|---|
+| Mở phiếu có sẵn | Form **khóa**, bấm ✏️ Sửa mới nhập (Sửa chỉ bật khi chưa ghi sổ) | Phiếu chưa ghi sổ sửa được ngay; phiếu thu không có nút Sửa |
+| 💾 Cất | Lưu + Ghi sổ ngay, form tự khóa, **popup vẫn mở** | Đóng popup |
+| 📗 Ghi sổ / ↩️ Bỏ ghi | 1 nút toggle, chỉ bật khi form đang khóa, **không hỏi xác nhận** | Chỉ có Bỏ ghi; phiếu thu hỏi Yes/No |
+| 🗑️ Xóa | Chỉ khi chưa ghi sổ + form đang khóa, hỏi Yes/No, xóa xong đóng popup | Không hỏi, không đóng |
+| ⏸ Treo | **Bỏ** khỏi popup Phiếu chi | Có |

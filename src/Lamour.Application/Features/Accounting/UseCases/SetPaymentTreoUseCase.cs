@@ -23,7 +23,7 @@ public class SetPaymentTreoUseCase : ISetPaymentTreoUseCase
             ?? throw new NotFoundException($"Payment with id {id} not found.");
 
         if (payment.Status != PaymentStatus.Draft)
-            throw new DomainException("Chỉ phiếu chi ở trạng thái Nháp mới có thể chuyển Treo.");
+            throw new DomainException("Phiếu chi đã ở trạng thái Treo hoặc đã ghi sổ.");
 
         payment.Status = PaymentStatus.Treo;
         await _repo.UpdateAsync(payment, ct);

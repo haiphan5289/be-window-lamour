@@ -19,4 +19,10 @@ public class CashLedgerEntryDto
     [JsonPropertyName("payment_reason")]  public string? PaymentReason { get; set; }
     [JsonPropertyName("document_type")]   public string DocumentType { get; set; } = "";
     [JsonPropertyName("status")]          public string Status { get; set; } = "Confirmed";
+
+    // 2026-09-26: id phiếu gốc để WPF (màn Quỹ) gọi thẳng Ghi sổ / Bỏ ghi / Xóa / Sửa trên dòng đang
+    // chọn — CashTransaction chỉ lưu số chứng từ, nên id được tra lại theo số phiếu. Null nếu dòng
+    // không tìm thấy phiếu gốc (vd. phiếu đã bị xoá nhưng giao dịch quỹ cũ còn lại).
+    [JsonPropertyName("receipt_id")]      public int? ReceiptId { get; set; }
+    [JsonPropertyName("payment_id")]      public int? PaymentId { get; set; }
 }

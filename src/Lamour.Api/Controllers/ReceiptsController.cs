@@ -20,6 +20,7 @@ public class ReceiptsController : ControllerBase
     private readonly IGetNextReceiptCodeUseCase        _getNextCode;
     private readonly IGetOutstandingSalesOrdersUseCase _getOutstandingOrders;
     private readonly ICreateBulkCustomerReceiptUseCase _createBulkReceipt;
+    private readonly IGetSalesOrdersByIdsUseCase       _getSalesOrdersByIds;
 
     public ReceiptsController(
         IGetReceiptsUseCase getReceipts,
@@ -31,7 +32,8 @@ public class ReceiptsController : ControllerBase
         IUnconfirmReceiptUseCase unconfirmReceipt,
         IGetNextReceiptCodeUseCase getNextCode,
         IGetOutstandingSalesOrdersUseCase getOutstandingOrders,
-        ICreateBulkCustomerReceiptUseCase createBulkReceipt)
+        ICreateBulkCustomerReceiptUseCase createBulkReceipt,
+        IGetSalesOrdersByIdsUseCase getSalesOrdersByIds)
     {
         _getReceipts    = getReceipts;
         _getReceiptById = getReceiptById;
@@ -43,6 +45,7 @@ public class ReceiptsController : ControllerBase
         _getNextCode           = getNextCode;
         _getOutstandingOrders  = getOutstandingOrders;
         _createBulkReceipt     = createBulkReceipt;
+        _getSalesOrdersByIds   = getSalesOrdersByIds;
     }
 
     [HttpGet]
@@ -98,4 +101,17 @@ public class ReceiptsController : ControllerBase
     public async Task<IActionResult> CreateBulkCustomerReceipt(
         [FromBody] CreateBulkCustomerReceiptRequestDto request, CancellationToken ct)
         => Ok(await _createBulkReceipt.ExecuteAsync(request, ct));
+
+    // Dựng lại tab "2. Chứng từ" khi Sửa 1 phiếu thu hàng loạt đã lưu — ids lấy từ
+    // ReceiptEntry.SalesOrderId của phiếu đó, vd "?ids=101,102,103".
+    [HttpGet("sales-orders")]
+    public async Task<IActionResult> GetSalesOrdersByIds([FromQuery] string ids, CancellationToken ct)
+    {
+        var idList = (ids ?? string.Empty)
+            .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            .Select(s => int.TryParse(s, out var id) ? id : (int?)null)
+            .Where(id => id.HasValue)
+            .Select(id => id!.Value);
+        return Ok(await _getSalesOrdersByIds.ExecuteAsync(idList, ct));
+    }
 }

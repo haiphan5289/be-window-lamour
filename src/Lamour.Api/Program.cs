@@ -224,6 +224,8 @@ builder.Services.AddScoped<Lamour.Application.Features.Accounting.UseCases.IGetO
                            Lamour.Application.Features.Accounting.UseCases.GetOutstandingSalesOrdersUseCase>();
 builder.Services.AddScoped<Lamour.Application.Features.Accounting.UseCases.ICreateBulkCustomerReceiptUseCase,
                            Lamour.Application.Features.Accounting.UseCases.CreateBulkCustomerReceiptUseCase>();
+builder.Services.AddScoped<Lamour.Application.Features.Accounting.UseCases.IGetSalesOrdersByIdsUseCase,
+                           Lamour.Application.Features.Accounting.UseCases.GetSalesOrdersByIdsUseCase>();
 
 // Payment UseCases
 builder.Services.AddScoped<Lamour.Application.Features.Accounting.Repositories.IPaymentRepository,

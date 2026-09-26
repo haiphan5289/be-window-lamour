@@ -37,6 +37,21 @@ public class PaymentRepository : IPaymentRepository
             .ToListAsync(ct);
     }
 
+    public async Task<Dictionary<string, int>> GetIdsByDocumentNumbersAsync(
+        IEnumerable<string> documentNumbers, CancellationToken ct = default)
+    {
+        var numbers = documentNumbers.Where(n => !string.IsNullOrEmpty(n)).Distinct().ToList();
+        if (numbers.Count == 0) return new Dictionary<string, int>();
+
+        // Số chứng từ trùng (hiếm, do user tự nhập) → lấy phiếu tạo sau cùng.
+        var rows = await _db.Payments
+            .AsNoTracking()
+            .Where(x => numbers.Contains(x.DocumentNumber))
+            .Select(x => new { x.DocumentNumber, x.Id })
+            .ToListAsync(ct);
+        return rows.GroupBy(r => r.DocumentNumber).ToDictionary(g => g.Key, g => g.Max(r => r.Id));
+    }
+
     public async Task<Payment?> GetByIdAsync(int id, CancellationToken ct = default)
         => await _db.Payments
             .AsNoTracking()
