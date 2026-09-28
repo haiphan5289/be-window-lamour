@@ -20,6 +20,11 @@ public class CashLedgerEntryDto
     [JsonPropertyName("document_type")]   public string DocumentType { get; set; } = "";
     [JsonPropertyName("status")]          public string Status { get; set; } = "Confirmed";
 
+    // 2026-09-28 (khớp cột "Ngày ghi sổ quỹ" ảnh mẫu MISA): thời điểm CashTransaction được tạo —
+    // tức lúc bấm "Ghi sổ" thật sự, có thể khác Ngày hạch toán khi Ghi sổ trễ. Null cho dòng Treo
+    // (chưa từng có CashTransaction).
+    [JsonPropertyName("posted_at")]       public DateTime? PostedAt { get; set; }
+
     // 2026-09-26: id phiếu gốc để WPF (màn Quỹ) gọi thẳng Ghi sổ / Bỏ ghi / Xóa / Sửa trên dòng đang
     // chọn — CashTransaction chỉ lưu số chứng từ, nên id được tra lại theo số phiếu. Null nếu dòng
     // không tìm thấy phiếu gốc (vd. phiếu đã bị xoá nhưng giao dịch quỹ cũ còn lại).

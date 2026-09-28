@@ -71,7 +71,7 @@ public class CreateBulkCustomerReceiptUseCase : ICreateBulkCustomerReceiptUseCas
             CustomerId          = null,
             PayerName           = payerName,
             Address             = request.Address,
-            PaymentReason       = "ThuCongNo",
+            PaymentReason       = "ThuKhachHangHangLoat",
             CollectorEmployeeId = request.CollectorEmployeeId,
             Attachment          = request.Attachment,
             Reference           = reference,

@@ -29,6 +29,8 @@ public class GetCashLedgerUseCase : IGetCashLedgerUseCase
         _logger.LogInformation("Fetching cash ledger from {From} to {To}", from, to);
 
         var openingBalance      = await _repo.GetBalanceBeforeDateAsync(from, ct);
+        // Tồn quỹ đến hiện tại — độc lập với filter from/to, luôn tính tới hết HÔM NAY (UTC).
+        var currentBalance      = await _repo.GetBalanceBeforeDateAsync(DateTime.UtcNow.Date.AddDays(1), ct);
         var transactions        = await _repo.GetByDateRangeAsync(from, to, ct);
         var unconfirmedPayments = await _paymentRepo.GetUnconfirmedByDateRangeAsync(from, to, ct);
         var unconfirmedReceipts = await _receiptRepo.GetUnconfirmedByDateRangeAsync(from, to, ct);
@@ -62,6 +64,7 @@ public class GetCashLedgerUseCase : IGetCashLedgerUseCase
                 PaymentReason  = t.PaymentReason,
                 DocumentType   = t.DocumentType,
                 Status         = "Confirmed",
+                PostedAt       = t.CreatedAt,
                 ReceiptId      = t.ReceiptNumber != null && receiptIds.TryGetValue(t.ReceiptNumber, out var rid) ? rid : null,
                 PaymentId      = t.PaymentNumber != null && paymentIds.TryGetValue(t.PaymentNumber, out var pid) ? pid : null,
                 IsBulkReceipt  = t.ReceiptNumber != null && receiptIds.TryGetValue(t.ReceiptNumber, out var bid) && bulkReceiptIds.Contains(bid),
@@ -135,6 +138,7 @@ public class GetCashLedgerUseCase : IGetCashLedgerUseCase
         {
             OpeningBalance = openingBalance,
             ClosingBalance = rows.Count > 0 ? rows[^1].Balance : openingBalance,
+            CurrentBalance = currentBalance,
             Entries        = rows,
         };
     }

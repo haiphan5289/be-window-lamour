@@ -94,9 +94,12 @@
 
 ### PaymentReason
 ```
-ThuKhac      — Thu khác
-ThuTienHang  — Thu tiền hàng
-ThuCongNo    — Thu công nợ
+ThuKhac               — Thu khác
+ThuTienHang           — Thu tiền hàng
+ThuCongNo             — Thu công nợ
+ThuKhachHangHangLoat  — Phiếu thu tiền mặt khách hàng hàng loạt (2026-09-28, chỉ BE tự gán khi
+                         CreateBulkCustomerReceiptUseCase tạo phiếu — không có trong dropdown
+                         "Lý do nộp" của popup Phiếu thu thường)
 ```
 
 ### AccountCode (TK Nợ / TK Có)
@@ -394,3 +397,36 @@ Kế toán chốt (review trang "Quỹ & Phiếu Thu Hàng Loạt"): phiếu thu
 
 - Chỉ đổi WPF (`ReceiptViewModel.SaveAsync` bỏ lệnh gọi `IConfirmReceiptUseCase` sau Create/Update). BE không đổi: `CreateReceiptUseCase`/`UpdateReceiptUseCase` vốn để phiếu ở `Draft` (= Treo).
 - Phiếu chi **chưa đổi**, vẫn Cất = Ghi sổ ngay.
+
+## Update — 2026-09-28: Cất phiếu thu (thường + hàng loạt) = Lưu + Ghi sổ ngay (ĐẢO NGƯỢC 2026-09-26)
+
+Theo yêu cầu: sau khi Cất phải thấy nút "Bỏ ghi" như Chứng từ bán hàng — mục 2026-09-26 ngay trên đã **lỗi thời**.
+Giờ Phiếu thu thường, Phiếu thu hàng loạt, Phiếu chi và Chứng từ bán hàng đều cùng một quy tắc.
+
+| Nút | Sau Cất |
+|---|---|
+| 💾 Cất | Lưu (Create/Update → `Draft`) rồi gọi `ConfirmReceiptUseCase` ngay → `Confirmed`, form khóa, popup vẫn mở |
+| Ghi sổ / Bỏ ghi | Nhãn thành **"Bỏ ghi"**; Sửa/Xóa tắt cho tới khi Bỏ ghi |
+| Ghi sổ lỗi sau khi lưu | Phiếu vẫn đã lưu ở Treo, banner "Đã lưu phiếu (Treo) nhưng ghi sổ thất bại: …" — bấm Ghi sổ lại |
+
+- Chỉ đổi WPF: `ReceiptViewModel.SaveAsync`, `BulkCustomerReceiptViewModel.SaveAsync`. BE không đổi.
+
+## Update — 2026-09-28: PaymentReason riêng cho Phiếu thu hàng loạt — "Lý do thu/chi" không còn hiện "Thu công nợ"
+
+Theo yêu cầu: cột "Lý do thu/chi" trên màn Quỹ cho dòng Phiếu thu tiền mặt khách hàng **hàng loạt**
+phải hiện đúng "Phiếu thu tiền mặt khách hàng hàng loạt", không phải "Thu công nợ" — dù các dòng hạch
+toán vẫn dùng `CreditAccount = Receivable131` (bản chất kế toán vẫn là thu công nợ, chỉ đổi CÁCH HIỂN
+THỊ theo yêu cầu).
+
+| Thay đổi | Chi tiết |
+|---|---|
+| `PaymentReason` enum | Thêm `ThuKhachHangHangLoat` (giữ nguyên `ThuCongNo` cho phiếu thu thường chọn tay lý do này) |
+| `CreateBulkCustomerReceiptUseCase` | `PaymentReason = "ThuKhachHangHangLoat"` thay vì `"ThuCongNo"` |
+| WPF `BulkCustomerReceiptViewModel.SaveAsync` (nhánh Update) | Cùng đổi `PaymentReason` gửi lên khi sửa phiếu hàng loạt |
+| WPF `PaymentReasonDisplayConverter`, `AccountingViewModel` (filter label + xuất Excel) | Map `"ThuKhachHangHangLoat"` → "Phiếu thu tiền mặt khách hàng hàng loạt" |
+| `ReceiptViewModel.PaymentReasons` (dropdown "Lý do nộp" popup Phiếu thu thường) | **Không đổi** — vẫn chỉ `ThuKhac`/`ThuTienHang`/`ThuCongNo`, user không tự chọn được giá trị mới này |
+
+`HasConversion<string>()` trên `Receipt.PaymentReason` (`HasMaxLength(30)`) — không cần EF migration,
+thêm enum member mới là an toàn (giống ghi chú `PaymentStatus` ở `phieu-chi.md`). Verify: `dotnet
+build`/`dotnet test` (BE, 20/20 pass) và `dotnet build -p:EnableWindowsTargeting=true` (WPF) đều sạch.
+Chưa test qua UTM thật.
