@@ -43,6 +43,9 @@ public class GetCashLedgerUseCase : IGetCashLedgerUseCase
             transactions.Where(t => t.PaymentNumber != null).Select(t => t.PaymentNumber!), ct);
         // Dòng đã ghi sổ chỉ có số phiếu — tra thêm phiếu nào là hàng loạt (dòng Treo đã có sẵn CustomerId).
         var bulkReceiptIds = await _receiptRepo.GetBulkReceiptIdsAsync(receiptIds.Values, ct);
+        // Diễn giải phiếu chi = "Lý do chi" chi tiết của phiếu gốc (CashTransaction.Description chỉ lưu tên người nhận).
+        var reasonDetails = await _paymentRepo.GetReasonDetailsByIdsAsync(
+            paymentIds.Values.Concat(unconfirmedPayments.Select(p => p.Id)), ct);
 
         // Confirmed rows come from posted CashTransactions; Draft/Treo rows are Payments (và từ
         // 2026-09-26 cả Receipts) not yet ghi số — shown for visibility only, they must not move
@@ -54,13 +57,18 @@ public class GetCashLedgerUseCase : IGetCashLedgerUseCase
                 DocumentDate   = t.DocumentDate,
                 ReceiptNumber  = t.ReceiptNumber,
                 PaymentNumber  = t.PaymentNumber,
-                Description    = t.Description,
+                Description    = t.PaymentNumber != null
+                                 && paymentIds.TryGetValue(t.PaymentNumber, out var descPid)
+                                 && reasonDetails.TryGetValue(descPid, out var detail)
+                    ? detail
+                    : ReasonLabel(t.PaymentReason),
                 Account        = t.Account,
                 CounterAccount = t.CounterAccount,
                 DebitAmount    = t.DebitAmount,
                 CreditAmount   = t.CreditAmount,
                 Amount         = t.DebitAmount != 0m ? t.DebitAmount : t.CreditAmount,
-                PersonName     = t.PersonName,
+                PersonName     = SubjectName(t.PersonName,
+                    t.ReceiptNumber != null && receiptIds.TryGetValue(t.ReceiptNumber, out var pnId) && bulkReceiptIds.Contains(pnId)),
                 PaymentReason  = t.PaymentReason,
                 DocumentType   = t.DocumentType,
                 Status         = "Confirmed",
@@ -80,7 +88,7 @@ public class GetCashLedgerUseCase : IGetCashLedgerUseCase
                         DocumentDate   = p.DocumentDate,
                         ReceiptNumber  = null,
                         PaymentNumber  = p.DocumentNumber,
-                        Description    = p.PayeeName,
+                        Description    = reasonDetails.TryGetValue(p.Id, out var pd) ? pd : ReasonLabel(p.PaymentReason.ToString()),
                         Account        = "111",
                         CounterAccount = p.Entries.First().DebitAccountSetting.Code,
                         DebitAmount    = 0m,
@@ -107,13 +115,13 @@ public class GetCashLedgerUseCase : IGetCashLedgerUseCase
                         DocumentDate   = r.DocumentDate,
                         ReceiptNumber  = r.DocumentNumber,
                         PaymentNumber  = null,
-                        Description    = r.PayerName,
+                        Description    = ReasonLabel(r.PaymentReason.ToString()),
                         Account        = CreateReceiptUseCase.MapAccountCodeToString(first.DebitAccount),
                         CounterAccount = CreateReceiptUseCase.MapAccountCodeToString(first.CreditAccount),
                         DebitAmount    = totalAmount,
                         CreditAmount   = 0m,
                         Amount         = totalAmount,
-                        PersonName     = r.PayerName,
+                        PersonName     = SubjectName(r.PayerName, r.CustomerId is null),
                         PaymentReason  = r.PaymentReason.ToString(),
                         DocumentType   = r.CustomerId is null
                             ? "Phiếu thu tiền mặt khách hàng hàng loạt"
@@ -142,4 +150,27 @@ public class GetCashLedgerUseCase : IGetCashLedgerUseCase
             Entries        = rows,
         };
     }
+
+    // Diễn giải khi phiếu không có "Lý do chi" chi tiết = nhãn lý do (cùng chữ ở ô Lý do nộp/Lý do chi
+    // trên popup phiếu). Giá trị lạ (dữ liệu cũ) giữ nguyên chuỗi gốc.
+    private static string ReasonLabel(string? paymentReason) => paymentReason switch
+    {
+        "ThuKhac"              => "Thu khác",
+        "ThuTienHang"          => "Thu tiền hàng",
+        "ThuCongNo"            => "Thu công nợ",
+        "ThuKhachHangHangLoat" => "Thu tiền khách hàng",
+        "ChiKhac"              => "Chi khác",
+        "ChiMuaHang"           => "Chi mua hàng",
+        "ChiTraNo"             => "Chi trả nợ",
+        "ChiLuong"             => "Chi lương",
+        "TamUngNhanVien"       => "Tạm ứng cho nhân viên",
+        "GuiTienNganHang"      => "Gửi tiền vào ngân hàng",
+        "ThueTNDNTamTinh"      => "Thuế TNDN tạm tính",
+        _                      => paymentReason ?? "",
+    };
+
+    // Cột "Đối tượng": phiếu thu hàng loạt không nhập người nộp thì để trống (khớp MISA) thay vì hiện
+    // tên mặc định do BE tự điền.
+    private static string? SubjectName(string? name, bool isBulkReceipt) =>
+        isBulkReceipt && name == CreateBulkCustomerReceiptUseCase.DefaultPayerName ? null : name;
 }

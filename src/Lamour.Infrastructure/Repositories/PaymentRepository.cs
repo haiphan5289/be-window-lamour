@@ -37,6 +37,20 @@ public class PaymentRepository : IPaymentRepository
             .ToListAsync(ct);
     }
 
+    public async Task<Dictionary<int, string>> GetReasonDetailsByIdsAsync(
+        IEnumerable<int> ids, CancellationToken ct = default)
+    {
+        var idList = ids.Distinct().ToList();
+        if (idList.Count == 0) return new Dictionary<int, string>();
+
+        var rows = await _db.Payments
+            .AsNoTracking()
+            .Where(x => idList.Contains(x.Id) && x.ReasonDetail != null && x.ReasonDetail != "")
+            .Select(x => new { x.Id, x.ReasonDetail })
+            .ToListAsync(ct);
+        return rows.ToDictionary(r => r.Id, r => r.ReasonDetail!);
+    }
+
     public async Task<Dictionary<string, int>> GetIdsByDocumentNumbersAsync(
         IEnumerable<string> documentNumbers, CancellationToken ct = default)
     {

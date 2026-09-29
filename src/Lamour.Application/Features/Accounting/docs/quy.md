@@ -123,8 +123,8 @@ graph TD
 | Tiêu đề | "Sổ Kế Toán Chi Tiết Quỹ Tiền Mặt" · "Tài khoản: 111 — Tiền mặt" |
 | Thanh công cụ | ➕ Thêm ▾ (Phiếu thu / Phiếu chi / Thu tiền khách hàng hàng loạt) · ✏️ Sửa · 📗 Ghi sổ · ↩️ Bỏ ghi · 🗑️ Xóa · 📤 Xuất khẩu · ✉️ Gửi email · 💬 Gửi Zalo |
 | Bộ lọc | Kỳ · Từ ngày · Đến ngày · Trạng thái · Loại · 🔍 Lấy dữ liệu |
-| Tổng | Số tồn đầu kỳ · Số tồn cuối kỳ |
-| Cột lưới | Ngày hạch toán · Ngày chứng từ · Số phiếu thu · Số phiếu chi · Diễn giải · Số tiền · Người nhận/Người nộp · Lý do thu/chi · Loại chứng từ |
+| Tổng | ~~Số tồn đầu kỳ · Số tồn cuối kỳ~~ đã bỏ 2026-09-29; còn box "Tồn quỹ đến hiện tại" (góc trên phải) và dòng tổng cuối lưới |
+| Cột lưới | Ngày hạch toán · Ngày chứng từ · **Số chứng từ** · Diễn giải · Số tiền · **Đối tượng** · Lý do thu/chi · Ngày ghi sổ quỹ · Loại chứng từ |
 | Menu chuột phải | ➕ Thêm ▸ (3 loại) · 👁 Xem · ✏️ Sửa · 🗑️ Xóa · 📗 Ghi sổ · ↩️ Bỏ ghi · 📨 Gửi email, Zalo ▸ |
 
 | Phím tắt | Lệnh |
@@ -244,3 +244,17 @@ Theo yêu cầu, khớp 3 điểm còn thiếu so với ảnh mẫu "Sổ Kế T
 | WPF `AccountingView` — cột "Ngày ghi sổ quỹ" | Chỉ hiển thị, không có ô lọc riêng, đặt trước "Loại chứng từ" |
 
 Không cần EF migration (không đổi schema `CashTransaction`, chỉ thêm field DTO tính từ cột `CreatedAt` đã có sẵn). Verify: `dotnet build`/`dotnet test` (BE) và `dotnet build -p:EnableWindowsTargeting=true` (WPF) đều sạch. Chưa test qua UTM thật.
+
+## Update — 2026-09-29: gộp Số chứng từ, Diễn giải theo lý do, cột Đối tượng, bỏ tồn đầu/cuối kỳ, dòng tổng thẳng cột (khớp MISA)
+
+Theo yêu cầu kế toán, đối chiếu ảnh mẫu MISA:
+
+| Thay đổi | Chi tiết |
+|---|---|
+| Cột **Số chứng từ** | Gộp "Số phiếu thu" + "Số phiếu chi" thành 1 cột (mỗi dòng chỉ có PT... hoặc PC...). WPF: `CashLedgerEntryDto.DocumentNumber` (= `ReceiptNumber ?? PaymentNumber`), 1 ô lọc `FilterDocumentNumber`, Xuất khẩu 1 cột. BE không đổi field `receipt_number`/`payment_number` |
+| **Diễn giải** | BE (`GetCashLedgerUseCase`) tính lại lúc ĐỌC, không còn là tên người nộp/nhận, áp cho cả dòng đã ghi sổ cũ (không cần migration; `CashTransaction.Description` vẫn lưu như cũ nhưng không dùng nữa). Phiếu thu = nhãn lý do (`ThuKhachHangHangLoat` → "Thu tiền khách hàng", `ThuCongNo` → "Thu công nợ", `ThuTienHang` → "Thu tiền hàng", `ThuKhac` → "Thu khác"). Phiếu chi = "Lý do chi" chi tiết (`Payment.ReasonDetail`), rỗng thì nhãn (`ChiKhac` → "Chi khác"...). Repo mới: `IPaymentRepository.GetReasonDetailsByIdsAsync` |
+| Cột **Đối tượng** | Đổi tên từ "Người nhận/Người nộp" (vẫn là `person_name`). Phiếu thu **hàng loạt** có người nộp là tên mặc định BE tự điền (`CreateBulkCustomerReceiptUseCase.DefaultPayerName` = "Thu tiền khách hàng hàng loạt") thì trả `null` → ô trống như MISA. Người dùng nhập tên thật thì vẫn hiện; phiếu thu thường không bị ảnh hưởng |
+| Bỏ tồn đầu/cuối kỳ | WPF bỏ dải "Số tồn đầu kỳ / Số tồn cuối kỳ" và 2 property tương ứng. BE **giữ nguyên** `opening_balance`/`closing_balance`/`balance` (chưa có nơi nào ở WPF dùng) |
+| Dòng tổng cuối lưới | "Số dòng = N" · **Tổng thu** dưới cột Số chứng từ · **Tổng chi** dưới cột Diễn giải · ô tổng dưới cột Số tiền = Σ Số tiền (cộng cả thu lẫn chi, đúng như MISA: 12.974.850 + 12.894.000 = 25.868.850). Tính trên dòng đang hiển thị sau lọc. Các ô canh theo bề rộng cột cố định (260 · 170 · 250 · 130) nên **lệch cột nếu kéo giãn cột hoặc cuộn ngang** |
+
+Test: `GetCashLedgerUseCaseTests` thêm 3 test (Diễn giải phiếu thu, Diễn giải phiếu chi, Đối tượng để trống cho phiếu hàng loạt). Chưa test qua UTM thật.

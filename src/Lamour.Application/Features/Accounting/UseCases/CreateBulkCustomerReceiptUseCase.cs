@@ -14,6 +14,10 @@ namespace Lamour.Application.Features.Accounting.UseCases;
 // CashTransaction side-effect đã có sẵn ở đó, không viết lại.
 public class CreateBulkCustomerReceiptUseCase : ICreateBulkCustomerReceiptUseCase
 {
+    // Tên người nộp BE tự điền khi phiếu hàng loạt không nhập Người nộp và không chọn NV thu nợ.
+    // Sổ quỹ (GetCashLedgerUseCase) để trống cột "Đối tượng" khi gặp đúng giá trị này — khớp MISA.
+    public const string DefaultPayerName = "Thu tiền khách hàng hàng loạt";
+
     private readonly ISalesOrderRepository      _salesOrderRepo;
     private readonly IEmployeeRepository        _employeeRepo;
     private readonly ICreateReceiptUseCase      _createReceipt;
@@ -58,7 +62,7 @@ public class CreateBulkCustomerReceiptUseCase : ICreateBulkCustomerReceiptUseCas
             var collector = request.CollectorEmployeeId.HasValue
                 ? await _employeeRepo.GetByIdAsync(request.CollectorEmployeeId.Value, ct)
                 : null;
-            payerName = collector?.Name ?? "Thu tiền khách hàng hàng loạt";
+            payerName = collector?.Name ?? DefaultPayerName;
         }
 
         var documentNumber = await _getNextCode.ExecuteAsync(ct);

@@ -22,8 +22,11 @@ public class GetCashLedgerUseCaseTests
         List<Receipt>? unconfirmedReceipts = null,
         Dictionary<string, int>? receiptIds = null,
         Dictionary<string, int>? paymentIds = null,
-        HashSet<int>? bulkReceiptIds = null)
+        HashSet<int>? bulkReceiptIds = null,
+        Dictionary<int, string>? reasonDetails = null)
     {
+        _payments.Setup(r => r.GetReasonDetailsByIdsAsync(It.IsAny<IEnumerable<int>>(), It.IsAny<CancellationToken>()))
+                 .ReturnsAsync(reasonDetails ?? new Dictionary<int, string>());
         _cash.Setup(r => r.GetBalanceBeforeDateAsync(It.IsAny<DateTime>(), It.IsAny<CancellationToken>())).ReturnsAsync(1_000m);
         _cash.Setup(r => r.GetByDateRangeAsync(It.IsAny<DateTime>(), It.IsAny<DateTime>(), It.IsAny<CancellationToken>()))
              .ReturnsAsync(transactions ?? new List<CashTransaction>());
@@ -128,5 +131,100 @@ public class GetCashLedgerUseCaseTests
         Assert.False(result.Entries.Single(e => e.ReceiptNumber == "PT00001").IsBulkReceipt);
         Assert.True(result.Entries.Single(e => e.ReceiptNumber == "PT00004").IsBulkReceipt);
         Assert.True(result.Entries.Single(e => e.ReceiptNumber == "PT00009").IsBulkReceipt);
+    }
+
+    [Fact]
+    public async Task Description_Receipt_UsesReasonLabel_NotPayerName()
+    {
+        var receipt = new Receipt
+        {
+            Id = 3, DocumentNumber = "PT00003", PayerName = "Nhi Trúc", CustomerId = null,
+            PaymentReason = PaymentReason.ThuKhachHangHangLoat,
+            AccountingDate = Day, DocumentDate = Day, Status = ReceiptStatus.Draft,
+            Entries = { new ReceiptEntry { Amount = 100m, DebitAccount = AccountCode.Cash111, CreditAccount = AccountCode.Receivable131 } },
+        };
+        var sut = CreateSut(
+            transactions: new()
+            {
+                new CashTransaction { AccountingDate = Day, ReceiptNumber = "PT00004", DebitAmount = 400m,
+                    Description = "Nhi Trúc", PersonName = "Nhi Trúc", PaymentReason = "ThuKhachHangHangLoat" },
+            },
+            unconfirmedReceipts: new() { receipt },
+            receiptIds: new() { ["PT00004"] = 14 },
+            bulkReceiptIds: new() { 14 });
+
+        var result = await sut.ExecuteAsync(Day, Day);
+
+        Assert.All(result.Entries, e => Assert.Equal("Thu tiền khách hàng", e.Description));
+        Assert.All(result.Entries, e => Assert.Equal("Nhi Trúc", e.PersonName)); // tên thật vẫn hiện
+    }
+
+    [Fact]
+    public async Task PersonName_BulkReceiptWithDefaultPayerName_IsBlank()
+    {
+        var sut = CreateSut(
+            transactions: new()
+            {
+                new CashTransaction { AccountingDate = Day, ReceiptNumber = "PT00004", DebitAmount = 400m,
+                    PersonName = CreateBulkCustomerReceiptUseCase.DefaultPayerName },
+                // Phiếu thu thường trùng tên mặc định → giữ nguyên (chỉ phiếu hàng loạt bị để trống).
+                new CashTransaction { AccountingDate = Day, ReceiptNumber = "PT00001", DebitAmount = 100m,
+                    PersonName = CreateBulkCustomerReceiptUseCase.DefaultPayerName },
+            },
+            receiptIds: new() { ["PT00004"] = 14, ["PT00001"] = 11 },
+            bulkReceiptIds: new() { 14 });
+
+        var result = await sut.ExecuteAsync(Day, Day);
+
+        Assert.Null(result.Entries.Single(e => e.ReceiptNumber == "PT00004").PersonName);
+        Assert.NotNull(result.Entries.Single(e => e.ReceiptNumber == "PT00001").PersonName);
+    }
+
+    [Fact]
+    public async Task Description_Payment_UsesReasonDetail_ElseReasonLabel()
+    {
+        var treo = new Payment
+        {
+            Id = 5, DocumentNumber = "PC00005", PayeeName = "NCC A", PaymentReason = PaymentReason.ChiMuaHang,
+            AccountingDate = Day, DocumentDate = Day, Status = PaymentStatus.Draft,
+            Entries = { new PaymentEntry { Amount = 200m, DebitAccountSetting = new AccountSetting { Code = "331" } } },
+        };
+        var sut = CreateSut(
+            transactions: new()
+            {
+                new CashTransaction { AccountingDate = Day, PaymentNumber = "PC00002", CreditAmount = 100m,
+                    Description = "LÊ HOÀNG THANH ĐỨC", PersonName = "LÊ HOÀNG THANH ĐỨC", PaymentReason = "ChiKhac" },
+                new CashTransaction { AccountingDate = Day, PaymentNumber = "PC00003", CreditAmount = 50m,
+                    PersonName = "NGUYỄN MINH TRUNG", PaymentReason = "ChiKhac" },
+            },
+            unconfirmedPayments: new() { treo },
+            paymentIds: new() { ["PC00002"] = 22, ["PC00003"] = 23 },
+            reasonDetails: new() { [22] = "cước đt + gia hạn zalo" });
+
+        var result = await sut.ExecuteAsync(Day, Day);
+
+        Assert.Equal("cước đt + gia hạn zalo", result.Entries.Single(e => e.PaymentNumber == "PC00002").Description);
+        Assert.Equal("Chi khác", result.Entries.Single(e => e.PaymentNumber == "PC00003").Description);
+        Assert.Equal("Chi mua hàng", result.Entries.Single(e => e.PaymentNumber == "PC00005").Description);
+        Assert.Equal("LÊ HOÀNG THANH ĐỨC", result.Entries.Single(e => e.PaymentNumber == "PC00002").PersonName);
+    }
+
+    [Theory]
+    [InlineData("TamUngNhanVien",  "Tạm ứng cho nhân viên")]
+    [InlineData("GuiTienNganHang", "Gửi tiền vào ngân hàng")]
+    [InlineData("ThueTNDNTamTinh", "Thuế TNDN tạm tính")]
+    [InlineData("ChiKhac",         "Chi khác")]
+    public async Task Description_Payment_NewReasons_HaveVietnameseLabel(string reason, string expected)
+    {
+        var sut = CreateSut(
+            transactions: new()
+            {
+                new CashTransaction { AccountingDate = Day, PaymentNumber = "PC00007", CreditAmount = 10m, PaymentReason = reason },
+            },
+            paymentIds: new() { ["PC00007"] = 7 });
+
+        var result = await sut.ExecuteAsync(Day, Day);
+
+        Assert.Equal(expected, Assert.Single(result.Entries).Description);
     }
 }

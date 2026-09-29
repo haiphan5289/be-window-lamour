@@ -257,3 +257,16 @@ Features/HomePage/Accounting/
 ---
 
 *Cập nhật lần cuối: 2026-08-26*
+
+## Update — 2026-09-29: Lý do chi theo MISA, tự điền Diễn giải, mặc định TK 6418/1111, bản in mẫu 02-TT
+
+| Thay đổi | Chi tiết |
+|---|---|
+| Lý do chi | Ô chọn hiện 4 lý do như MISA, nhãn tiếng Việt: Tạm ứng cho nhân viên (`TamUngNhanVien`) · Gửi tiền vào ngân hàng (`GuiTienNganHang`) · Chi khác (`ChiKhac`, mặc định) · Thuế TNDN tạm tính (`ThueTNDNTamTinh`). 3 giá trị mới thêm cuối enum `PaymentReason`; DB lưu dạng chuỗi nên **không cần migration**. `ChiMuaHang`/`ChiTraNo`/`ChiLuong` giữ lại cho phiếu cũ: mở phiếu cũ vẫn hiện đúng (WPF tự thêm giá trị đó vào danh sách), nhưng không chọn mới được |
+| Nhãn lý do dùng chung (WPF) | `PaymentReasonDisplayConverter.Label` — dùng cho ô Lý do chi, lưới Quỹ, Xuất khẩu và bản in |
+| Tự điền Diễn giải | Dòng hạch toán lấy "Diễn giải" = nội dung chi tiết cạnh Lý do chi (`ReasonDetail`), đổi theo khi gõ tiếp. Chỉ áp cho dòng còn trống hoặc đang mang đúng nội dung cũ — dòng người dùng tự sửa thì giữ nguyên (`PaymentViewModel.OnReasonDetailChanged`) |
+| Mặc định TK Nợ 6418 / TK Có 1111 | Dòng hạch toán mới luôn chọn sẵn 6418 / 1111 (`PaymentViewModel.AddEntry`). Nếu danh mục chưa có mã đó mới rơi về TK dùng gần nhất. Migration `20260929150308_AddPaymentDefaultAccounts6418And1111` thêm 2 tài khoản bằng SQL `INSERT ... WHERE NOT EXISTS` (không dùng `HasData` vì DB thật có thể đã có tài khoản người dùng tự tạo trùng id/mã). Down chỉ xoá khi chưa có phiếu chi / sản phẩm nào dùng |
+| Sổ quỹ | `ConfirmPaymentUseCase` vẫn ghi `CashTransaction.Account = "111"` cố định, nên chọn TK Có 1111 (TK con của 111) không làm lệch sổ quỹ |
+| Bản in | `PaymentPrintWindow` làm lại theo layout Phiếu thu (khớp MISA): PHIẾU CHI, Mẫu số 02 - TT, Nợ = TK Nợ của phiếu (6418), Có = TK Có (1111; mã 111 cũ in là 1111), Họ tên người nhận tiền, Lý do chi = nội dung chi tiết (trống thì nhãn lý do), Số tiền + Viết bằng chữ, 5 chữ ký Giám đốc · Kế toán trưởng · Thủ quỹ · Người lập phiếu · Người nhận tiền, tên người nhận in dưới cột của họ, khối "Đã nhận đủ số tiền". Layout dùng chung với phiếu thu: `Views/CashVoucherDocumentBuilder.cs` |
+
+Chưa test qua UTM thật.

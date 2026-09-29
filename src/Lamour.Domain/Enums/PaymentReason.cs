@@ -22,5 +22,13 @@ public enum PaymentReason
     ChiKhac,      // Other payment
     ChiMuaHang,   // Purchase payment
     ChiTraNo,     // Debt payment
-    ChiLuong      // Salary payment
+    ChiLuong,     // Salary payment
+
+    // 2026-09-29: 3 lý do còn lại trong ô "Lý do chi" của MISA (Tạm ứng cho nhân viên · Gửi tiền vào
+    // ngân hàng · Chi khác · Thuế TNDN tạm tính). Thêm CUỐI enum; DB lưu dạng chuỗi
+    // (HasConversion<string>) nên không cần migration. ChiMuaHang/ChiTraNo/ChiLuong giữ lại để phiếu cũ
+    // vẫn đọc được, nhưng WPF không cho chọn mới nữa.
+    TamUngNhanVien,
+    GuiTienNganHang,
+    ThueTNDNTamTinh
 }

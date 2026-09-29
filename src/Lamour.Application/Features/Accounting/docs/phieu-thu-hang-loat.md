@@ -15,7 +15,9 @@
   - [x] Bộ chọn chứng từ hiện **trước**; Hủy thì không mở gì; bấm "✔ Thu tiền" mới mở cửa sổ phiếu
   - [x] Lọc theo Khoảng thời gian + NV bán hàng; chỉ hiện chứng từ đã ghi sổ và còn nợ > 0
   - [x] Chọn Tiền mặt (TK 111) / Tiền gửi (TK 112 + TK ngân hàng), Ngày thu tiền; tổng "Số tiền" cập nhật ngay khi tick
-  - [x] Cửa sổ phiếu đầy đủ: Trước · Sau · Thêm · Sửa · Xóa · Cất · Ghi sổ/Bỏ ghi · Đóng · Xuất khẩu
+  - [x] Cửa sổ phiếu đầy đủ: Trước · Sau · Thêm · Sửa · Xóa · Cất · Ghi sổ/Bỏ ghi · In · Đóng · Xuất khẩu
+  - [x] Tổng tiền dưới lưới tab "1. Hạch toán", thẳng cột Số tiền (2026-09-29)
+  - [x] In Phiếu thu mẫu 01-TT khớp bản in MISA (2026-09-29)
   - [x] Tab "1. Hạch toán" gộp theo khách hàng; tab "2. Chứng từ" 1 dòng/1 chứng từ, sửa được Số thu
   - [x] Số chứng từ và Tham chiếu là link mở lại hóa đơn gốc (chỉ xem)
   - [x] Cất = chỉ lưu (Treo), Ghi sổ là bước riêng (đúng MISA)
@@ -62,6 +64,7 @@
 | WPF — cửa sổ phiếu | `Views/BulkCustomerReceiptWindow.xaml` + `ViewModels/BulkCustomerReceiptViewModel.cs` | Cửa sổ chứng từ đầy đủ |
 | WPF — models | `Domain/Models/OutstandingSalesOrderCheckItem.cs`, `BulkReceiptLineItem.cs`, `BulkReceiptGroupedLine.cs` | Dòng có ô tick / dòng chứng từ (Số thu sửa được) / dòng gộp theo khách hàng |
 | WPF — mở từ Quỹ | `ViewModels/AccountingViewModel.cs` → `OpenBulkCustomerReceiptAsync` | Chạy bộ chọn trước, chỉ `Show()` cửa sổ phiếu khi đã chọn |
+| WPF — bản in | `Views/ReceiptPrintWindow.xaml(.cs)` | Phiếu thu mẫu 01-TT (A5, FlowDocument), nhận `ReceiptResponseDto` + nhãn lý do nộp. Dùng lại được cho phiếu thu thường |
 | WPF — toolbar dùng chung | `Shared/Controls/DocumentToolbar.xaml(.cs)` | Thêm slot `TrailingContent` để nút Xuất khẩu nằm trong khung toolbar |
 
 ### Data Flow
@@ -134,11 +137,20 @@ graph TD
 - Footer: Số dòng = N · Hủy bỏ · ✔ Thu tiền
 
 **Cửa sổ "Phiếu thu tiền mặt khách hàng hàng loạt"**
-- Toolbar (`DocumentToolbar`): Trước · Sau · Thêm · Sửa · Xóa · Cất · Ghi sổ/Bỏ ghi · Đóng, và 📤 Xuất khẩu canh phải **trong** khung toolbar
+- Toolbar (`DocumentToolbar`): Trước · Sau · Thêm · Sửa · Xóa · Cất · Ghi sổ/Bỏ ghi · In · Đóng, và 📤 Xuất khẩu canh phải **trong** khung toolbar. In chỉ bật khi phiếu đã lưu (Treo hoặc đã ghi sổ) và không đang sửa
 - Thông tin: Người nộp · Địa chỉ · Lý do nộp · NV thu nợ · Kèm theo · **Tham chiếu (link từng số BH)** · Ngày hạch toán · Ngày chứng từ · Số chứng từ
-- Tab "1. Hạch toán" (gộp theo khách hàng, chỉ xem): Diễn giải · TK Nợ · TK Có · Số tiền · Mã khách hàng · Tên khách hàng
+- Tab "1. Hạch toán" (gộp theo khách hàng, chỉ xem): Diễn giải · TK Nợ · TK Có · Số tiền · Mã khách hàng · Tên khách hàng. Dưới lưới: "Số dòng = N" (số dòng đã gộp) và **Tổng tiền thẳng cột Số tiền**
 - Tab "2. Chứng từ" (1 dòng/1 chứng từ, **cố định 2 cột đầu** khi cuộn ngang): Ngày chứng từ · **Số chứng từ (link)** · Mã khách hàng · Tên khách hàng · Hạn thanh toán · Số phải thu · Số chưa thu · **Số thu (sửa được)** · TK phải thu · Điều khoản TT. Dưới lưới: tổng Số phải thu / Số chưa thu / Số thu
-- Footer: Số dòng = N · Tổng tiền
+- Không còn footer chung của cửa sổ: mỗi tab có "Số dòng" riêng dưới lưới (tab 1 đếm dòng gộp, tab 2 đếm chứng từ)
+
+**Bản in "PHIẾU THU" (mẫu 01-TT)**
+- Header: logo · thông tin công ty (tên, địa chỉ, MST, Tel/Website) · "Mẫu số 01 - TT" (TT 200/2014/TT-BTC) góc phải
+- PHIẾU THU · Ngày chứng từ · Quyển số (chấm để điền tay) · Số · Nợ · Có
+- TK trên bản in theo MISA: `Cash111` → **1111**, `Bank112` → **1121**, `Receivable131` → **131** (lưới app vẫn hiện 111/112)
+- Họ tên người nộp tiền · Địa chỉ (trống → dòng chấm) · Lý do nộp · Số tiền (Σ mọi dòng, "… VND") · Viết bằng chữ ("… đồng chẵn.") · Kèm theo
+- 5 chữ ký: Giám đốc (Ký, họ tên, đóng dấu) · Kế toán trưởng · Người nộp tiền · Người lập phiếu · Thủ quỹ; tên người nộp in dưới cột Người nộp tiền
+- "Đã nhận đủ số tiền (Viết bằng chữ)" ở cuối
+- Không in bảng chi tiết từng khách hàng (MISA cũng không in)
 
 ---
 
@@ -246,7 +258,9 @@ graph TD
 | Bộ chọn hiện trước, cửa sổ phiếu hiện sau | ✅ | |
 | Ngày thu tiền, tổng Số tiền khi tick | ✅ | |
 | Toolbar Trước · Sau · Thêm · Sửa · Cất · Xóa · Ghi sổ · Xuất khẩu | ✅ | Bỏ ghi dùng chung nút với Ghi sổ |
-| "Sửa nhanh", "Nạp", "Tiện ích", "Mẫu", "In" | ❌ Cố ý không làm | App chưa có tính năng tương ứng ở đâu (chưa có mẫu in phiếu thu) |
+| "Sửa nhanh", "Nạp", "Tiện ích", "Mẫu" | ❌ Cố ý không làm | App chưa có tính năng tương ứng ở đâu |
+| "In" Phiếu thu mẫu 01-TT | ✅ 2026-09-29 | Chỉ 1 mẫu (không có menu chọn mẫu như MISA). Phiếu thu thường (`ReceiptWindow`) chưa gắn nút In |
+| Tổng tiền dưới cột Số tiền (tab Hạch toán) | ✅ 2026-09-29 | |
 | Tab Hạch toán gộp theo khách hàng | ✅ | Chỉ gộp khi hiển thị |
 | Tham chiếu / Số chứng từ dạng link | ✅ | |
 | Tab Chứng từ: cố định cột, dòng tổng, ngày căn phải, Ngày chứng từ đúng | ✅ | Dòng tổng là nhãn canh phải, không thẳng từng cột (WPF DataGrid không có footer cuộn theo cột) |

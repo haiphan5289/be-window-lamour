@@ -44,7 +44,7 @@ public class CreatePaymentUseCase : ICreatePaymentUseCase
         CreatePaymentRequestDto request, CancellationToken ct = default)
     {
         if (!Enum.TryParse<PaymentReason>(request.PaymentReason, out var paymentReason))
-            throw new DomainException($"Invalid payment_reason '{request.PaymentReason}'. Valid values: ChiKhac, ChiMuaHang, ChiTraNo, ChiLuong.");
+            throw new DomainException($"Invalid payment_reason '{request.PaymentReason}'. Valid values: ChiKhac, TamUngNhanVien, GuiTienNganHang, ThueTNDNTamTinh (and legacy ChiMuaHang, ChiTraNo, ChiLuong).");
 
         if (!Enum.TryParse<PaymentPartnerType>(request.PartnerType, out var partnerType))
             throw new DomainException($"Invalid partner_type '{request.PartnerType}'. Valid values: Supplier, Customer, Employee.");
