@@ -13,6 +13,9 @@ public interface IPaymentRepository
     // Id phiếu chi → "Lý do chi" chi tiết (ReasonDetail), dùng làm Diễn giải cho dòng sổ quỹ đã ghi sổ.
     // Chỉ trả các phiếu có ReasonDetail không rỗng.
     Task<Dictionary<int, string>> GetReasonDetailsByIdsAsync(IEnumerable<int> ids, CancellationToken ct = default);
+    // Phiếu chi theo số chứng từ, kèm dòng hạch toán + TK + Khoản mục CP — cho báo cáo quỹ. Số trùng →
+    // phiếu tạo sau cùng.
+    Task<Dictionary<string, Payment>> GetByDocumentNumbersAsync(IEnumerable<string> documentNumbers, CancellationToken ct = default);
     Task<Payment?> GetByIdTrackedAsync(int id, CancellationToken ct = default);
     Task<Payment> AddAsync(Payment payment, CancellationToken ct = default);
     Task UpdateAsync(Payment payment, CancellationToken ct = default);

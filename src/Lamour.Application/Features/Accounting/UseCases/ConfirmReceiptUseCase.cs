@@ -33,17 +33,12 @@ public class ConfirmReceiptUseCase : IConfirmReceiptUseCase
         if (receipt.Status != ReceiptStatus.Draft)
             throw new DomainException("Chứng từ này đã được ghi sổ.");
 
-        // Cùng field-mapping logic đã có ở CreateReceiptUseCase (trước khi bị gỡ khỏi Create) — chỉ
-        // chuyển thời điểm thực thi từ Create sang đây.
-        var totalAmount  = receipt.Entries.Sum(e => e.Amount);
-        var counterAccount = receipt.Entries.Count > 0
-            ? CreateReceiptUseCase.MapAccountCodeToString(receipt.Entries.First().CreditAccount)
-            : "131";
-        // Account theo TK Nợ thực tế của dòng đầu (Cash111/Bank112) — trước đây hardcode "111" nên
-        // phiếu thu chọn Bank112 vẫn bị ghi nhầm vào sổ quỹ tiền mặt thay vì tiền gửi ngân hàng.
-        var account = receipt.Entries.Count > 0
-            ? CreateReceiptUseCase.MapAccountCodeToString(receipt.Entries.First().DebitAccount)
-            : "111";
+        // Cùng field-mapping với dòng Treo ở GetCashLedgerUseCase — dòng không đổi nội dung sau khi ghi sổ.
+        var totalAmount    = receipt.Entries.Sum(e => e.Amount);
+        var first          = receipt.Entries.FirstOrDefault();
+        var counterAccount = first?.CreditAccountSetting?.Code ?? "131";
+        // Account theo TK Nợ thực tế của dòng đầu (1111 → 111, 1121 → 112).
+        var account        = ReceiptEntryBuilder.LedgerAccount(first?.DebitAccountSetting?.Code);
 
         await _cashRepo.AddAsync(new CashTransaction
         {
@@ -58,9 +53,7 @@ public class ConfirmReceiptUseCase : IConfirmReceiptUseCase
             CreditAmount   = 0m,
             PersonName     = receipt.PayerName,
             PaymentReason  = receipt.PaymentReason.ToString(),
-            DocumentType   = receipt.CustomerId is null
-                ? "Phiếu thu tiền mặt khách hàng hàng loạt"
-                : "Phiếu thu tiền mặt khách hàng",
+            DocumentType   = ReceiptEntryBuilder.DocumentType(receipt),
             CreatedAt      = DateTime.UtcNow,
         }, ct);
 

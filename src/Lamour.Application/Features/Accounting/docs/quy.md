@@ -258,3 +258,45 @@ Theo yêu cầu kế toán, đối chiếu ảnh mẫu MISA:
 | Dòng tổng cuối lưới | "Số dòng = N" · **Tổng thu** dưới cột Số chứng từ · **Tổng chi** dưới cột Diễn giải · ô tổng dưới cột Số tiền = Σ Số tiền (cộng cả thu lẫn chi, đúng như MISA: 12.974.850 + 12.894.000 = 25.868.850). Tính trên dòng đang hiển thị sau lọc. Các ô canh theo bề rộng cột cố định (260 · 170 · 250 · 130) nên **lệch cột nếu kéo giãn cột hoặc cuộn ngang** |
 
 Test: `GetCashLedgerUseCaseTests` thêm 3 test (Diễn giải phiếu thu, Diễn giải phiếu chi, Đối tượng để trống cho phiếu hàng loạt). Chưa test qua UTM thật.
+
+## Update — 2026-10-01: Phiếu thu theo luồng MISA
+
+Chi tiết ở [phieu-thu.md](phieu-thu.md) (mục 2026-10-01). Ảnh hưởng tới màn Quỹ:
+
+| Thay đổi | Chi tiết |
+|---|---|
+| Nhận biết phiếu hàng loạt | `is_bulk_receipt` = `Receipt.PartnerType == null` (trước: `CustomerId == null`) — phiếu thu của Nhân viên không bị mở nhầm bằng cửa sổ hàng loạt |
+| Diễn giải phiếu thu | "Lý do nộp" chi tiết (`Receipt.ReasonDetail`), trống thì nhãn lý do. Repo mới: `IReceiptRepository.GetReasonDetailsByIdsAsync` |
+| Loại chứng từ | Thêm `"Phiếu thu"` (đối tượng là Nhân viên) |
+| TK đối ứng | Mã TK Có thật trong danh mục (vd `1388`) thay vì chỉ 111/112/131/334 |
+| Nhãn lý do mới | Rút tiền gửi về nộp quỹ · Thu hoàn thuế GTGT · Thu hoàn ứng |
+
+## Update — 2026-10-02: Báo cáo "Sổ kế toán chi tiết quỹ tiền mặt" (khớp mẫu MISA)
+
+> Tài liệu đầy đủ của báo cáo: [bao-cao-quy.md](bao-cao-quy.md). Mục dưới đây là bản ghi lúc làm.
+
+Màn Quỹ → **📊 Báo cáo ▾** → *Sổ kế toán chi tiết quỹ tiền mặt* → hộp **Chọn tham số** → trang báo cáo. 3 báo cáo còn lại của MISA (Dòng tiền · Dự báo thu, chi công nợ · Bảng kê số dư tiền theo ngày) có trong menu nhưng để mờ, chờ mẫu.
+
+| Hạng mục | Chi tiết |
+|---|---|
+| Endpoint | `GET /api/v1/accounting/reports/cash-ledger-detail?from_date&to_date&account_codes&merge_similar&order_by_created` → `CashLedgerDetailReportDto` (`opening_balance`, `closing_balance`, `total_debit`, `total_credit`, `rows[]`). `account_codes` = mã TK cách nhau dấu phẩy, bỏ trống = mọi TK tiền mặt |
+| Mỗi dòng = 1 dòng hạch toán | Nguồn là sổ quỹ (`CashTransaction`) để số tồn khớp màn Quỹ. Dòng sổ quỹ **tìm được phiếu gốc** (theo số chứng từ) thì **bung ra từng dòng hạch toán** của phiếu; **không còn phiếu gốc** (dữ liệu cũ nhập từ MISA — vốn đã là 1 dòng/1 bút toán) thì dùng nguyên dòng sổ. Phiếu gốc chỉ bung 1 lần dù sổ quỹ trùng số |
+| Tài khoản | Phiếu thu: TK Nợ của dòng (vd 1111), TK đối ứng = TK Có. Phiếu chi: TK Có của dòng nếu là 111*, không thì TK của sổ quỹ; TK đối ứng = TK Nợ. Dòng cũ: giữ `Account`/`CounterAccount` của sổ quỹ |
+| Chỉ quỹ tiền mặt | Chỉ lấy dòng có TK bắt đầu bằng **111**. Phiếu thu tiền gửi (TK Nợ 112*) **không** vào báo cáo — khác màn Quỹ hiện tại (đang lẫn tiền gửi, xem Notes) nên số tồn hai nơi có thể lệch nếu có phiếu như vậy |
+| Lọc tài khoản | Một dòng được tính khi TK của nó **hoặc TK cha** được tick (tick 111 là gồm cả 1111). Chỉ tick 1111 thì dòng cũ ghi thẳng 111 và số dư đầu kỳ gốc bị loại |
+| Số tồn đầu kỳ | Số dư gốc (`ICashLedgerRepository.InitialBalance`, thuộc TK 111) + Σ(Nợ − Có) các dòng được chọn trước `from_date` |
+| Cộng gộp các bút toán giống nhau | Gộp các dòng cùng phiếu + cùng ngày + cùng diễn giải + cùng TK / TK đối ứng thành 1 dòng cộng tiền |
+| Sắp xếp chứng từ theo thứ tự lập | Sắp theo thời điểm tạo phiếu (`CreatedAt`) thay vì Ngày hạch toán → Ngày chứng từ → thời điểm tạo |
+| Người nhận/Người nộp | `PayerName` / `PayeeName`; phiếu thu hàng loạt mang tên mặc định BE tự điền thì để trống (như màn Quỹ) |
+| Mã / Tên mục thu/chi | Khoản mục CP của dòng phiếu chi. Phiếu thu và dòng cũ để trống |
+| Bấm số chứng từ | `receipt_id` / `payment_id` + `is_bulk_receipt` → WPF mở đúng ReceiptWindow / PaymentWindow / BulkCustomerReceiptWindow. Dòng cũ không có id → không bấm được |
+
+**Hộp Chọn tham số (WPF `CashLedgerReportFilterWindow`):** Kỳ báo cáo (Hôm nay · Tuần này · Đầu tháng đến hiện tại · Tháng này · Tháng trước · Quý này · Năm nay · Tháng 1–12 · Quý I–IV của năm hiện tại · Tùy chọn) + Từ/Đến; bảng TK tiền mặt (các TK bắt đầu bằng 111 trong danh mục, cột Bậc = độ dài mã − 2), tick hết mặc định; 2 ô tuỳ chọn; Xóa điều kiện / Đồng ý / Hủy bỏ. Tick hết thì gửi `account_codes` rỗng.
+
+**Trang báo cáo (WPF `CashLedgerDetailReportView`):** Chọn tham số · Nạp · In · Xuất khẩu Excel · Gửi Email · Zalo · Đóng; phụ đề "Tháng 01 năm 2026" khi kỳ là đúng 1 tháng, còn lại "Từ ngày … đến ngày …"; chân trang Số dòng · Tổng phát sinh Nợ/Có · Số tồn cuối kỳ. Bản in bỏ 2 cột mục thu/chi cho vừa giấy.
+
+**Không làm:** cột Số khế ước (app chưa có khế ước vay); lọc theo từng cột và kéo cột để nhóm như MISA; các nút Mẫu / Báo cáo đã cất / Thu gọn / Tạo báo cáo song ngữ.
+
+**Code:** BE `GetCashLedgerDetailReportUseCase`, `CashLedgerDetailReportDto`, `ICashLedgerRepository.GetUpToDateAsync` + `InitialBalance`, `IReceiptRepository` / `IPaymentRepository.GetByDocumentNumbersAsync`, `AccountingController.GetCashLedgerDetailReport`. WPF `Accounting/ViewModels/CashLedgerReportFilterViewModel.cs`, `CashLedgerDetailReportViewModel.cs`, `Views/CashLedgerReportFilterWindow.xaml`, `CashLedgerDetailReportView.xaml`, route `NavigationRoutes.Accounting.CashLedgerDetailReport`. Không có migration.
+
+**Test:** `GetCashLedgerDetailReportUseCaseTests` (5): bung dòng + giữ dòng cũ + số tồn; cộng gộp; thứ tự lập; lọc TK con; phiếu thu tiền gửi không vào quỹ. Đối chiếu trên DB local: tồn cuối báo cáo = "Tồn quỹ đến hiện tại" của màn Quỹ (98.134.061). Giao diện chưa test trên UTM.

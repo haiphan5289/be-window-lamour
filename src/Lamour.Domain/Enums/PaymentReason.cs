@@ -30,5 +30,12 @@ public enum PaymentReason
     // vẫn đọc được, nhưng WPF không cho chọn mới nữa.
     TamUngNhanVien,
     GuiTienNganHang,
-    ThueTNDNTamTinh
+    ThueTNDNTamTinh,
+
+    // 2026-10-01: ô "Lý do nộp" của Phiếu thu theo MISA (Rút tiền gửi về nộp quỹ · Thu hoàn thuế GTGT ·
+    // Thu hoàn ứng · Thu khác). ThuTienHang/ThuCongNo giữ lại để phiếu cũ vẫn đọc được, WPF không cho
+    // chọn mới nữa.
+    RutTienGuiVeNopQuy,
+    ThuHoanThueGTGT,
+    ThuHoanUng
 }

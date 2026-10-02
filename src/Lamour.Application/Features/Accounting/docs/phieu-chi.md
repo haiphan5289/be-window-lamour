@@ -1,52 +1,27 @@
-# Phiếu Chi (Payment) — Feature Document (BE + WPF)
+# Phiếu Chi (Payment) — Feature Document
 
-> **Branch:** `dev` | **Created:** 2026-04-29 (parallel to Phiếu Thu) | **Major update:** 2026-08-10 (Draft/Confirm lifecycle, TK Nợ/TK Có → Tài khoản kế toán FK, Khoản mục CP link) | **2026-08-11:** thêm trạng thái `Treo` giữa Draft và Confirmed | **2026-08-26:** "Đối tượng" mở rộng đa loại (Supplier/Customer/Employee) + so ảnh mẫu MISA, fix "Hoàn"/seed Khoản mục CP
-
----
-
-## So ảnh mẫu MISA — các fix bổ sung (2026-08-26, sau khi thêm "Đối tượng" đa loại)
-
-So `PaymentWindow` với ảnh mẫu MISA phát hiện thêm (đã fix hết, trừ các cột đã quyết định bỏ qua từ trước — xem "Known gaps"):
-
-1. **"Hoàn" (Unconfirm) — hoàn toàn chưa có, đã thêm mới.** `IUnconfirmPaymentUseCase`/`UnconfirmPaymentUseCase` (mirror `UnconfirmWarehouseReceiptUseCase`): guard `Status == Confirmed`, xoá `CashTransaction` đã tạo lúc Confirm qua `ICashLedgerRepository.DeleteByPaymentNumberAsync(payment.DocumentNumber)` (method đã có sẵn, chưa ai gọi tới), set `Status = Treo`, `ConfirmedAt = null`. Endpoint mới `POST {id}/unconfirm`.
-2. **Seed "Khoản mục CP" sai/rác — đã seed lại đúng ảnh mẫu.** Migration `SeedExpenseCategories`: insert 8 dòng `01`–`08` (PHÒNG SALES/MARKETING/KHO VẬN/TÀI CHÍNH-KẾ TOÁN/NHÂN SỰ/ĐÀO TẠO/SPA/KHÁC) khớp đúng ảnh mẫu. **Không xoá** dòng rác cũ `id=1, code="111", name="sale"` (dữ liệu người dùng tự tạo qua UI trước đó, không phải seed hệ thống — xoá dữ liệu người dùng không hỏi trước là hành động không nên làm).
-
-Phần còn lại (bỏ combo "Loại đối tượng" thừa, auto-copy Đối tượng xuống dòng hạch toán, thêm cột "Đối tượng" (mã) trong grid, đổi thứ tự cột, context menu Ctrl+Insert/Ctrl+Delete/Ctrl+F trên grid) là các thay đổi WPF-only — xem doc WPF: `desktop-lamour/.../Accounting/docs/phieu-chi.md`.
-
-**Bỏ qua khỏi lần so sánh này:** ảnh "Chứng từ hàng bán bị trả lại" (SalesReturn) gửi kèm không liên quan Phiếu Chi.
-
----
-
-## "Đối tượng" đa loại (polymorphic) — 2026-08-26
-
-Trước đây "Đối tượng" trên Phiếu Chi **chỉ là Supplier** (`SupplierId` int, FK bắt buộc). Yêu cầu mới: cho phép chọn **Nhà cung cấp / Khách hàng / Nhân viên** làm đối tượng nhận chi.
-
-**Data model — discriminator + cached name** (không dùng 3 cột FK riêng, vì Postgres/EF không hỗ trợ 1 FK trỏ tới nhiều bảng khác nhau):
-
-- `Payment.PartnerType` (`PaymentPartnerType` enum: `Supplier`/`Customer`/`Employee`, lưu `HasConversion<string>()`)
-- `Payment.PartnerId` (int) — Id trong bảng tương ứng với `PartnerType`, **không có FK constraint thật** ở DB (không thể FK đa bảng) — validate ở tầng UseCase
-- `Payment.PartnerName` (string) — tên đối tượng, **cache tại thời điểm Create/Update**, không tự đồng bộ lại nếu tên gốc đổi sau đó (giống cách `SalesReturnLine.CostPrice` cache `Product.CostPrice` — chấp nhận lệch nếu master data đổi sau khi phiếu đã lưu)
-
-`PaymentPartnerResolver` (`UseCases/PaymentPartnerResolver.cs`, static helper dùng chung bởi `CreatePaymentUseCase`/`UpdatePaymentUseCase`): parse `PartnerType`, gọi đúng repository (`ISupplierRepository`/`ICustomerRepository`/`IEmployeeRepository`) theo `PartnerId`, throw `DomainException` nếu không tồn tại, trả về tên để cache vào `PartnerName`.
-
-**Migration** `20260826093257_AddPaymentPartnerType`: rename cột `SupplierId` → `PartnerId` (giữ nguyên giá trị cũ), thêm `PartnerType`/`PartnerName`, backfill bằng SQL thô (`UPDATE payments ... FROM suppliers WHERE s.id = p."PartnerId"`, set `PartnerType = 'Supplier'`) vì mọi phiếu cũ đều là Supplier. Drop FK/index cũ tới `suppliers`, thêm index composite `(PartnerType, PartnerId)`.
-
-**DTO đổi:** `supplier_id`/`supplier_name` → `partner_type`/`partner_id`/`partner_name` trên cả `Create`/`Update`/`Response` DTO (Create/Update không có `partner_name` — BE tự resolve).
-
-**WPF:** "Đối tượng" là **1 ô tìm kiếm chung** (`PartnerItems` = `Suppliers.Concat(Customers).Concat(Employees)`, đều implement `ISearchableItem` sẵn) — **không có** combo "chọn loại đối tượng" riêng, khớp đúng UX ảnh mẫu MISA (gõ mã gì cũng tìm ra, không bắt chọn loại trước). Loại (`PartnerType` gửi lên BE) suy ra từ kiểu runtime của object đã chọn (`ResolvePartnerType`), không cần user chọn. (Bản đầu 2026-08-26 có thêm combo loại riêng — đã bỏ sau khi so ảnh mẫu, xem mục trên.) Xem chi tiết trong doc WPF: `desktop-lamour/.../Accounting/docs/phieu-chi.md`.
-
-**Không đổi:** `PaymentEntry.SubjectCode`/`SubjectName` (cột "Tên đối tượng" ở **dòng hạch toán**, free-text, khác hoàn toàn với "Đối tượng" ở header) — giữ nguyên, không liên quan tới thay đổi này.
+> **Jira:** — (branch `dev` không có mã ticket) | **Branch:** `dev` | **Generated:** 2026-10-02 (cập nhật theo code hiện tại; phần 2026-10-01/02 chưa commit)
+> **Nguồn:** đọc trực tiếp code BE (`be-window-lamour`, commit `c3492e7`) + WPF (`desktop-lamour`, commit `583f522`).
+> Jira/Confluence không lấy được (Atlassian MCP chưa đăng nhập).
+> Bản trước khi cập nhật: [phieu-chi-old.md](phieu-chi-old.md). Bản cũ hơn (nhật ký thay đổi 2026-04 → 2026-09-29, có đoạn đã lỗi thời như "Ghi sổ chỉ từ Treo", "Cất = lưu Nháp") xem trong git history của file này.
+> Tài liệu liên quan: [quy.md](quy.md) (Sổ quỹ — nơi hiện và thao tác phiếu chi) · [phieu-thu.md](phieu-thu.md) · [bao-cao-quy.md](bao-cao-quy.md) · WPF: `desktop-lamour/.../Accounting/docs/phieu-chi.md` (chi tiết giao diện, bug ComboBox trong DataGrid)
 
 ---
 
 ## PRD Summary
 
-Phiếu Chi ban đầu chỉ là CRUD đơn giản (Create/Update/Delete/Duplicate), TK Nợ/TK Có là 1 enum cứng 4 giá trị (`Cash111/Bank112/Receivable131/Payroll334`), không phân biệt Nháp/Đã ghi số. Ngày 2026-08-10, theo yêu cầu review UI so với ảnh mẫu MISA, đã nâng cấp:
-
-- **Trạng thái Nháp/Đã ghi số** (`PaymentStatus`) — Cất = lưu Nháp (chưa post sổ quỹ), Ghi số = xác nhận (post `CashTransaction`, sau đó bất biến — đúng rule "Confirmed invoices are immutable" trong `CLAUDE.md`).
-- **TK Nợ / TK Có** đổi từ enum `AccountCode` (4 giá trị cứng) → **FK thật tới `AccountSetting`** ("Tài khoản kế toán") — xem [`account-settings.md`](../../AccountSettings/docs/account-settings.md).
-- **Khoản mục CP** (`ExpenseCategoryId`, nullable) — FK tới `ExpenseCategory`, xem [`expense-categories.md`](../../ExpenseCategories/docs/expense-categories.md).
-- **Lý do chi chi tiết** (`ReasonDetail`, free-text) — bổ sung cạnh dropdown `PaymentReason` cố định, khớp ảnh mẫu ("Chi khác" + ô nhập tự do VD "thuê lái xe 21/7").
+- **Goal:** Lập phiếu chi tiền mặt theo đúng luồng MISA: chọn đối tượng → lý do chi → nội dung → TK Nợ / Số tiền / Khoản mục CP → Cất (lưu + ghi sổ quỹ ngay) → In mẫu 02-TT.
+- **User story:** Là kế toán/thu ngân, tôi muốn lập phiếu chi cho nhà cung cấp, khách hàng hoặc nhân viên, để khoản chi được ghi vào sổ quỹ tiền mặt và in ra phiếu có chữ ký.
+- **Acceptance criteria** (đối chiếu code hiện tại):
+  - [x] Đối tượng là 1 ô tìm chung cho Nhà cung cấp / Khách hàng / Nhân viên
+  - [x] Lý do chi: Tạm ứng cho nhân viên · Gửi tiền vào ngân hàng · Chi khác (mặc định) · Thuế TNDN tạm tính
+  - [x] Diễn giải của dòng hạch toán tự lấy từ nội dung lý do chi chi tiết
+  - [x] Dòng tự điền TK Nợ 6418 / TK Có 1111 (dòng đầu sau khi chọn Đối tượng, dòng khác khi gõ Số tiền)
+  - [x] Gõ mã TK Nợ / TK Có / Khoản mục CP trực tiếp trong ô (lọc danh sách, Enter/rời ô là chọn)
+  - [x] Cất = lưu + ghi sổ ngay; Ghi sổ/Bỏ ghi là 1 nút; Sửa/Xóa chỉ khi chưa ghi sổ
+  - [x] In mẫu 02-TT giống bản in MISA
+  - [ ] Chặn Số tiền âm: **chưa** (xem Edge Cases)
+  - [ ] Chặn trùng Số chứng từ: **chưa**
 
 ---
 
@@ -54,43 +29,134 @@ Phiếu Chi ban đầu chỉ là CRUD đơn giản (Create/Update/Delete/Duplica
 
 | Rule | Description |
 |------|-------------|
-| Draft khi tạo mới | `CreatePaymentUseCase` luôn set `Status = PaymentStatus.Draft` — **không** tạo `CashTransaction` ngay (khác hành vi cũ trước 2026-08-10) |
-| Draft → Treo | `SetPaymentTreoUseCase` (**mới**, 2026-08-11): chỉ chạy khi `Status == Draft` → set `Status = Treo`. Không tạo `CashTransaction`, không bắt buộc phải có dòng hạch toán (khác Confirm) |
-| Draft/Treo đều sửa/xoá được | `UpdatePaymentUseCase`/`DeletePaymentUseCase` throw `DomainException` nếu `Status == Confirmed` ("Phiếu chi đã ghi số, không thể sửa/xoá") — Treo vẫn mutable như Draft |
-| Ghi số chỉ từ Treo = bất biến | `ConfirmPaymentUseCase`: chỉ chạy khi `Status == Treo` (**đổi từ `Draft` sau 2026-08-11** — phải qua Treo trước) và có ≥1 dòng hạch toán; tạo `CashTransaction` (Credit — giảm tiền mặt) tại thời điểm này; set `Status = Confirmed`, `ConfirmedAt = UtcNow` |
-| TK Nợ/TK Có required, FK thật | Validate `AccountSetting` tồn tại qua `IAccountSettingRepository.GetByIdAsync` — throw `DomainException` "Tài khoản Nợ/Có không tồn tại" nếu không có |
-| Khoản mục CP optional | `ExpenseCategoryId` nullable — validate tồn tại nếu có giá trị, không bắt buộc |
-| Duplicate luôn ra Draft mới | `DuplicatePaymentUseCase` set `Status = Draft` bất kể trạng thái phiếu gốc (Draft/Treo/Confirmed), **không** tạo `CashTransaction` cho bản sao |
+| Đối tượng đa loại | `Payment.PartnerType` (`Supplier`/`Customer`/`Employee`) + `PartnerId`. Không có FK thật (không FK được tới 3 bảng); `PaymentPartnerResolver` kiểm tra tồn tại lúc Create/Update, lỗi: "Nhà cung cấp / Khách hàng / Nhân viên không tồn tại." |
+| Tên đối tượng cache | `Payment.PartnerName` lưu tên tại thời điểm lưu, không tự cập nhật nếu đổi tên gốc sau đó |
+| Người nhận | `PayeeName` tự điền = tên đối tượng khi chọn, sửa tay được. Địa chỉ tự điền nếu đối tượng là Nhà cung cấp/Khách hàng (Nhân viên không có địa chỉ) |
+| Đồng bộ xuống dòng | Đổi Đối tượng ở header → cập nhật `SubjectCode`/`SubjectName` của dòng **đầu** và các dòng **đã có số tiền** (không điền vào dòng trống) |
+| Lý do chi | Enum `PaymentReason`, lưu dạng chuỗi (`HasConversion<string>`). Chọn được: `TamUngNhanVien`, `GuiTienNganHang`, `ChiKhac` (mặc định), `ThueTNDNTamTinh`. `ChiMuaHang`/`ChiTraNo`/`ChiLuong` chỉ còn cho phiếu cũ: mở phiếu cũ vẫn hiện đúng, không chọn mới được |
+| Lý do chi chi tiết | `ReasonDetail` (tự do, vd "làm cờ even 21/7"), BE trim, rỗng → `null` |
+| Diễn giải tự điền | Dòng đầu và dòng đã có số tiền lấy Diễn giải = `ReasonDetail`, đổi theo khi gõ tiếp — chỉ khi Diễn giải còn trống hoặc đang mang đúng nội dung cũ; dòng người dùng tự sửa thì giữ nguyên |
+| TK mặc định | TK Nợ **6418** (Chi phí bằng tiền khác), TK Có **1111** (Tiền Việt Nam). Nếu danh mục chưa có mã đó → TK dùng gần nhất trong phiên (`ILastUsedPaymentAccountsStore`, chỉ trong bộ nhớ). Áp cho dòng đầu sau khi chọn Đối tượng và cho dòng vừa được gõ Số tiền (`PaymentViewModel.IsActiveEntry` / `ApplyEntryDefaults`) |
+| Gõ mã TK | Ô TK Nợ / TK Có / Khoản mục CP là `AppSearchableComboBox` dạng gọn (`IsCompact` + `CodeOnlyDisplay` + `CommitTypedText`): gõ là lọc; Enter/rời ô chọn mã khớp hẳn → mã bắt đầu bằng chữ đã gõ → dòng đầu danh sách lọc; không khớp thì trả về giá trị cũ; xoá trắng = bỏ chọn |
+| TK là FK thật | TK Nợ/Có → `AccountSetting`; Khoản mục CP → `ExpenseCategory` (tuỳ chọn). BE báo "Tài khoản Nợ/Có không tồn tại." / "Khoản mục chi phí không tồn tại." |
+| Dòng trống | Form mở sẵn 50 dòng trống, hiện trống hẳn (Số tiền 0 = ô trống, ẩn nút ✕ — `PaymentEntryItem.IsEmpty`); khi lưu chỉ gửi dòng có `Amount != 0`. Không có dòng nào → "Vui lòng nhập ít nhất một dòng hạch toán." |
+| Số chứng từ | WPF tự sinh `PC{max+1:D5}` từ danh sách phiếu đã tải. BE **không** sinh và **không** kiểm tra trùng |
+| Trạng thái | `Draft` (vừa tạo) · `Treo` (sau khi Bỏ ghi) · `Confirmed` (đã ghi sổ). Sổ quỹ coi Draft và Treo đều là "Treo" |
+| Cất = Lưu + Ghi sổ | WPF gọi Create/Update rồi Confirm ngay. Confirm nhận cả Draft lẫn Treo |
+| Ghi sổ | `ConfirmPaymentUseCase`: cần ≥ 1 dòng; tạo 1 `CashTransaction` (Có = tổng tiền) rồi `Status = Confirmed` |
+| Bỏ ghi | `UnconfirmPaymentUseCase`: chỉ khi `Confirmed`; xoá `CashTransaction` theo số phiếu, về `Treo` |
+| Bất biến sau ghi sổ | Sửa/Xóa phiếu `Confirmed` bị chặn ở cả WPF (tắt nút) và BE |
+| Sổ quỹ | `CashTransaction.Account` luôn `"111"` (kể cả khi TK Có là 112), `CounterAccount` = TK Nợ dòng đầu. Diễn giải trên sổ quỹ tính lúc đọc = `ReasonDetail`, trống thì nhãn lý do (xem [quy.md](quy.md)) |
+| Bản in 02-TT | Nợ = các TK Nợ của phiếu, Có = các TK Có (111 in thành 1111, 112 → 1121); Số tiền = Σ dòng; Lý do chi = `ReasonDetail`, trống thì nhãn lý do; 5 chữ ký, tên người nhận in dưới cột "Người nhận tiền" |
+
+### Vòng đời
+
+```
+            Cất (Create/Update + Confirm)
+  (mới) ───────────────────────────────► Confirmed ──── Bỏ ghi ────► Treo
+                                            ▲                          │
+                                            └──────── Ghi sổ ──────────┤
+                                                                       │ Sửa → Cất
+                                                                       ▼
+                                                                  (Update + Confirm)
+```
+
+Nếu Confirm lỗi sau khi đã lưu: phiếu nằm ở `Draft`, hiện banner lỗi, form vẫn đang sửa — bấm Cất lại sẽ Update + Confirm.
 
 ---
 
 ## Architecture Overview
 
-### Key Components (BE)
+### Key Components
 
 | Layer | File | Role |
 |-------|------|------|
-| Entity | `Lamour.Domain/Entities/Payment.cs` | + `PaymentStatus` enum (`Draft=0`/`Treo=1`/`Confirmed=2`), `Status`, `ConfirmedAt`, `ReasonDetail` |
-| Entity | `Lamour.Domain/Entities/PaymentEntry.cs` | `DebitAccountSettingId`/`DebitAccountSetting` + `CreditAccountSettingId`/`CreditAccountSetting` (thay `AccountCode DebitAccount/CreditAccount` cũ), `ExpenseCategoryId`/`ExpenseCategory` (nullable) |
-| Config | `Lamour.Infrastructure/Persistence/Configurations/PaymentConfiguration.cs` | `PaymentEntryConfiguration`: FK `Restrict` tới `AccountSetting` (2 lần — Debit/Credit), FK `SetNull` tới `ExpenseCategory`. `Status` lưu `HasConversion<string>()` — thêm giá trị enum mới an toàn, không cần migration |
-| UseCase | `UseCases/CreatePaymentUseCase.cs` | Validate `PaymentReason`, TK Nợ/Có tồn tại, Khoản mục CP (nếu có) → `Status = Draft`, **không** tạo `CashTransaction` |
-| UseCase | `UseCases/SetPaymentTreoUseCase.cs` | **Mới** (2026-08-11) — Guard `Status == Draft` → set `Status = Treo` |
-| UseCase | `UseCases/UpdatePaymentUseCase.cs` | Guard `Status == Confirmed` (đổi từ `!= Draft`) trước khi block sửa — Draft/Treo đều sửa được |
-| UseCase | `UseCases/DeletePaymentUseCase.cs` | Guard `Status == Confirmed` (đổi từ `!= Draft`) trước khi block xoá — **không còn** cleanup `CashTransaction` (Draft/Treo chưa từng có) |
-| UseCase | `UseCases/ConfirmPaymentUseCase.cs` | Guard `Status == Treo` (**đổi từ `Draft`**) — mirror `ConfirmWarehouseReceiptUseCase`: Treo→Confirmed, tạo `CashTransaction` tại đây |
-| UseCase | `UseCases/DuplicatePaymentUseCase.cs` | Copy `DebitAccountSettingId`/`CreditAccountSettingId`/`ExpenseCategoryId`, luôn `Status = Draft` |
-| Repository | `Lamour.Infrastructure/Repositories/PaymentRepository.cs` | `.Include(Entries).ThenInclude(DebitAccountSetting/CreditAccountSetting/ExpenseCategory)` trên mọi query. `GetUnconfirmedByDateRangeAsync` (đổi tên từ `GetDraftsByDateRangeAsync`, filter `Status != Confirmed`) — dùng cho Sổ Quỹ Tiền Mặt |
-| Controller | `Lamour.Api/Controllers/PaymentsController.cs` | + `POST {id}/confirm`, `POST {id}/treo` |
+| Domain | `Lamour.Domain/Entities/Payment.cs` | `Payment` + enum `PaymentStatus` |
+| Domain | `Lamour.Domain/Entities/PaymentEntry.cs` | Dòng hạch toán (TK Nợ/Có, Số tiền, Đối tượng, Khoản mục CP) |
+| Domain | `Lamour.Domain/Enums/PaymentReason.cs`, `PaymentPartnerType.cs` | Lý do chi, loại đối tượng |
+| API | `Lamour.Api/Controllers/PaymentsController.cs` | `api/v1/accounting/payments` |
+| UseCase | `CreatePaymentUseCase`, `UpdatePaymentUseCase`, `DeletePaymentUseCase` | Lưu / sửa / xoá, validate đối tượng + TK + Khoản mục CP |
+| UseCase | `ConfirmPaymentUseCase`, `UnconfirmPaymentUseCase` | Ghi sổ / Bỏ ghi (tạo / xoá `CashTransaction`) |
+| UseCase | `SetPaymentTreoUseCase`, `DuplicatePaymentUseCase` | Có endpoint, **WPF hiện không gọi** |
+| UseCase | `PaymentPartnerResolver` | Tra tên đối tượng theo loại |
+| Repository | `Lamour.Infrastructure/Repositories/PaymentRepository.cs` | CRUD, `GetUnconfirmedByDateRangeAsync` (cho sổ quỹ), `GetIdsByDocumentNumbersAsync`, `GetReasonDetailsByIdsAsync` |
+| Migration | `20260929150308_AddPaymentDefaultAccounts6418And1111` | Thêm TK 6418 / 1111 nếu chưa có |
+| WPF — cửa sổ | `Views/PaymentWindow.xaml(.cs)` | Toolbar `DocumentToolbar`, Thông tin chung, lưới Hạch toán |
+| WPF — ViewModel | `ViewModels/PaymentViewModel.cs` | Toàn bộ logic nhập liệu / lưu / ghi sổ |
+| WPF — bản in | `Views/PaymentPrintWindow.xaml(.cs)` + `Views/CashVoucherDocumentBuilder.cs` | Mẫu 02-TT, layout dùng chung với phiếu thu |
+| WPF — model dòng | `Domain/Models/PaymentEntryItem.cs` | `SelectedDebitAccount`, `SelectedCreditAccount`, `SelectedExpenseCategory`, `IsEmpty` |
+| WPF — control | `Shared/Controls/AppSearchableComboBox.xaml(.cs)` | Ô TK / Khoản mục CP (`ExpenseCategory` implement `ISearchableItem`) |
+| WPF — nhãn | `Shared/Converters/PaymentReasonDisplayConverter.cs` | `Label(reason)` dùng chung cho ô Lý do chi, Quỹ, Xuất khẩu, bản in |
+| WPF — mở từ | `ViewModels/AccountingViewModel.cs` (`OpenPayment`, xem / sửa dòng sổ quỹ) | Màn Quỹ → Thêm ▾ Phiếu chi, double-click dòng phiếu chi |
 
-### State Machine
+### Data Flow
 
 ```
-  Create           Treo (nút "Nạp")        Ghi số
-Draft ──────► Draft ──────────────► Treo ──────► Confirmed (bất biến)
-                ↺ Update/Delete       ↺ Update/Delete
+Màn Quỹ → Thêm ▾ → Phiếu chi (AccountingViewModel.OpenPayment → PaymentWindow.Show)
+  PaymentViewModel.LoadAsync
+    → nạp NCC, KH, NV, Khoản mục CP, Tài khoản kế toán (trước)
+    → GET payments → hiện phiếu đầu danh sách
+
+➕ Thêm → form trống + 50 dòng trống
+  chọn Đối tượng  → Người nhận, Địa chỉ, dòng đầu (Diễn giải, 6418/1111, Đối tượng)
+  gõ Lý do chi chi tiết → Diễn giải dòng đầu + dòng đã có số tiền
+  gõ Số tiền vào dòng khác → dòng đó tự điền
+  nhập TK Nợ, Số tiền, Khoản mục CP
+
+💾 Cất → PersistAsync: POST payments (mới) | PUT payments/{id} (đang sửa)
+       → POST payments/{id}/confirm → CashTransaction (TK 111, Có = tổng)
+       → tải lại, khoá form, báo màn Quỹ tải lại
+Ghi sổ / Bỏ ghi → POST {id}/confirm | {id}/unconfirm
+🗑️ Xóa → hỏi Yes/No → DELETE {id} → đóng cửa sổ
+🖨 In → PaymentPrintWindow (CashVoucherDocumentBuilder, mẫu 02-TT)
 ```
 
-Update/Delete cho phép ở cả `Draft` và `Treo` — chỉ `Confirmed` mới bất biến.
+```mermaid
+graph TD
+    Q[AccountingViewModel] -->|OpenPayment / Xem| W[PaymentWindow]
+    W --> VM[PaymentViewModel]
+    VM -->|POST / PUT / DELETE| PC[PaymentsController]
+    VM -->|confirm / unconfirm| PC
+    VM -->|In| P[PaymentPrintWindow]
+    P --> B[CashVoucherDocumentBuilder]
+    PC --> UC1[Create / Update / Delete UseCase]
+    PC --> UC2[Confirm / Unconfirm UseCase]
+    UC1 --> R[PaymentRepository]
+    UC1 --> PR[PaymentPartnerResolver]
+    UC2 --> R
+    UC2 --> CR[CashLedgerRepository]
+```
+
+---
+
+## Key Files & Symbols
+
+### BE (`be-window-lamour/src`)
+- [`PaymentsController.cs`](../../../../Lamour.Api/Controllers/PaymentsController.cs): `GetPayments`, `GetPaymentById`, `CreatePayment`, `UpdatePayment`, `DeletePayment`, `DuplicatePayment`, `ConfirmPayment`, `UnconfirmPayment`, `SetPaymentTreo`
+- [`CreatePaymentUseCase.cs`](../UseCases/CreatePaymentUseCase.cs) / [`UpdatePaymentUseCase.cs`](../UseCases/UpdatePaymentUseCase.cs) / [`DeletePaymentUseCase.cs`](../UseCases/DeletePaymentUseCase.cs)
+- [`ConfirmPaymentUseCase.cs`](../UseCases/ConfirmPaymentUseCase.cs) / [`UnconfirmPaymentUseCase.cs`](../UseCases/UnconfirmPaymentUseCase.cs)
+- [`SetPaymentTreoUseCase.cs`](../UseCases/SetPaymentTreoUseCase.cs) / [`DuplicatePaymentUseCase.cs`](../UseCases/DuplicatePaymentUseCase.cs)
+- [`PaymentPartnerResolver.cs`](../UseCases/PaymentPartnerResolver.cs): `ResolveNameAsync`
+- [`IPaymentRepository.cs`](../Repositories/IPaymentRepository.cs) / [`PaymentRepository.cs`](../../../../Lamour.Infrastructure/Repositories/PaymentRepository.cs)
+- DTOs: [`CreatePaymentRequestDto.cs`](../Dtos/CreatePaymentRequestDto.cs), [`UpdatePaymentRequestDto.cs`](../Dtos/UpdatePaymentRequestDto.cs), [`PaymentResponseDto.cs`](../Dtos/PaymentResponseDto.cs), [`PaymentEntryDto.cs`](../Dtos/PaymentEntryDto.cs)
+
+### WPF (`desktop-lamour/src/DesktopLamour`)
+- `Features/HomePage/Accounting/ViewModels/PaymentViewModel.cs`: `AddNew`, `AddEntry`, `IsActiveEntry`, `ApplyEntryDefaults` (TK mặc định), `ConfirmAsync` (Cất), `PersistAsync`, `ToggleConfirmAsync`, `DeleteAsync`, `Print`, `OnSelectedPartnerChanged`, `OnReasonDetailChanged`, `RefreshPaymentReasons`, `GenerateNextDocumentNumber`, `ResolvePartnerType`
+- `Features/HomePage/Accounting/Views/PaymentWindow.xaml`: style `EntryTextCell`; cột TK / Khoản mục CP dùng `controls:AppSearchableComboBox` (ô chỉ hiện mã, danh sách hiện "mã — tên")
+- `Features/HomePage/Accounting/Views/PaymentPrintWindow.xaml.cs`, `CashVoucherDocumentBuilder.cs` (`CashVoucherPrintModel`, `PrintAccountCode`)
+- `Features/HomePage/Accounting/Domain/Models/PaymentEntryItem.cs`
+- `Shared/Converters/PaymentReasonDisplayConverter.cs`: `Label`
+
+### Màn hình
+
+**Cửa sổ "Phiếu chi"**
+- Toolbar (`DocumentToolbar`): Trước · Sau · Thêm · Sửa · Xóa · Cất · Ghi sổ/Bỏ ghi · In · Đóng
+- Thông tin chung: Đối tượng · Người nhận · Địa chỉ · Lý do chi + nội dung chi tiết · Nhân viên (có nút ➕ tạo nhanh) · Kèm theo · Tham chiếu
+- Chứng từ: Ngày hạch toán · Ngày chứng từ · Số chứng từ
+- Tab "1. Hạch toán": Diễn giải · TK Nợ · TK Có · Số tiền · Đối tượng · Tên đối tượng · TK ngân hàng · Khoản mục CP · ✕. Phím: F9 thêm dòng, chuột phải / Ctrl+Insert / Ctrl+Delete / Ctrl+F
+- Tab "2. Thuế": chỉ thông báo "Phiếu chi này không có thông tin thuế."
+
+**Bản in "PHIẾU CHI" (mẫu 02-TT)**: Header công ty + Mẫu số 02 - TT · PHIẾU CHI · Ngày · Quyển số · Số · Nợ · Có · Họ tên người nhận tiền · Địa chỉ · Lý do chi · Số tiền · Viết bằng chữ · Kèm theo · Giám đốc · Kế toán trưởng · Thủ quỹ · Người lập phiếu · Người nhận tiền · "Đã nhận đủ số tiền (Viết bằng chữ)"
 
 ---
 
@@ -98,175 +164,121 @@ Update/Delete cho phép ở cả `Draft` và `Treo` — chỉ `Confirmed` mới 
 
 Base route: `api/v1/accounting/payments`
 
-| Method | Endpoint | Ghi chú |
-|--------|----------|---------|
-| `GET` | `/` | Tất cả payments |
-| `GET` | `/{id}` | 1 payment |
-| `POST` | `/` | Tạo mới — luôn Draft |
-| `PUT` | `/{id}` | Sửa — 400 nếu đã Confirmed |
-| `DELETE` | `/{id}` | Xoá — 400 nếu đã Confirmed |
-| `POST` | `/{id}/duplicate` | Sao chép — bản mới luôn Draft |
-| `POST` | `/{id}/treo` | **Mới** (2026-08-11) — Draft → Treo, 400 nếu không phải Draft |
-| `POST` | `/{id}/confirm` | Treo → Confirmed (**đổi từ Draft**), tạo `CashTransaction` |
-| `POST` | `/{id}/unconfirm` | **Mới** (2026-08-26) — Confirmed → Treo ("Hoàn"), xoá `CashTransaction`, 400 nếu không phải Confirmed |
+| Method | Endpoint | Input | Output | Lỗi |
+|--------|----------|-------|--------|-----|
+| `GET` | `/` | — | `PaymentResponseDto[]` | |
+| `GET` | `/{id}` | — | `PaymentResponseDto` | 404 |
+| `POST` | `/` | `CreatePaymentRequestDto` | `PaymentResponseDto` (Draft) | 400 lý do/đối tượng/TK/Khoản mục CP sai |
+| `PUT` | `/{id}` | `UpdatePaymentRequestDto` | `PaymentResponseDto` | 404; 400 nếu đã ghi sổ |
+| `DELETE` | `/{id}` | — | 204 | 404; 400 nếu đã ghi sổ |
+| `POST` | `/{id}/confirm` | — | `PaymentResponseDto` (Confirmed) | 400 đã ghi sổ / không có dòng |
+| `POST` | `/{id}/unconfirm` | — | `PaymentResponseDto` (Treo) | 400 nếu chưa ghi sổ |
+| `POST` | `/{id}/treo` | — | `PaymentResponseDto` | 400 nếu không phải Draft — **WPF không dùng** |
+| `POST` | `/{id}/duplicate` | — | `PaymentResponseDto` (Draft, số `{số cũ}-COPY`) | 404 — **WPF không dùng** |
 
-### `PaymentEntryDto` (request + response dùng chung)
+### Request — `POST /` (`PUT /{id}` cùng field)
+
+```json
+{
+  "partner_type": "Employee",
+  "partner_id": 16,
+  "payee_name": "TRẦN THỊ NHI TRÚC",
+  "address": null,
+  "payment_reason": "ChiKhac",
+  "reason_detail": "làm cờ even 21/7",
+  "payment_employee_id": null,
+  "attachment": null,
+  "reference": null,
+  "accounting_date": "2026-09-29T00:00:00",
+  "document_date": "2026-09-29T00:00:00",
+  "document_number": "PC00008",
+  "entries": [
+    {
+      "description": "làm cờ even 21/7",
+      "debit_account_id": 44,
+      "credit_account_id": 45,
+      "amount": 3166000,
+      "subject_code": "NV016",
+      "subject_name": "TRẦN THỊ NHI TRÚC",
+      "bank_account": null,
+      "expense_category_id": 2
+    }
+  ]
+}
+```
+
+### Response — `PaymentEntryDto` (thêm các field chỉ có ở response)
 
 ```json
 {
   "id": 1,
-  "description": "thuê lái xe 21/7",
-  "debit_account_id": 40,
-  "debit_account_code": "111",
-  "debit_account_description": "Tiền mặt",
-  "credit_account_id": 42,
-  "credit_account_code": "131",
-  "credit_account_description": "Phải thu của khách hàng",
-  "amount": 500000,
-  "subject_code": null,
-  "subject_name": null,
+  "description": "làm cờ even 21/7",
+  "debit_account_id": 44, "debit_account_code": "6418", "debit_account_description": "Chi phí bằng tiền khác",
+  "credit_account_id": 45, "credit_account_code": "1111", "credit_account_description": "Tiền Việt Nam",
+  "amount": 3166000,
+  "subject_code": "NV016", "subject_name": "TRẦN THỊ NHI TRÚC",
   "bank_account": null,
-  "expense_category_id": 3,
-  "expense_category_name": "PHÒNG NHÂN SỰ"
+  "expense_category_id": 2, "expense_category_name": "PHÒNG MARKETING"
 }
 ```
 
-Request (Create/Update) chỉ cần `debit_account_id`/`credit_account_id`/`expense_category_id` (int, int?) — các field `*_code`/`*_description`/`*_name` chỉ có ở response.
-
-### `PaymentResponseDto` (bổ sung so với trước)
-
-```json
-{
-  "...": "...",
-  "reason_detail": "thuê lái xe 21/7",
-  "status": "Draft",
-  "confirmed_at": null
-}
-```
+> Id tài khoản (44/45) và các giá trị là minh hoạ — trên máy khác id có thể khác vì migration chèn theo mã. `PaymentResponseDto` còn có `id`, `partner_name`, `payment_employee_name`, `status` (`Draft`/`Treo`/`Confirmed`), `created_at`, `confirmed_at`.
 
 ---
 
-## Seed Data — 4 tài khoản cash-flow bổ sung cho `AccountSetting`
+## Edge Cases & Error Handling
 
-`AccountSetting` (39 tài khoản cũ, toàn bộ thuộc nhóm hàng hoá/doanh thu — xem [`account-settings.md`](../../AccountSettings/docs/account-settings.md)) **không có** 111/112/131/334 mà `AccountCode` enum cũ dùng cho Payment. Seed thêm 4 dòng để Payment không bị gãy sau khi chuyển sang FK:
-
-| Id | Code | Description |
-|---|---|---|
-| 40 | 111 | Tiền mặt |
-| 41 | 112 | Tiền gửi ngân hàng |
-| 42 | 131 | Phải thu của khách hàng |
-| 43 | 334 | Phải trả người lao động |
-
-Enum `AccountCode` (`Lamour.Domain.Enums.AccountCode`) **vẫn còn** trong codebase — chỉ Payment không dùng nữa, `Receipt`/`ReceiptEntry` (Phiếu thu) vẫn dùng enum này y như cũ (chưa migrate).
-
----
-
-## EF Migrations (theo thứ tự)
-
-1. `20260810082526_AddDepartmentsAndExpenseCategories` — tạo bảng `departments`/`expense_categories` (xem [`expense-categories.md`](../../ExpenseCategories/docs/expense-categories.md))
-2. `20260810094907_AddPaymentStatusAndExpenseCategoryLink` — `payments.status`/`confirmed_at`/`reason_detail`, `payment_entries.expense_category_id` (FK `SetNull`)
-   - ⚠️ Lần đầu generate có `HasDefaultValue(PaymentStatus.Confirmed)` trên model → EF cảnh báo "sentinel value" (giá trị CLR default `Draft`=0 sẽ luôn bị ghi đè bởi DB default khi insert, vì EF coi giá trị bằng CLR-default là "chưa set"). Đã bỏ `HasDefaultValue` khỏi `Configure()`, chỉ giữ `defaultValue: "Confirmed"` ở migration `AddColumn` (dùng 1 lần để backfill — bảng `payments` rỗng lúc đó nên không ảnh hưởng dữ liệu thật). **Bài học: không dùng `HasDefaultValue` khi giá trị default trùng CLR-default (0/null/false) của property.**
-3. `20260810125950_ConvertPaymentAccountsToAccountSettingFk` — drop cột string `DebitAccount`/`CreditAccount`, add FK int `DebitAccountSettingId`/`CreditAccountSettingId`, insert 4 dòng `account_settings` (111/112/131/334)
+| Scenario | Expected Behavior | Handled? |
+|----------|------------------|----------|
+| Chưa chọn Đối tượng mà bấm Cất | "Vui lòng chọn đối tượng." | ✅ WPF |
+| Không dòng nào có Số tiền | "Vui lòng nhập ít nhất một dòng hạch toán." | ✅ WPF |
+| Dòng có Số tiền nhưng xoá TK Nợ/Có | BE: "Tài khoản Nợ/Có không tồn tại." (WPF gửi id 0) | ✅ BE (thông báo chưa nói rõ dòng nào) |
+| Đối tượng / Khoản mục CP đã bị xoá | BE: "… không tồn tại." | ✅ BE |
+| Lưu được nhưng Ghi sổ lỗi | Phiếu nằm ở Draft, banner lỗi, form vẫn sửa được, Cất lại = Update + Confirm | ✅ WPF |
+| Sửa / Xóa phiếu đã ghi sổ | WPF tắt nút; BE: "Phiếu chi đã ghi số, không thể sửa/xoá." | ✅ WPF + BE |
+| Ghi sổ / Bỏ ghi lỗi | Hộp thoại "Thao tác thất bại" | ✅ WPF |
+| Số tiền âm | Được lưu và ghi sổ (lọc chỉ bỏ dòng `= 0`) → làm **tăng** quỹ | ⚠️ Chưa chặn |
+| Trùng Số chứng từ (2 máy cùng lập, hoặc gõ tay) | Lưu được; sổ quỹ tra id theo số → lấy phiếu tạo sau cùng, Bỏ ghi xoá `CashTransaction` theo số → ảnh hưởng cả 2 phiếu | ⚠️ Chưa chặn |
+| TK Có là 112 (chi bằng tiền gửi) | Vẫn ghi vào sổ quỹ tiền mặt (`Account = "111"`) | ⚠️ Chưa đúng |
+| Mở phiếu cũ có lý do đã bỏ (Chi mua hàng…) | Ô Lý do chi vẫn hiện đúng giá trị cũ | ✅ WPF |
+| DB chưa chạy migration 6418/1111 | Dòng tự điền dùng TK gần nhất thay vì 6418/1111 | ✅ WPF (không báo lỗi) |
+| Gõ mã TK không có trong danh mục | Ô trả về TK trước khi gõ | ✅ WPF (chưa kiểm chứng trên UTM) |
+| Đổi tên đối tượng gốc sau khi lưu | Phiếu vẫn giữ tên cũ (`PartnerName` cache) | ✅ Theo thiết kế |
 
 ---
 
-## Sổ Kế Toán Chi Tiết Quỹ Tiền Mặt — cột Status (2026-08-11)
+## Test Coverage Notes
 
-Màn hình "Sổ Kế Toán Chi Tiết Quỹ Tiền Mặt" (`AccountingView.xaml`) trước đây chỉ đọc `CashTransaction` (luôn đã ghi số). Bổ sung hiển thị cả Payment ở trạng thái `Draft` (chưa ghi số) để người dùng thấy trước các khoản chi sắp tới:
+| Component | Test File | Coverage |
+|-----------|-----------|----------|
+| `ConfirmPaymentUseCase` | `tests/Lamour.Application.Tests/Features/Accounting/UseCases/ConfirmPaymentUseCaseTests.cs` | ✅ 2 test (Draft/Treo ghi sổ được; đã ghi sổ bị chặn) |
+| Diễn giải phiếu chi trên sổ quỹ | `GetCashLedgerUseCaseTests.cs` | ✅ 3 test (lý do chi chi tiết / nhãn / 4 lý do mới) |
+| `CreatePaymentUseCase` / `UpdatePaymentUseCase` / `DeletePaymentUseCase` | — | ❌ Chưa có |
+| `UnconfirmPaymentUseCase` | — | ❌ Chưa có |
+| `PaymentPartnerResolver` | — | ❌ Chưa có |
+| `PaymentViewModel` (WPF) | `desktop-lamour/tests/DesktopLamour.Tests` không có test Phiếu chi | ❌ Chưa có |
+| Bản in `CashVoucherDocumentBuilder` | — | ❌ Chỉ kiểm tra được bằng mắt trên UTM |
 
-- `IPaymentRepository.GetUnconfirmedByDateRangeAsync(from, to, ct)` — query `Payment` có `Status != Confirmed` (Draft **hoặc** Treo, đổi từ chỉ-Draft sau khi thêm trạng thái Treo 2026-08-11) trong khoảng `AccountingDate`, `Include(Entries.DebitAccountSetting)`.
-- `CashLedgerEntryDto` + `GetCashLedgerUseCase`: merge entries từ `CashTransaction` (`status = "Confirmed"`) với Draft/Treo payments map ngược lại theo đúng công thức `ConfirmPaymentUseCase` dùng để tạo `CashTransaction` (`CreditAmount = tổng Entries.Amount`, `CounterAccount` = code TK Nợ dòng đầu, `DebitAmount = 0`), gắn `status = p.Status.ToString()` ("Draft" hoặc "Treo"). Payment chưa có dòng hạch toán nào bị loại khỏi kết quả (không có amount để hiển thị).
-- **Running balance chỉ cộng/trừ trên dòng `Confirmed`** — dòng `Draft`/`Treo` giữ nguyên số dư hiện tại, không ảnh hưởng `ClosingBalance`.
-- WPF: `CashLedgerEntryDto.Status` (string, khớp BE) + `CashLedgerStatusDisplayConverter` (`Shared/Converters/`) map `"Draft"` → "Nháp", `"Treo"` → "Treo", `"Confirmed"` → "Đã ghi số", cột mới nằm ngay sau "Số phiếu chi" trong `AccountingView.xaml`.
-
----
-
-## Sổ Kế Toán Chi Tiết Quỹ Tiền Mặt — cột "Lý do thu/chi"/"Loại chứng từ" + click-để-Xem (2026-08-28)
-
-Theo yêu cầu "cái chỗ quỹ bấm vào xem để xem chi tiết bên trong không được" — trước đây `AccountingView` không có cách nào click 1 dòng để mở lại đúng Receipt/Payment gốc.
-
-- `CashTransaction` thêm 2 cột `PaymentReason` (`string?`) / `DocumentType` (`string`, mặc định `""`) — migration `AddCashTransactionReasonAndDocType`. `ConfirmPaymentUseCase` set `PaymentReason = payment.PaymentReason.ToString()`, `DocumentType = "Phiếu chi"` khi tạo `CashTransaction` lúc Ghi số (mirror `CreateReceiptUseCase`/`UpdateReceiptUseCase` phía Phiếu thu — xem [`phieu-thu.md`](phieu-thu.md)). `GetCashLedgerUseCase` map thêm 2 field này cho cả nhánh `Confirmed` (đọc thẳng từ `CashTransaction`) lẫn nhánh Draft/Treo payment ảo (`PaymentReason = p.PaymentReason.ToString()`, `DocumentType = "Phiếu chi"`) — nhất quán dù dòng đã ghi số hay chưa.
-- `CashLedgerEntryDto` thêm `payment_reason`/`document_type`; WPF `AccountingView.xaml` thêm 2 cột tương ứng (dùng `PaymentReasonDisplayConverter` có sẵn) — đồng thời cắt bớt 1 số cột kỹ thuật ít dùng (Nợ/Có/Trạng thái tài khoản/TK đối ứng riêng lẻ) để nhường chỗ, gộp hiển thị qua "Số tiền" 1 cột duy nhất.
-- **Click-để-Xem**: `AccountingViewModel` thêm `SelectedEntry`/`ViewEntryCommand` (`CanExecute` chỉ khi có `SelectedEntry`) — dựa vào `ReceiptNumber`/`PaymentNumber` khác rỗng trên dòng đang chọn để biết mở `ReceiptWindow` hay `PaymentWindow`. Cả 2 Window thêm property `InitialDocumentNumber` (set trước `ShowDialog()`, đọc trong `OnContentRendered`) — `ReceiptViewModel`/`PaymentViewModel` thêm method public `NavigateToReceiptByDocumentNumber`/`NavigateToPaymentByDocumentNumber` để tìm đúng bản ghi trong list đã load và chọn sẵn, tái dùng nguyên cơ chế Sửa/Xóa đã có trên 2 Window đó — không viết thêm luồng riêng. `AccountingView.xaml` bind `SelectedItem` 2 chiều + `MouseDoubleClick` + nút "👁 Xem" gọi cùng command.
-- Không cần EF migration thêm cho phần WPF (chỉ đổi UI/binding). BE + WPF build 0 lỗi mỗi bước.
-
----
-
-## WPF Client (`desktop-lamour`)
-
-### UI — khớp lại theo ảnh mẫu MISA (2026-08-10)
-
-- **Toolbar**: `Trước/Sau | Thêm/Sửa/Xóa/Treo/Ghi số | Làm mới | In/Đóng` — bỏ hẳn `Sửa nhanh/Tiện ích/Mẫu/Giúp` (không có logic thật, ẩn đi theo yêu cầu "action nào không có thì ẩn đi" thay vì hiện placeholder).
-  - ⚠️ **2026-08-11**: nút `Nạp` cũ (`LoadAsync2Command`) chỉ refresh list từ server — vô nghĩa vì list đã tự reload sau mọi Sửa/Xoá/Ghi số. Đổi thành nút **"📌 Treo"** (`TreoCommand`) — set `CurrentPayment` đang `Draft` sang `Treo` qua `POST /{id}/treo`, bắt buộc phải Treo trước khi Ghi số được. Refresh-list thủ công dời sang nút mới **"🔄 Làm mới"** (giữ nguyên logic `LoadAsync2` cũ, đổi tên method).
-  - ⚠️ **2026-08-11 (tiếp)**: bỏ hẳn nút `Cất` (`SaveCommand`/`SaveAsync`, xoá khỏi ViewModel) — logic lưu (`PersistAsync`) gộp vào `TreoCommand`: đang Nháp thì lưu + chuyển Treo; đã Treo rồi thì `TreoAsync` chỉ chạy `PersistAsync` để lưu lại thay đổi, **không** gọi lại `POST /{id}/treo` (tránh lỗi 400 "Chỉ phiếu chi ở trạng thái Nháp mới có thể chuyển Treo"), không đổi trạng thái, không đóng popup.
-- **Banner header + subtitle**: giữ nguyên style cũ, chỉ sửa lại subtitle bug copy-paste "Lập và quản lý phiếu **thu**" → "...phiếu **chi**".
-- **Thông tin chung**: "Lý do nộp"→"Lý do chi" (đúng thuật ngữ), thêm ô `ReasonDetail` tự do cạnh dropdown; "Nhân viên thu"→"Nhân viên"; bố cục lại Nhân viên+Kèm theo chung 1 dòng, Tham chiếu xuống dòng riêng (icon 🔍).
-- **Tab**: `TabControl` với style `AppTabControl.Modern`/`AppTabItem.Modern` copy từ popup "Thêm vật tư hàng hoá" — tab "1. Hạch toán" (grid) + tab "2. Thuế" (placeholder, Payment chưa có field thuế).
-- **Grid**: thêm cột "Khoản mục CP"; TK Nợ/TK Có đổi nguồn từ list string cứng → `AccountSettings` (load qua `IGetAccountSettingsUseCase`).
-- **In**: `PaymentPrintWindow` mới — FlowDocument A5 + `PrintDialog`, mirror `SalesOrderPrintWindow` (logo công ty, bảng hạch toán có cột Khoản mục CP, chữ ký 4 vai: Người lập phiếu/Người nhận tiền/Thủ quỹ/Kế toán trưởng).
-
-### ⚠️ Bug lớn nhất & cách sửa cuối cùng (đọc trước khi đổi UI cột combo trong DataGrid)
-
-Cột TK Nợ/TK Có/Khoản mục CP trải qua **4 lần đổi cách bind** trước khi ổn định — ghi lại để không lặp lại sai lầm:
-
-1. **`DataGridComboBoxColumn` + `SelectedValueBinding`/`SelectedValuePath="Id"`** — ItemsSource `{Binding AccountSettings}` (không `RelativeSource`) **không nhận được DataContext của DataGrid trong app này** → dropdown rỗng hoàn toàn. *Kết luận: đừng dùng `DataGridComboBoxColumn` cho cột trong file này, dù đây là cách "chuẩn" theo tài liệu Microsoft.*
-2. **`DataGridTemplateColumn` (CellTemplate hiện Text, CellEditingTemplate là ComboBox) + `SelectedValue`/`SelectedValuePath="Id"` (kiểu `int?`)** — `ItemsSource` load đúng (có data), nhưng `SelectedValue` TwoWay **không đẩy được** giá trị ngược lại property `int?` nguồn khi list chỉ có 1 item (xác nhận qua debug log: `SelectionChanged` bắn đúng `SelectedValue` nhưng `PropertyChanged` trên entry không bao giờ fire).
-3. Đổi `SelectedValue` → **`SelectedItem`** (bind cả object `ISearchableItem?`/`ExpenseCategory?` thay vì `int?`) — vẫn còn `DataGridTemplateColumn` (Cell/CellEditingTemplate tách biệt). `SelectedItem` binding **hoạt động đúng khi bấm Enter**, nhưng **không commit khi chỉ click sang ô/cột khác** — DataGrid chỉ chịu đẩy binding CellEditingTemplate xuống nguồn khi nhận tín hiệu commit rõ ràng (Enter/Tab), không tự làm khi cell mất focus do click cell khác trong cùng row. Thử ép `grid.CommitEdit(DataGridEditingUnit.Cell, true)` (cả gọi đồng bộ và trì hoãn qua `Dispatcher.BeginInvoke`) — **không hoạt động**. Thử giả lập phím Enter bằng `RaiseEvent(new KeyEventArgs(..., Key.Enter) { RoutedEvent = Keyboard.KeyDownEvent })` — **cũng không hoạt động**.
-4. **Fix cuối cùng**: bỏ hẳn khái niệm "cell editing mode" cho 3 cột này — **ComboBox nằm thẳng trong `CellTemplate`, không có `CellEditingTemplate` riêng**. ComboBox luôn hiện sẵn, luôn tương tác được ngay, không cần DataGrid "vào chế độ sửa" rồi "commit" gì cả → không còn gì để mất. Đây là cách ổn định nhất cho ComboBox trong `DataGridTemplateColumn` khi không cần phân biệt display/edit riêng.
-
-```xml
-<DataGridTemplateColumn Header="TK Nợ" Width="160">
-    <DataGridTemplateColumn.CellTemplate>
-        <DataTemplate>
-            <ComboBox ItemsSource="{Binding DataContext.AccountSettings, RelativeSource={RelativeSource AncestorType=DataGrid}}"
-                      DisplayMemberPath="DisplayText"
-                      SelectedItem="{Binding SelectedDebitAccount, Mode=TwoWay}"
-                      BorderThickness="0" Background="Transparent"/>
-        </DataTemplate>
-    </DataGridTemplateColumn.CellTemplate>
-    <!-- Không có CellEditingTemplate -->
-</DataGridTemplateColumn>
-```
-
-`PaymentEntryItem.cs` (WPF grid row model) theo đó chỉ giữ `SelectedDebitAccount`/`SelectedCreditAccount` (`ISearchableItem?`) + `SelectedExpenseCategory` (`ExpenseCategory?`) — không cần property "Name" riêng để đồng bộ tay, vì `CellTemplate` đọc trực tiếp qua property path (`SelectedDebitAccount.DisplayText`).
-
-### Ghi nhớ TK Nợ/TK Có lần cuối chọn
-
-`ILastUsedPaymentAccountsStore`/`LastUsedPaymentAccountsStore` (`Data/Storage/`, `AddSingleton`) — lưu `LastDebitAccountId`/`LastCreditAccountId` mỗi khi user đổi lựa chọn, dòng mới ("+ Thêm dòng") tự mặc định theo đó. **Chỉ lưu trong RAM (session hiện tại)** — app này chưa có cơ chế lưu file settings nào cả (kể cả JWT token cũng chỉ lưu RAM qua `InMemoryAuthTokenStorage`), nên giá trị này **mất khi tắt app**, không phải bug.
-
-### Files mới/đổi chính (WPF)
-
-```
-Features/HomePage/Accounting/
-  Domain/Models/PaymentEntryItem.cs        — SelectedDebitAccount/SelectedCreditAccount/SelectedExpenseCategory
-  Domain/UseCases/{I}ConfirmPaymentUseCase.cs — mới
-  Data/Services/{I}PaymentService.cs       — + ConfirmAsync, TreoAsync (2026-08-11), sửa EnsureSuccessOrThrowAsync (đọc {"error":...} thay vì EnsureSuccessStatusCode() nuốt message)
-  Data/Storage/{I}LastUsedPaymentAccountsStore.cs — mới
-  ViewModels/PaymentViewModel.cs           — CanEdit (gate theo Status), ConfirmCommand, TreoCommand (2026-08-11, thay LoadAsync2Command + SaveCommand cũ — gộp lưu vào Treo), RefreshCommand (mới, giữ logic refresh-list cũ), EditCommand, PrintCommand
-  Views/PaymentWindow.xaml                 — toolbar/tab/grid mới
-  Views/PaymentPrintWindow.xaml(.cs)       — mới, in FlowDocument A5
-```
-
-### Known gaps
-
-- Tab "2. Thuế" chỉ là placeholder — Payment chưa có field thuế nào.
-- Cột "Mục thu/chi", "Đối tượng THCP", "Công trình" trong ảnh mẫu **chưa làm** — chưa có data model, user chọn bỏ qua lần này.
-- Chưa có unit test nào cho `ConfirmPaymentUseCase`/lifecycle mới.
-- "Sửa nhanh"/"Tiện ích"/"Mẫu"/"Giúp" hoàn toàn không có trên UI (theo yêu cầu ẩn action không có thật), không phải bug thiếu sót.
+**Suggested test cases:**
+- [ ] Create: `partner_type` sai / đối tượng không tồn tại / TK Nợ không tồn tại → `DomainException`
+- [ ] Create: `reason_detail` toàn khoảng trắng → lưu `null`
+- [ ] Update / Delete phiếu `Confirmed` → `DomainException`
+- [ ] Unconfirm: xoá đúng `CashTransaction` theo số phiếu, trả về `Treo`; phiếu chưa ghi sổ → `DomainException`
+- [ ] WPF: `ApplyEntryDefaults` chọn 6418/1111 khi có trong danh mục, rơi về TK gần nhất khi không có; dòng thứ hai chỉ tự điền khi gõ Số tiền
+- [ ] WPF: `OnReasonDetailChanged` không ghi đè dòng người dùng đã tự sửa Diễn giải
+- [ ] WPF: mở phiếu `ChiLuong` → `PaymentReasons` có thêm `ChiLuong`, `SelectedPaymentReason` giữ nguyên
 
 ---
 
-*Cập nhật lần cuối: 2026-08-26*
+## Notes
 
-## Update — 2026-09-29: Lý do chi theo MISA, tự điền Diễn giải, mặc định TK 6418/1111, bản in mẫu 02-TT
+- **Số tiền âm và trùng Số chứng từ chưa bị chặn** ở cả WPF lẫn BE — xem Edge Cases. Cần quyết định với kế toán trước khi thêm ràng buộc (vd unique index trên `DocumentNumber` sẽ làm lỗi nếu dữ liệu thật đã có số trùng).
+- **Chi bằng tiền gửi (TK Có 112) vẫn vào sổ quỹ tiền mặt**, cùng vấn đề với phiếu thu (xem [quy.md](quy.md) Notes).
+- `POST /treo` và `POST /duplicate` còn ở BE nhưng WPF đã bỏ nút Treo (2026-09-26) và chưa từng có nút Nhân bản. Giữ lại, chưa xoá.
+- Khi deploy: phải chạy migration `AddPaymentDefaultAccounts6418And1111`, không thì Phiếu chi không có mặc định 6418/1111.
+- **Chưa kiểm chứng trên UTM** các thay đổi 2026-10-01: lưới trống khi mở, ô TK / Khoản mục CP gõ được. Đã thử và bỏ `ComboBox IsEditable` (WPF tự bôi đen chữ khi mở danh sách → gõ bị đè mất ký tự) — đừng quay lại hướng đó.
+- Doc WPF `desktop-lamour/.../Accounting/docs/phieu-chi.md` vẫn là nhật ký cũ (có đoạn "Cất = lưu Nháp", toolbar Treo/Hoàn) — phần mô tả giao diện ở đó đã lỗi thời, lấy file này làm chuẩn cho logic.
 
-| Thay đổi | Chi tiết |
-|---|---|
-| Lý do chi | Ô chọn hiện 4 lý do như MISA, nhãn tiếng Việt: Tạm ứng cho nhân viên (`TamUngNhanVien`) · Gửi tiền vào ngân hàng (`GuiTienNganHang`) · Chi khác (`ChiKhac`, mặc định) · Thuế TNDN tạm tính (`ThueTNDNTamTinh`). 3 giá trị mới thêm cuối enum `PaymentReason`; DB lưu dạng chuỗi nên **không cần migration**. `ChiMuaHang`/`ChiTraNo`/`ChiLuong` giữ lại cho phiếu cũ: mở phiếu cũ vẫn hiện đúng (WPF tự thêm giá trị đó vào danh sách), nhưng không chọn mới được |
-| Nhãn lý do dùng chung (WPF) | `PaymentReasonDisplayConverter.Label` — dùng cho ô Lý do chi, lưới Quỹ, Xuất khẩu và bản in |
-| Tự điền Diễn giải | Dòng hạch toán lấy "Diễn giải" = nội dung chi tiết cạnh Lý do chi (`ReasonDetail`), đổi theo khi gõ tiếp. Chỉ áp cho dòng còn trống hoặc đang mang đúng nội dung cũ — dòng người dùng tự sửa thì giữ nguyên (`PaymentViewModel.OnReasonDetailChanged`) |
-| Mặc định TK Nợ 6418 / TK Có 1111 | Dòng hạch toán mới luôn chọn sẵn 6418 / 1111 (`PaymentViewModel.AddEntry`). Nếu danh mục chưa có mã đó mới rơi về TK dùng gần nhất. Migration `20260929150308_AddPaymentDefaultAccounts6418And1111` thêm 2 tài khoản bằng SQL `INSERT ... WHERE NOT EXISTS` (không dùng `HasData` vì DB thật có thể đã có tài khoản người dùng tự tạo trùng id/mã). Down chỉ xoá khi chưa có phiếu chi / sản phẩm nào dùng |
-| Sổ quỹ | `ConfirmPaymentUseCase` vẫn ghi `CashTransaction.Account = "111"` cố định, nên chọn TK Có 1111 (TK con của 111) không làm lệch sổ quỹ |
-| Bản in | `PaymentPrintWindow` làm lại theo layout Phiếu thu (khớp MISA): PHIẾU CHI, Mẫu số 02 - TT, Nợ = TK Nợ của phiếu (6418), Có = TK Có (1111; mã 111 cũ in là 1111), Họ tên người nhận tiền, Lý do chi = nội dung chi tiết (trống thì nhãn lý do), Số tiền + Viết bằng chữ, 5 chữ ký Giám đốc · Kế toán trưởng · Thủ quỹ · Người lập phiếu · Người nhận tiền, tên người nhận in dưới cột của họ, khối "Đã nhận đủ số tiền". Layout dùng chung với phiếu thu: `Views/CashVoucherDocumentBuilder.cs` |
+---
 
-Chưa test qua UTM thật.
+*Generated by `/ct-ai-document` on 2026-09-30 · cập nhật 2026-10-02*

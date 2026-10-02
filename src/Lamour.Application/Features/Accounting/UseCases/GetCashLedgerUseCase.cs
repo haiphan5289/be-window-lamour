@@ -41,11 +41,13 @@ public class GetCashLedgerUseCase : IGetCashLedgerUseCase
             transactions.Where(t => t.ReceiptNumber != null).Select(t => t.ReceiptNumber!), ct);
         var paymentIds = await _paymentRepo.GetIdsByDocumentNumbersAsync(
             transactions.Where(t => t.PaymentNumber != null).Select(t => t.PaymentNumber!), ct);
-        // Dòng đã ghi sổ chỉ có số phiếu — tra thêm phiếu nào là hàng loạt (dòng Treo đã có sẵn CustomerId).
+        // Dòng đã ghi sổ chỉ có số phiếu — tra thêm phiếu nào là hàng loạt (dòng Treo đã có sẵn Receipt.IsBulk).
         var bulkReceiptIds = await _receiptRepo.GetBulkReceiptIdsAsync(receiptIds.Values, ct);
         // Diễn giải phiếu chi = "Lý do chi" chi tiết của phiếu gốc (CashTransaction.Description chỉ lưu tên người nhận).
         var reasonDetails = await _paymentRepo.GetReasonDetailsByIdsAsync(
             paymentIds.Values.Concat(unconfirmedPayments.Select(p => p.Id)), ct);
+        // Tương tự cho phiếu thu: Diễn giải = "Lý do nộp" chi tiết (dòng Treo đã có sẵn ReasonDetail).
+        var receiptReasonDetails = await _receiptRepo.GetReasonDetailsByIdsAsync(receiptIds.Values, ct);
 
         // Confirmed rows come from posted CashTransactions; Draft/Treo rows are Payments (và từ
         // 2026-09-26 cả Receipts) not yet ghi số — shown for visibility only, they must not move
@@ -61,7 +63,11 @@ public class GetCashLedgerUseCase : IGetCashLedgerUseCase
                                  && paymentIds.TryGetValue(t.PaymentNumber, out var descPid)
                                  && reasonDetails.TryGetValue(descPid, out var detail)
                     ? detail
-                    : ReasonLabel(t.PaymentReason),
+                    : t.ReceiptNumber != null
+                      && receiptIds.TryGetValue(t.ReceiptNumber, out var descRid)
+                      && receiptReasonDetails.TryGetValue(descRid, out var receiptDetail)
+                        ? receiptDetail
+                        : ReasonLabel(t.PaymentReason),
                 Account        = t.Account,
                 CounterAccount = t.CounterAccount,
                 DebitAmount    = t.DebitAmount,
@@ -115,20 +121,20 @@ public class GetCashLedgerUseCase : IGetCashLedgerUseCase
                         DocumentDate   = r.DocumentDate,
                         ReceiptNumber  = r.DocumentNumber,
                         PaymentNumber  = null,
-                        Description    = ReasonLabel(r.PaymentReason.ToString()),
-                        Account        = CreateReceiptUseCase.MapAccountCodeToString(first.DebitAccount),
-                        CounterAccount = CreateReceiptUseCase.MapAccountCodeToString(first.CreditAccount),
+                        Description    = string.IsNullOrWhiteSpace(r.ReasonDetail)
+                            ? ReasonLabel(r.PaymentReason.ToString())
+                            : r.ReasonDetail,
+                        Account        = ReceiptEntryBuilder.LedgerAccount(first.DebitAccountSetting?.Code),
+                        CounterAccount = first.CreditAccountSetting?.Code ?? "131",
                         DebitAmount    = totalAmount,
                         CreditAmount   = 0m,
                         Amount         = totalAmount,
-                        PersonName     = SubjectName(r.PayerName, r.CustomerId is null),
+                        PersonName     = SubjectName(r.PayerName, r.IsBulk),
                         PaymentReason  = r.PaymentReason.ToString(),
-                        DocumentType   = r.CustomerId is null
-                            ? "Phiếu thu tiền mặt khách hàng hàng loạt"
-                            : "Phiếu thu tiền mặt khách hàng",
+                        DocumentType   = ReceiptEntryBuilder.DocumentType(r),
                         Status         = "Treo",
                         ReceiptId      = r.Id,
-                        IsBulkReceipt  = r.CustomerId is null,
+                        IsBulkReceipt  = r.IsBulk,
                     };
                 }))
             .OrderBy(e => e.AccountingDate)
@@ -159,6 +165,9 @@ public class GetCashLedgerUseCase : IGetCashLedgerUseCase
         "ThuTienHang"          => "Thu tiền hàng",
         "ThuCongNo"            => "Thu công nợ",
         "ThuKhachHangHangLoat" => "Thu tiền khách hàng",
+        "RutTienGuiVeNopQuy"   => "Rút tiền gửi về nộp quỹ",
+        "ThuHoanThueGTGT"      => "Thu hoàn thuế GTGT",
+        "ThuHoanUng"           => "Thu hoàn ứng",
         "ChiKhac"              => "Chi khác",
         "ChiMuaHang"           => "Chi mua hàng",
         "ChiTraNo"             => "Chi trả nợ",

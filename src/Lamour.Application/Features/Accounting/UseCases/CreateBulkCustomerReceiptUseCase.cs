@@ -9,7 +9,7 @@ namespace Lamour.Application.Features.Accounting.UseCases;
 
 // "Phiếu thu tiền khách hàng hàng loạt" — khớp ảnh mẫu MISA: tạo ĐÚNG 1 Receipt duy nhất (không
 // group theo CustomerId ra nhiều phiếu như bản trước 2026-08-26), mỗi dòng hạch toán tự mang
-// khách hàng riêng qua ReceiptEntry.SubjectCode/SubjectName (Receipt.CustomerId = null cho phiếu
+// khách hàng riêng qua ReceiptEntry.SubjectCode/SubjectName (Receipt.PartnerType = null cho phiếu
 // loại này — xem Receipt.cs). Tái dùng nguyên ICreateReceiptUseCase — validate còn nợ + ghi
 // CashTransaction side-effect đã có sẵn ở đó, không viết lại.
 public class CreateBulkCustomerReceiptUseCase : ICreateBulkCustomerReceiptUseCase
@@ -72,7 +72,7 @@ public class CreateBulkCustomerReceiptUseCase : ICreateBulkCustomerReceiptUseCas
 
         var createRequest = new CreateReceiptRequestDto
         {
-            CustomerId          = null,
+            // Không có partner_type/partner_id = phiếu hàng loạt (Receipt.IsBulk).
             PayerName           = payerName,
             Address             = request.Address,
             PaymentReason       = "ThuKhachHangHangLoat",

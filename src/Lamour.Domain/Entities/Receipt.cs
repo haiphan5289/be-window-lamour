@@ -16,9 +16,19 @@ public class Receipt
     // cho phiếu thu 1 khách hàng bình thường (hành vi cũ, không đổi).
     public int?      CustomerId { get; set; }
     public Customer? Customer   { get; set; }
+    // 2026-10-01: Đối tượng đa loại (Khách hàng / Nhân viên) — cùng cơ chế Payment.PartnerType/PartnerId
+    // (không FK thật). Null cả 3 = phiếu thu HÀNG LOẠT (xem IsBulk). Phiếu của Khách hàng vẫn điền
+    // CustomerId (= PartnerId) để các truy vấn cũ theo CustomerId không đổi.
+    public PaymentPartnerType? PartnerType { get; set; }
+    public int?      PartnerId   { get; set; }
+    public string?   PartnerName { get; set; }             // Tên đối tượng (cache tại thời điểm lưu)
+    // Phiếu thu tiền khách hàng hàng loạt. KHÔNG dùng CustomerId == null nữa: phiếu thu của Nhân viên
+    // cũng có CustomerId == null.
+    public bool IsBulk => PartnerType is null;
     public string PayerName { get; set; } = "";           // Người nộp
     public string? Address { get; set; }                   // Địa chỉ
     public PaymentReason PaymentReason { get; set; } = PaymentReason.ThuKhac;
+    public string? ReasonDetail { get; set; }              // Lý do nộp (chi tiết, tự do)
     public int? CollectorEmployeeId { get; set; }          // Nhân viên thu
     public Employee? CollectorEmployee { get; set; }
     public string? Attachment { get; set; }                // Kèm theo

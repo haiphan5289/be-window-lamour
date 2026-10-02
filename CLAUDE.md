@@ -140,6 +140,9 @@ Each feature has a dedicated doc. **Always read the feature doc before implement
 | Products / Sản phẩm | `src/Lamour.Application/Features/Products/docs/products.md` |
 | Categories / Danh mục | `src/Lamour.Application/Features/Categories/docs/categories.md` |
 | Quỹ / Sổ kế toán chi tiết quỹ tiền mặt | `src/Lamour.Application/Features/Accounting/docs/quy.md` |
+| Phiếu thu | `src/Lamour.Application/Features/Accounting/docs/phieu-thu.md` |
+| Phiếu chi | `src/Lamour.Application/Features/Accounting/docs/phieu-chi.md` |
+| Báo cáo Quỹ / Sổ kế toán chi tiết quỹ tiền mặt (báo cáo) | `src/Lamour.Application/Features/Accounting/docs/bao-cao-quy.md` |
 | Phiếu thu hàng loạt / Thu tiền khách hàng hàng loạt | `src/Lamour.Application/Features/Accounting/docs/phieu-thu-hang-loat.md` |
 
 > For any other feature, check `src/Lamour.Application/Features/[Feature]/docs/` first.

@@ -1,7 +1,9 @@
+using Lamour.Application.Features.AccountSettings.Repositories;
 using Lamour.Application.Features.Accounting.Dtos;
 using Lamour.Application.Features.Accounting.Repositories;
+using Lamour.Application.Features.Customers.Repositories;
+using Lamour.Application.Features.Employees.Repositories;
 using Lamour.Domain.Entities;
-using Lamour.Domain.Enums;
 using Lamour.Domain.Exceptions;
 using Microsoft.Extensions.Logging;
 
@@ -9,15 +11,24 @@ namespace Lamour.Application.Features.Accounting.UseCases;
 
 public class UpdateReceiptUseCase : IUpdateReceiptUseCase
 {
-    private readonly IReceiptRepository     _repo;
+    private readonly IReceiptRepository        _repo;
+    private readonly IAccountSettingRepository _accountSettingRepo;
+    private readonly ICustomerRepository       _customerRepo;
+    private readonly IEmployeeRepository       _employeeRepo;
     private readonly ILogger<UpdateReceiptUseCase> _logger;
 
     public UpdateReceiptUseCase(
         IReceiptRepository repo,
+        IAccountSettingRepository accountSettingRepo,
+        ICustomerRepository customerRepo,
+        IEmployeeRepository employeeRepo,
         ILogger<UpdateReceiptUseCase> logger)
     {
-        _repo     = repo;
-        _logger   = logger;
+        _repo               = repo;
+        _accountSettingRepo = accountSettingRepo;
+        _customerRepo       = customerRepo;
+        _employeeRepo       = employeeRepo;
+        _logger             = logger;
     }
 
     public async Task<ReceiptResponseDto> ExecuteAsync(
@@ -29,14 +40,19 @@ public class UpdateReceiptUseCase : IUpdateReceiptUseCase
         if (receipt.Status != ReceiptStatus.Draft)
             throw new DomainException("Chứng từ đã ghi sổ, không thể sửa. Bỏ ghi trước khi sửa.");
 
-        if (!Enum.TryParse<PaymentReason>(request.PaymentReason, out var paymentReason))
-            throw new DomainException($"Invalid payment_reason '{request.PaymentReason}'.");
+        var paymentReason = ReceiptEntryBuilder.ParseReason(request.PaymentReason);
+        var partner = await ReceiptEntryBuilder.ResolvePartnerAsync(
+            request.PartnerType, request.PartnerId, paymentReason, _customerRepo, _employeeRepo, ct);
+        // Validate mọi dòng TRƯỚC khi đụng vào entity đang tracked.
+        var entries = await ReceiptEntryBuilder.BuildEntriesAsync(
+            request.Entries, _repo, _accountSettingRepo, validateRemaining: false, ct);
 
         // Update header fields
-        receipt.CustomerId          = request.CustomerId;
+        ReceiptEntryBuilder.ApplyPartner(receipt, partner);
         receipt.PayerName           = request.PayerName;
         receipt.Address             = request.Address;
         receipt.PaymentReason       = paymentReason;
+        receipt.ReasonDetail        = string.IsNullOrWhiteSpace(request.ReasonDetail) ? null : request.ReasonDetail.Trim();
         receipt.CollectorEmployeeId = request.CollectorEmployeeId;
         receipt.Attachment          = request.Attachment;
         receipt.Reference           = request.Reference;
@@ -46,25 +62,7 @@ public class UpdateReceiptUseCase : IUpdateReceiptUseCase
 
         // Replace entries
         receipt.Entries.Clear();
-        foreach (var e in request.Entries)
-        {
-            if (!Enum.TryParse<AccountCode>(e.DebitAccount, out var debit))
-                throw new DomainException($"Invalid debit_account '{e.DebitAccount}'.");
-            if (!Enum.TryParse<AccountCode>(e.CreditAccount, out var credit))
-                throw new DomainException($"Invalid credit_account '{e.CreditAccount}'.");
-
-            receipt.Entries.Add(new ReceiptEntry
-            {
-                Description   = e.Description,
-                DebitAccount  = debit,
-                CreditAccount = credit,
-                Amount        = e.Amount,
-                SubjectCode   = e.SubjectCode,
-                SubjectName   = e.SubjectName,
-                BankAccount   = e.BankAccount,
-                SalesOrderId  = e.SalesOrderId,
-            });
-        }
+        foreach (var entry in entries) receipt.Entries.Add(entry);
 
         await _repo.UpdateAsync(receipt, ct);
 
@@ -73,6 +71,8 @@ public class UpdateReceiptUseCase : IUpdateReceiptUseCase
 
         _logger.LogInformation("Updated Receipt {Id} ({DocumentNumber})", id, receipt.DocumentNumber);
 
-        return GetReceiptsUseCase.MapToDto(receipt);
+        // Nạp lại để dòng mới có đủ mã/tên TK (navigation chưa được load trên entity vừa thêm).
+        var refreshed = await _repo.GetByIdAsync(id, ct) ?? receipt;
+        return GetReceiptsUseCase.MapToDto(refreshed);
     }
 }

@@ -202,6 +202,8 @@ builder.Services.AddScoped<Lamour.Application.Features.Accounting.Repositories.I
                            Lamour.Infrastructure.Repositories.CashLedgerRepository>();
 builder.Services.AddScoped<Lamour.Application.Features.Accounting.UseCases.IGetCashLedgerUseCase,
                            Lamour.Application.Features.Accounting.UseCases.GetCashLedgerUseCase>();
+builder.Services.AddScoped<Lamour.Application.Features.Accounting.UseCases.IGetCashLedgerDetailReportUseCase,
+                           Lamour.Application.Features.Accounting.UseCases.GetCashLedgerDetailReportUseCase>();
 builder.Services.AddScoped<Lamour.Application.Features.Accounting.Repositories.IReceiptRepository,
                            Lamour.Infrastructure.Repositories.ReceiptRepository>();
 builder.Services.AddScoped<Lamour.Application.Features.Accounting.UseCases.IGetReceiptsUseCase,

@@ -13,6 +13,10 @@ public class ReceiptConfiguration : IEntityTypeConfiguration<Receipt>
         builder.Property(x => x.PayerName).HasMaxLength(200).IsRequired();
         builder.Property(x => x.Address).HasMaxLength(500);
         builder.Property(x => x.PaymentReason).HasConversion<string>().HasMaxLength(30).IsRequired();
+        builder.Property(x => x.ReasonDetail).HasMaxLength(500);
+        builder.Property(x => x.PartnerType).HasConversion<string>().HasMaxLength(20);
+        builder.Property(x => x.PartnerName).HasMaxLength(200);
+        builder.HasIndex(x => new { x.PartnerType, x.PartnerId });
         builder.Property(x => x.Attachment).HasMaxLength(500);
         builder.Property(x => x.Reference).HasMaxLength(200);
         builder.Property(x => x.DocumentNumber).HasMaxLength(50).IsRequired();
@@ -66,12 +70,20 @@ public class ReceiptEntryConfiguration : IEntityTypeConfiguration<ReceiptEntry>
         builder.ToTable("receipt_entries");
         builder.HasKey(x => x.Id);
         builder.Property(x => x.Description).HasMaxLength(500).IsRequired();
-        builder.Property(x => x.DebitAccount).HasConversion<string>().HasMaxLength(20).IsRequired();
-        builder.Property(x => x.CreditAccount).HasConversion<string>().HasMaxLength(20).IsRequired();
         builder.Property(x => x.Amount).HasPrecision(18, 2).IsRequired();
         builder.Property(x => x.SubjectCode).HasMaxLength(50);
         builder.Property(x => x.SubjectName).HasMaxLength(200);
         builder.Property(x => x.BankAccount).HasMaxLength(100);
+
+        builder.HasOne(x => x.DebitAccountSetting)
+               .WithMany()
+               .HasForeignKey(x => x.DebitAccountSettingId)
+               .OnDelete(DeleteBehavior.Restrict);
+
+        builder.HasOne(x => x.CreditAccountSetting)
+               .WithMany()
+               .HasForeignKey(x => x.CreditAccountSettingId)
+               .OnDelete(DeleteBehavior.Restrict);
 
         builder.HasOne(x => x.SalesOrder)
                .WithMany()

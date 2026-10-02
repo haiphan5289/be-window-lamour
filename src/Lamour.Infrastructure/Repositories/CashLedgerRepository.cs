@@ -10,7 +10,9 @@ public class CashLedgerRepository : ICashLedgerRepository
     private readonly AppDbContext _db;
 
     // Hardcoded initial balance (số dư đầu kỳ gốc)
-    private const decimal InitialBalance = 129_501_061m;
+    private const decimal InitialBalanceValue = 129_501_061m;
+
+    public decimal InitialBalance => InitialBalanceValue;
 
     public CashLedgerRepository(AppDbContext db) => _db = db;
 
@@ -37,6 +39,17 @@ public class CashLedgerRepository : ICashLedgerRepository
             .SumAsync(c => c.DebitAmount - c.CreditAmount, ct);
 
         return InitialBalance + netBeforeDate;
+    }
+
+    public async Task<List<CashTransaction>> GetUpToDateAsync(DateTime to, CancellationToken ct = default)
+    {
+        var utcTo = DateTime.SpecifyKind(to, DateTimeKind.Utc);
+        return await _db.CashTransactions
+            .AsNoTracking()
+            .Where(c => c.AccountingDate <= utcTo)
+            .OrderBy(c => c.AccountingDate)
+            .ThenBy(c => c.Id)
+            .ToListAsync(ct);
     }
 
     public async Task<CashTransaction> AddAsync(CashTransaction tx, CancellationToken ct = default)

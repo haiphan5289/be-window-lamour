@@ -1,5 +1,3 @@
-using Lamour.Domain.Enums;
-
 namespace Lamour.Domain.Entities;
 
 public class ReceiptEntry
@@ -8,8 +6,10 @@ public class ReceiptEntry
     public int ReceiptId { get; set; }
     public Receipt Receipt { get; set; } = null!;
     public string Description { get; set; } = "";    // Diễn giải
-    public AccountCode DebitAccount { get; set; }    // TK Nợ
-    public AccountCode CreditAccount { get; set; }   // TK Có
+    public int DebitAccountSettingId { get; set; }    // TK Nợ
+    public AccountSetting DebitAccountSetting { get; set; } = null!;
+    public int CreditAccountSettingId { get; set; }   // TK Có
+    public AccountSetting CreditAccountSetting { get; set; } = null!;
     public decimal Amount { get; set; }               // Số tiền
     public string? SubjectCode { get; set; }          // Đối tượng column
     public string? SubjectName { get; set; }          // Tên đối tượng

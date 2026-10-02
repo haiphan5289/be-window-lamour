@@ -17,7 +17,8 @@ public class ReceiptRepository : IReceiptRepository
             .AsNoTracking()
             .Include(r => r.Customer)
             .Include(r => r.CollectorEmployee)
-            .Include(r => r.Entries)
+            .Include(r => r.Entries).ThenInclude(e => e.DebitAccountSetting)
+            .Include(r => r.Entries).ThenInclude(e => e.CreditAccountSetting)
             .OrderByDescending(r => r.CreatedAt)
             .ToListAsync(ct);
 
@@ -31,7 +32,8 @@ public class ReceiptRepository : IReceiptRepository
             .Where(r => r.Status != ReceiptStatus.Confirmed
                      && r.AccountingDate >= utcFrom
                      && r.AccountingDate <= utcTo)
-            .Include(r => r.Entries)
+            .Include(r => r.Entries).ThenInclude(e => e.DebitAccountSetting)
+            .Include(r => r.Entries).ThenInclude(e => e.CreditAccountSetting)
             .OrderBy(r => r.AccountingDate)
             .ThenBy(r => r.Id)
             .ToListAsync(ct);
@@ -52,6 +54,35 @@ public class ReceiptRepository : IReceiptRepository
         return rows.GroupBy(r => r.DocumentNumber).ToDictionary(g => g.Key, g => g.Max(r => r.Id));
     }
 
+    public async Task<Dictionary<string, Receipt>> GetByDocumentNumbersAsync(
+        IEnumerable<string> documentNumbers, CancellationToken ct = default)
+    {
+        var numbers = documentNumbers.Where(n => !string.IsNullOrEmpty(n)).Distinct().ToList();
+        if (numbers.Count == 0) return new Dictionary<string, Receipt>();
+
+        var rows = await _db.Receipts
+            .AsNoTracking()
+            .Where(x => numbers.Contains(x.DocumentNumber))
+            .Include(r => r.Entries).ThenInclude(e => e.DebitAccountSetting)
+            .Include(r => r.Entries).ThenInclude(e => e.CreditAccountSetting)
+            .ToListAsync(ct);
+        return rows.GroupBy(r => r.DocumentNumber).ToDictionary(g => g.Key, g => g.OrderBy(r => r.Id).Last());
+    }
+
+    public async Task<Dictionary<int, string>> GetReasonDetailsByIdsAsync(
+        IEnumerable<int> ids, CancellationToken ct = default)
+    {
+        var idList = ids.Distinct().ToList();
+        if (idList.Count == 0) return new Dictionary<int, string>();
+
+        var rows = await _db.Receipts
+            .AsNoTracking()
+            .Where(x => idList.Contains(x.Id) && x.ReasonDetail != null && x.ReasonDetail != "")
+            .Select(x => new { x.Id, x.ReasonDetail })
+            .ToListAsync(ct);
+        return rows.ToDictionary(r => r.Id, r => r.ReasonDetail!);
+    }
+
     public async Task<HashSet<int>> GetBulkReceiptIdsAsync(
         IEnumerable<int> receiptIds, CancellationToken ct = default)
     {
@@ -60,7 +91,7 @@ public class ReceiptRepository : IReceiptRepository
 
         var bulk = await _db.Receipts
             .AsNoTracking()
-            .Where(x => ids.Contains(x.Id) && x.CustomerId == null)
+            .Where(x => ids.Contains(x.Id) && x.PartnerType == null)
             .Select(x => x.Id)
             .ToListAsync(ct);
         return bulk.ToHashSet();
@@ -71,14 +102,16 @@ public class ReceiptRepository : IReceiptRepository
             .AsNoTracking()
             .Include(r => r.Customer)
             .Include(r => r.CollectorEmployee)
-            .Include(r => r.Entries)
+            .Include(r => r.Entries).ThenInclude(e => e.DebitAccountSetting)
+            .Include(r => r.Entries).ThenInclude(e => e.CreditAccountSetting)
             .FirstOrDefaultAsync(r => r.Id == id, ct);
 
     public async Task<Receipt?> GetByIdTrackedAsync(int id, CancellationToken ct = default)
         => await _db.Receipts
             .Include(r => r.Customer)
             .Include(r => r.CollectorEmployee)
-            .Include(r => r.Entries)
+            .Include(r => r.Entries).ThenInclude(e => e.DebitAccountSetting)
+            .Include(r => r.Entries).ThenInclude(e => e.CreditAccountSetting)
             .FirstOrDefaultAsync(r => r.Id == id, ct);
 
     public async Task<Receipt> AddAsync(Receipt receipt, CancellationToken ct = default)
@@ -90,6 +123,11 @@ public class ReceiptRepository : IReceiptRepository
         await _db.Entry(receipt).Reference(r => r.Customer).LoadAsync(ct);
         if (receipt.CollectorEmployeeId.HasValue)
             await _db.Entry(receipt).Reference(r => r.CollectorEmployee).LoadAsync(ct);
+        foreach (var entry in receipt.Entries)
+        {
+            await _db.Entry(entry).Reference(e => e.DebitAccountSetting).LoadAsync(ct);
+            await _db.Entry(entry).Reference(e => e.CreditAccountSetting).LoadAsync(ct);
+        }
 
         return receipt;
     }

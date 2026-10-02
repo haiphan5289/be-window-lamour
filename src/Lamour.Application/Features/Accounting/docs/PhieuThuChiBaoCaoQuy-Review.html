@@ -1,0 +1,439 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Phiếu Thu, Chi & Báo Cáo Quỹ</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:ital,wght@0,400;0,500;0,600;0,700;0,800;1,400&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+<style>
+/* Layout: một cột 880px kiểu hồ sơ rà soát — mỗi chức năng là một chương: sơ đồ màn hình → các bước → điểm cần chốt. */
+:root{
+  --bg:#f3f6f3; --surface:#ffffff; --surface-2:#eaf0eb;
+  --text:#16211b; --text-muted:#5a6a61;
+  --border:#d5dfd8; --border-strong:#b3c2b8;
+  --accent:#1f6b4a; --accent-ink:#134631; --accent-soft:#dcefe4; --accent-soft-border:#a9d3bb;
+  --flag:#a8325e; --flag-soft:#fbe6ee; --flag-soft-border:#eab3c8;
+  --draft:#b25e09; --draft-soft:#fdf0dc;
+  --shadow:0 1px 2px rgba(22,33,27,.06),0 6px 18px rgba(22,33,27,.06);
+  --sans:"Be Vietnam Pro","Segoe UI",system-ui,sans-serif;
+  --mono:"IBM Plex Mono",ui-monospace,monospace;
+}
+@media (prefers-color-scheme: dark){ :root:not([data-theme="light"]){
+  --bg:#101613; --surface:#18211c; --surface-2:#202b25;
+  --text:#e6efe9; --text-muted:#9bada3;
+  --border:#2c3a32; --border-strong:#40524a;
+  --accent:#5fc494; --accent-ink:#a5e3c3; --accent-soft:#1a3528; --accent-soft-border:#2c5a43;
+  --flag:#f08db0; --flag-soft:#3a1c28; --flag-soft-border:#6b3048;
+  --draft:#f0a94e; --draft-soft:#3a2a12;
+  --shadow:0 1px 2px rgba(0,0,0,.4),0 6px 18px rgba(0,0,0,.3);
+  color-scheme:dark } }
+:root[data-theme="dark"]{
+  --bg:#101613; --surface:#18211c; --surface-2:#202b25;
+  --text:#e6efe9; --text-muted:#9bada3;
+  --border:#2c3a32; --border-strong:#40524a;
+  --accent:#5fc494; --accent-ink:#a5e3c3; --accent-soft:#1a3528; --accent-soft-border:#2c5a43;
+  --flag:#f08db0; --flag-soft:#3a1c28; --flag-soft-border:#6b3048;
+  --draft:#f0a94e; --draft-soft:#3a2a12;
+  --shadow:0 1px 2px rgba(0,0,0,.4),0 6px 18px rgba(0,0,0,.3);
+  color-scheme:dark }
+
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--text);font-family:var(--sans);font-size:15.5px;line-height:1.62;margin:0}
+.page{max-width:880px;margin:0 auto;padding-inline:max(16px,3vw);padding-block:28px 56px;display:flex;flex-direction:column;gap:28px}
+h1,h2,h3{text-wrap:balance;margin:0;line-height:1.25}
+h1{font-size:clamp(1.6rem,4.4vw,2.15rem);font-weight:800;letter-spacing:-.01em}
+h2{font-size:1.3rem;font-weight:700}
+h3{font-size:1rem;font-weight:700}
+p{margin:0}
+.mono,code{font-family:var(--mono);font-variant-numeric:tabular-nums;font-size:.92em}
+code{background:var(--surface-2);padding:1px 5px;border-radius:3px}
+.muted{color:var(--text-muted)}
+
+.masthead{background:var(--surface);border:1px solid var(--border-strong);border-radius:6px;padding:24px;display:flex;flex-direction:column;gap:14px}
+.eyebrow{font-size:.72rem;font-weight:700;letter-spacing:.11em;text-transform:uppercase;color:var(--accent-ink)}
+.lede{color:var(--text-muted);max-width:65ch}
+.meta{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;border-top:1px dashed var(--border-strong);padding-top:14px}
+.meta div{min-width:0}
+.meta dt{font-size:.66rem;letter-spacing:.08em;text-transform:uppercase;color:var(--text-muted)}
+.meta dd{margin:2px 0 0;font-weight:600;font-size:.9rem}
+dl{margin:0}
+@media (max-width:700px){.meta{grid-template-columns:repeat(2,1fr)}}
+
+
+.toc{display:flex;flex-wrap:wrap;gap:8px}
+.toc a{font-size:.86rem;font-weight:600;color:var(--accent-ink);background:var(--accent-soft);border:1px solid var(--accent-soft-border);padding:5px 12px;border-radius:999px;text-decoration:none}
+.toc a:focus-visible,.check input:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+
+section{display:flex;flex-direction:column;gap:16px;min-width:0}
+.chapter-head{display:flex;flex-direction:column;gap:4px;border-bottom:2px solid var(--accent);padding-bottom:8px}
+.chapter-head .eyebrow{color:var(--text-muted)}
+
+.mockup-window{border:1px solid var(--border-strong);border-radius:8px;background:var(--surface);box-shadow:var(--shadow);overflow:hidden}
+.mockup-titlebar{padding:10px 16px;font-weight:700;font-size:.92rem;border-bottom:1px solid var(--border)}
+.mockup-tabs{display:flex;gap:2px;padding:0 12px;background:var(--surface-2);border-bottom:1px solid var(--border)}
+.mockup-tabs span{padding:8px 12px;font-size:.8rem;color:var(--text-muted);border-bottom:2px solid transparent}
+.mockup-tabs span.active{color:var(--accent-ink);border-bottom-color:var(--accent);font-weight:600}
+.mockup-toolbar{display:flex;flex-wrap:wrap;gap:8px;padding:10px 16px;border-bottom:1px solid var(--border);background:var(--surface-2)}
+.btn{display:inline-flex;gap:6px;align-items:center;font-size:.82rem;font-weight:600;padding:5px 10px;border:1px solid var(--border-strong);border-radius:4px;background:var(--surface)}
+.btn.primary{border-color:var(--accent);color:var(--accent-ink);background:var(--accent-soft)}
+.mockup-body{padding:16px}
+.mockup-body.form{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:12px 20px}
+.field{min-width:0}
+.field.wide{grid-column:1/-1}
+.field label{display:block;font-size:.68rem;text-transform:uppercase;letter-spacing:.04em;color:var(--text-muted)}
+.field .value{font-size:.9rem;font-weight:600;overflow-wrap:anywhere}
+.mockup-body.grid{overflow-x:auto;padding:0}
+.mockup-body.grid table{width:100%;border-collapse:collapse;font-size:.84rem;min-width:640px}
+.mockup-body.grid th{text-align:left;padding:8px 10px;background:var(--surface-2);color:var(--text-muted);font-size:.68rem;text-transform:uppercase;letter-spacing:.03em;white-space:nowrap}
+.mockup-body.grid td{padding:8px 10px;border-top:1px solid var(--border);white-space:nowrap}
+.mockup-body.grid td.num{text-align:right;font-family:var(--mono);font-variant-numeric:tabular-nums}
+.mockup-body.grid tr.opening td{font-weight:700}
+.mockup-body.grid td.link{color:var(--accent-ink);text-decoration:underline;font-family:var(--mono)}
+.mockup-body.grid tr.empty td{color:var(--text-muted);font-style:italic}
+.mockup-sub{padding:8px 16px;font-size:.78rem;font-weight:700;background:var(--surface-2);border-top:1px solid var(--border);border-bottom:1px solid var(--border)}
+.mockup-footer{padding:10px 16px;border-top:1px solid var(--border);text-align:right;font-size:.86rem}
+.mockup-caption{font-size:.76rem;font-style:italic;color:var(--text-muted)}
+
+.chips{background:var(--surface);border:1px solid var(--border);border-radius:6px;padding:14px 16px;display:flex;flex-direction:column;gap:10px}
+.chip-row{display:flex;flex-wrap:wrap;gap:8px}
+
+.steps{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:12px}
+.step{display:grid;grid-template-columns:44px 1fr;gap:14px;background:var(--surface);border:1px solid var(--border);border-radius:6px;padding:14px 16px}
+.step .n{width:44px;height:44px;display:grid;place-items:center;font-family:var(--mono);font-weight:600;font-size:1.05rem;background:var(--accent-soft);color:var(--accent-ink);border:1px solid var(--accent-soft-border);border-radius:4px}
+.step .body{min-width:0;display:flex;flex-direction:column;gap:8px}
+.step ul{margin:0;padding-left:18px;display:flex;flex-direction:column;gap:4px}
+.callout{border-left:3px solid var(--flag);background:var(--flag-soft);padding:9px 12px;font-size:.9rem;border-radius:0 4px 4px 0}
+.callout .tag{display:inline-block;font-size:.66rem;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--flag);margin-right:6px}
+
+.status{display:inline-block;font-size:.76rem;font-weight:700;padding:1px 8px;border-radius:999px}
+.status.treo{background:var(--draft-soft);color:var(--draft)}
+.status.posted{background:var(--accent-soft);color:var(--accent-ink)}
+
+.table-wrap{background:var(--surface);border:1px solid var(--border);border-radius:6px;overflow-x:auto}
+.rules{width:100%;border-collapse:collapse;font-size:.9rem;min-width:520px}
+.rules th{text-align:left;padding:9px 14px;background:var(--surface-2);font-size:.7rem;letter-spacing:.06em;text-transform:uppercase;color:var(--text-muted)}
+.rules td{padding:9px 14px;border-top:1px solid var(--border);vertical-align:top}
+.rules td:first-child{font-weight:600;width:34%}
+
+.checklist{background:var(--surface);border:1px solid var(--border-strong);border-radius:6px;padding:18px;display:flex;flex-direction:column;gap:12px}
+.progress{font-family:var(--mono);font-size:.84rem;color:var(--text-muted)}
+.check{display:grid;grid-template-columns:22px 1fr;gap:12px;align-items:start;padding:10px 0;border-top:1px solid var(--border)}
+.check input{width:18px;height:18px;margin:3px 0 0;accent-color:var(--accent)}
+.check label{cursor:pointer}
+.check .where{display:block;font-size:.72rem;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--flag)}
+
+footer{font-size:.84rem;color:var(--text-muted);border-top:1px solid var(--border-strong);padding-top:16px;display:flex;flex-direction:column;gap:8px}
+footer b{color:var(--text)}
+</style>
+</head>
+<body>
+<div class="page">
+
+  <header class="masthead">
+    <div class="eyebrow">Hồ sơ rà soát quy trình · Phân hệ Quỹ</div>
+    <h1>Phiếu Thu, Phiếu Chi & Báo Cáo Quỹ</h1>
+    <p class="lede">Mô tả đúng cách phần mềm Lamour đang chạy ở ba chức năng này, theo từng bước bấm trên màn hình, để kế toán đối chiếu với cách làm việc hằng ngày. Chỗ nào cần kế toán quyết thì có khung màu hồng ghi “Cần chốt”.</p>
+    <dl class="meta">
+      <div><dt>Đối tượng</dt><dd>Kế toán lên đơn</dd></div>
+      <div><dt>Mục tiêu</dt><dd>Rà xem quy trình có đúng cách kế toán vận hành</dd></div>
+      <div><dt>Nguồn</dt><dd>Đọc trực tiếp từ phần mềm (máy chủ + ứng dụng Windows)</dd></div>
+      <div><dt>Ngày</dt><dd class="mono">02/10/2026</dd></div>
+    </dl>
+  </header>
+
+  <nav class="toc" aria-label="Mục lục">
+    <a href="#quy">Màn Quỹ</a>
+    <a href="#phieu-thu">Phiếu thu</a>
+    <a href="#phieu-chi">Phiếu chi</a>
+    <a href="#bao-cao">Báo cáo Quỹ</a>
+    <a href="#quy-tac">Quy tắc</a>
+    <a href="#can-chot">Cần chốt</a>
+  </nav>
+
+  <!-- ───────── Màn Quỹ ───────── -->
+  <section id="quy">
+    <div class="chapter-head"><div class="eyebrow">Điểm xuất phát</div><h2>Màn Quỹ</h2></div>
+    <p>Cả ba chức năng đều mở từ màn Quỹ. Mỗi phiếu sau khi Cất hiện thành một dòng ở đây, có trạng thái <span class="status posted">Đã ghi sổ</span> hoặc <span class="status treo">Treo</span> (chưa ghi sổ, chữ cam đậm). Phiếu Treo không làm đổi số tồn quỹ.</p>
+    <div class="chips">
+      <h3>Các nút trên thanh công cụ màn Quỹ</h3>
+      <div class="chip-row">
+        <span class="btn primary">➕ Thêm ▾</span><span class="btn">✏️ Sửa</span><span class="btn">📗 Ghi sổ</span><span class="btn">↩️ Bỏ ghi</span><span class="btn">🗑️ Xóa</span><span class="btn">📤 Xuất khẩu</span><span class="btn">✉️ Gửi email</span><span class="btn">💬 Gửi Zalo</span><span class="btn">📊 Báo cáo ▾</span>
+      </div>
+      <p class="muted" style="font-size:.88rem">“➕ Thêm ▾” mở ra ba lựa chọn: Phiếu thu, Phiếu chi, Thu tiền khách hàng hàng loạt. “📊 Báo cáo ▾” là nút mới.</p>
+    </div>
+  </section>
+
+  <!-- ───────── Phiếu thu ───────── -->
+  <section id="phieu-thu">
+    <div class="chapter-head"><div class="eyebrow">Chức năng 1</div><h2>Phiếu thu</h2></div>
+
+    <div>
+      <div class="mockup-window">
+        <div class="mockup-titlebar">Phiếu thu - CÔNG TY TNHH THƯƠNG MẠI DỊCH VỤ LAMOUR</div>
+        <div class="mockup-toolbar">
+          <span class="btn">Trước</span><span class="btn">Sau</span><span class="btn">Thêm</span><span class="btn">Sửa</span><span class="btn">Xóa</span><span class="btn primary">Cất</span><span class="btn">Ghi sổ / Bỏ ghi</span><span class="btn">In</span><span class="btn">Đóng</span>
+        </div>
+        <div class="mockup-body form">
+          <div class="field wide"><label>Đối tượng</label><div class="value">NV000 — Nguyễn Văn A</div></div>
+          <div class="field"><label>Người nộp</label><div class="value">Nguyễn Văn A</div></div>
+          <div class="field"><label>Địa chỉ</label><div class="value muted">(trống)</div></div>
+          <div class="field"><label>Lý do nộp</label><div class="value">Thu khác</div></div>
+          <div class="field"><label>Nội dung (ô bên cạnh)</label><div class="value">nhập quỹ</div></div>
+          <div class="field"><label>Nhân viên thu</label><div class="value muted">(tùy chọn)</div></div>
+          <div class="field"><label>Kèm theo</label><div class="value muted">chứng từ gốc</div></div>
+          <div class="field"><label>Tham chiếu</label><div class="value muted">(tùy chọn)</div></div>
+          <div class="field"><label>Ngày hạch toán</label><div class="value mono">30/09/2026</div></div>
+          <div class="field"><label>Ngày chứng từ</label><div class="value mono">30/09/2026</div></div>
+          <div class="field"><label>Số chứng từ</label><div class="value mono">PT00000</div></div>
+        </div>
+        <div class="mockup-sub">1. Hạch toán</div>
+        <div class="mockup-body grid">
+          <table>
+            <thead><tr><th>Diễn giải</th><th>TK Nợ</th><th>TK Có</th><th>Số tiền</th><th>Đối tượng</th><th>Tên đối tượng</th><th>TK ngân hàng</th></tr></thead>
+            <tbody>
+              <tr><td>nhập quỹ</td><td class="mono">1111</td><td class="mono">1388</td><td class="num">50.000.000</td><td class="mono">NV000</td><td>Nguyễn Văn A</td><td></td></tr>
+              <tr class="empty"><td colspan="7">(các dòng còn lại để trống, gõ Số tiền vào dòng nào thì dòng đó tự điền)</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="mockup-footer"><span class="muted">+ Thêm dòng · Số dòng = 1 · </span>Tổng tiền: <span class="mono">50.000.000</span></div>
+      </div>
+      <p class="mockup-caption">Minh họa giao diện — không phải ảnh chụp thật. Tên người và số liệu là ví dụ.</p>
+    </div>
+
+    <ol class="steps">
+      <li class="step"><div class="n">1</div><div class="body"><h3>Mở phiếu và chọn Đối tượng</h3>
+        <p>Màn Quỹ → “➕ Thêm ▾” → Phiếu thu. Số chứng từ tự sinh dạng <span class="mono">PT</span> + 5 số. Gõ mã hoặc tên vào ô Đối tượng; danh sách gồm <b>Khách hàng và Nhân viên</b>. Chọn xong, Người nộp tự điền theo tên; Địa chỉ tự điền nếu là khách hàng.</p>
+        <div class="callout"><span class="tag">Cần chốt</span>Phiếu thu không chọn được Nhà cung cấp (Phiếu chi thì có). Có trường hợp nào cần thu tiền từ nhà cung cấp không?</div></div></li>
+      <li class="step"><div class="n">2</div><div class="body"><h3>Chọn Lý do nộp</h3>
+        <p>Bốn lựa chọn: Rút tiền gửi về nộp quỹ · Thu hoàn thuế GTGT · Thu hoàn ứng · Thu khác (mặc định).</p>
+        <div class="callout"><span class="tag">Cần chốt</span>Hai lý do cũ “Thu tiền hàng” và “Thu công nợ” không còn chọn mới được; phiếu cũ mở ra vẫn hiện đúng. Có cần giữ lại để chọn không?</div></div></li>
+      <li class="step"><div class="n">3</div><div class="body"><h3>Nội dung tự điền theo lý do</h3>
+        <p>Ô bên cạnh Lý do nộp tự điền đúng tên lý do (ví dụ “Thu khác”). Kế toán gõ đè nội dung thật, ví dụ “nhập quỹ”. Nếu đã gõ nội dung riêng thì đổi lý do sẽ không ghi đè.</p></div></li>
+      <li class="step"><div class="n">4</div><div class="body"><h3>Dòng hạch toán đầu tiên tự hiện</h3>
+        <p>Sau khi chọn Đối tượng, dòng đầu tự điền: Diễn giải (theo ô nội dung), TK Nợ <span class="mono">1111</span>, TK Có <span class="mono">1388</span>, Đối tượng và Tên đối tượng.</p>
+        <div class="callout"><span class="tag">Cần chốt</span>TK mặc định của Phiếu thu là Nợ 1111 / Có 1388. Đúng với đa số phiếu thu của công ty chưa?</div></div></li>
+      <li class="step"><div class="n">5</div><div class="body"><h3>Sửa TK Có (nếu cần)</h3>
+        <p>Bấm vào ô TK rồi gõ số tài khoản; danh sách tự lọc theo chữ đang gõ. Enter hoặc chuyển ô là chọn. Gõ số không có trong danh mục thì ô trở về tài khoản cũ. Chỉ chọn được tài khoản đã có trong danh mục Tài khoản kế toán.</p></div></li>
+      <li class="step"><div class="n">6</div><div class="body"><h3>Nhập Số tiền</h3>
+        <p>Kế toán gõ Số tiền. Muốn thêm dòng thì gõ Số tiền vào dòng trống kế tiếp, dòng đó tự điền như dòng đầu.</p>
+        <div class="callout"><span class="tag">Cần chốt</span>Yêu cầu gốc ghi “tự động nhập số tiền”, nhưng hiện phần mềm để kế toán gõ tay. Số tiền cần tự lấy từ đâu?</div>
+        <div class="callout"><span class="tag">Cần chốt</span>Phần mềm chưa chặn số tiền âm. Gõ số âm trên phiếu thu sẽ làm giảm quỹ. Có cần chặn không?</div></div></li>
+      <li class="step"><div class="n">7</div><div class="body"><h3>Cất</h3>
+        <p>Bấm “Cất”: phiếu được lưu <b>và ghi sổ quỹ ngay</b>, số tồn quỹ tăng. Màn hình khóa lại, nút đổi thành “Bỏ ghi”, có thể bấm “In” ngay. Thiếu Đối tượng, chưa có dòng nào có tiền, hoặc dòng có tiền thiếu tài khoản thì phần mềm báo lỗi và không lưu.</p>
+        <div class="callout"><span class="tag">Cần chốt</span>Cất là ghi sổ ngay, không qua bước duyệt. Đúng quy trình mong muốn chưa?</div></div></li>
+      <li class="step"><div class="n">8</div><div class="body"><h3>Sửa hoặc xóa sau khi đã Cất</h3>
+        <ul><li>Phiếu đã ghi sổ không sửa, không xóa được.</li><li>Bấm “Bỏ ghi” → phiếu về Treo, số tồn quỹ trả lại như trước.</li><li>Bấm “Sửa” → sửa → “Cất” lại (ghi sổ lại).</li><li>“Xóa” chỉ bấm được khi phiếu đang Treo, có hỏi lại trước khi xóa.</li></ul></div></li>
+      <li class="step"><div class="n">9</div><div class="body"><h3>In phiếu thu (mẫu 01-TT)</h3>
+        <p>Bản in gồm: tên công ty, Mẫu số 01 - TT, ngày, Số, Nợ, Có, Họ tên người nộp tiền, Địa chỉ, Lý do nộp (lấy ô nội dung), Số tiền, Viết bằng chữ, Kèm theo, và 5 chữ ký: Giám đốc · Kế toán trưởng · Người nộp tiền · Người lập phiếu · Thủ quỹ.</p></div></li>
+    </ol>
+  </section>
+
+  <!-- ───────── Phiếu chi ───────── -->
+  <section id="phieu-chi">
+    <div class="chapter-head"><div class="eyebrow">Chức năng 2</div><h2>Phiếu chi</h2></div>
+    <p>Cách làm giống Phiếu thu. Dưới đây chỉ nêu những điểm khác.</p>
+
+    <div>
+      <div class="mockup-window">
+        <div class="mockup-titlebar">Phiếu chi - CÔNG TY TNHH THƯƠNG MẠI DỊCH VỤ LAMOUR</div>
+        <div class="mockup-toolbar">
+          <span class="btn">Trước</span><span class="btn">Sau</span><span class="btn">Thêm</span><span class="btn">Sửa</span><span class="btn">Xóa</span><span class="btn primary">Cất</span><span class="btn">Ghi sổ / Bỏ ghi</span><span class="btn">In</span><span class="btn">Đóng</span>
+        </div>
+        <div class="mockup-body form">
+          <div class="field wide"><label>Đối tượng</label><div class="value">NV000 — Nguyễn Văn A</div></div>
+          <div class="field"><label>Người nhận</label><div class="value">Nguyễn Văn A</div></div>
+          <div class="field"><label>Địa chỉ</label><div class="value muted">(trống)</div></div>
+          <div class="field"><label>Lý do chi</label><div class="value">Chi khác</div></div>
+          <div class="field"><label>Chi tiết lý do chi</label><div class="value">thuê lái xe 21/7</div></div>
+          <div class="field"><label>Nhân viên</label><div class="value muted">(tùy chọn)</div></div>
+          <div class="field"><label>Kèm theo</label><div class="value muted">chứng từ gốc</div></div>
+          <div class="field"><label>Tham chiếu</label><div class="value muted">(tùy chọn)</div></div>
+          <div class="field"><label>Ngày hạch toán</label><div class="value mono">30/09/2026</div></div>
+          <div class="field"><label>Ngày chứng từ</label><div class="value mono">30/09/2026</div></div>
+          <div class="field"><label>Số chứng từ</label><div class="value mono">PC00000</div></div>
+        </div>
+        <div class="mockup-tabs"><span class="active">1. Hạch toán</span><span>2. Thuế</span></div>
+        <div class="mockup-body grid">
+          <table>
+            <thead><tr><th>Diễn giải</th><th>TK Nợ</th><th>TK Có</th><th>Số tiền</th><th>Đối tượng</th><th>Tên đối tượng</th><th>TK ngân hàng</th><th>Khoản mục CP</th></tr></thead>
+            <tbody>
+              <tr><td>thuê lái xe 21/7</td><td class="mono">6418</td><td class="mono">1111</td><td class="num">3.000.000</td><td class="mono">NV000</td><td>Nguyễn Văn A</td><td></td><td class="mono">01</td></tr>
+              <tr class="empty"><td colspan="8">(các dòng còn lại để trống)</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="mockup-footer"><span class="muted">+ Thêm dòng · Số dòng = 1 · </span>Tổng tiền: <span class="mono">3.000.000</span></div>
+      </div>
+      <p class="mockup-caption">Minh họa giao diện — không phải ảnh chụp thật. Đang hiện tab “1. Hạch toán”; tab “2. Thuế” chỉ có dòng chữ “Phiếu chi này không có thông tin thuế.”</p>
+    </div>
+
+    <div class="table-wrap">
+      <table class="rules">
+        <thead><tr><th>Điểm khác</th><th>Phiếu chi</th></tr></thead>
+        <tbody>
+          <tr><td>Đối tượng</td><td>Nhà cung cấp, Khách hàng và Nhân viên, tìm chung một ô. Địa chỉ tự điền với nhà cung cấp và khách hàng.</td></tr>
+          <tr><td>Lý do chi</td><td>Tạm ứng cho nhân viên · Gửi tiền vào ngân hàng · Chi khác (mặc định) · Thuế TNDN tạm tính. Ô chi tiết bên cạnh <b>không</b> tự điền theo lý do; kế toán tự gõ.</td></tr>
+          <tr><td>TK mặc định</td><td>Nợ <span class="mono">6418</span> / Có <span class="mono">1111</span>.</td></tr>
+          <tr><td>Khoản mục CP</td><td>Cột riêng của phiếu chi, tùy chọn; gõ mã hoặc tên để chọn như ô tài khoản.</td></tr>
+          <tr><td>Số chứng từ</td><td><span class="mono">PC</span> + 5 số, ứng dụng tự lấy số lớn nhất đang có cộng 1.</td></tr>
+          <tr><td>Bản in</td><td>Mẫu 02-TT. Chữ ký: Giám đốc · Kế toán trưởng · Thủ quỹ · Người lập phiếu · Người nhận tiền.</td></tr>
+          <tr><td>Sổ quỹ</td><td>Luôn ghi vào quỹ tiền mặt (111), kể cả khi TK Có của dòng là tiền gửi 112.</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="callout"><span class="tag">Cần chốt</span>TK mặc định của Phiếu chi là Nợ 6418 / Có 1111. Đúng chưa?</div>
+    <div class="callout"><span class="tag">Cần chốt</span>Chi bằng tiền gửi (TK Có 112) hiện vẫn trừ vào quỹ tiền mặt. Kế toán có lập phiếu chi bằng tiền gửi ở màn này không? Nếu có thì cần sửa.</div>
+  </section>
+
+  <!-- ───────── Báo cáo ───────── -->
+  <section id="bao-cao">
+    <div class="chapter-head"><div class="eyebrow">Chức năng 3</div><h2>Báo cáo Quỹ: Sổ kế toán chi tiết quỹ tiền mặt</h2></div>
+
+    <div>
+      <div class="mockup-window">
+        <div class="mockup-titlebar">Sổ kế toán chi tiết quỹ tiền mặt - Tham số</div>
+        <div class="mockup-body form">
+          <div class="field wide"><label>Kỳ báo cáo</label><div class="value">Tháng 1</div></div>
+          <div class="field"><label>Từ</label><div class="value mono">01/01/2026</div></div>
+          <div class="field"><label>Đến</label><div class="value mono">31/01/2026</div></div>
+        </div>
+        <div class="mockup-sub">Tài khoản · ☑ Chọn tất cả</div>
+        <div class="mockup-body grid">
+          <table style="min-width:420px">
+            <thead><tr><th></th><th>Số tài khoản</th><th>Tên tài khoản</th><th>Bậc</th></tr></thead>
+            <tbody>
+              <tr><td>☑</td><td class="mono">111</td><td>Tiền mặt</td><td class="num">1</td></tr>
+              <tr><td>☑</td><td class="mono">1111</td><td>Tiền Việt Nam</td><td class="num">2</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="mockup-body" style="font-size:.86rem">☐ Cộng gộp các bút toán giống nhau &nbsp;·&nbsp; ☐ Sắp xếp chứng từ theo thứ tự lập</div>
+        <div class="mockup-toolbar" style="border-top:1px solid var(--border);border-bottom:0"><span class="btn">Xóa điều kiện</span><span class="btn">Hủy bỏ</span><span class="btn primary">Đồng ý</span></div>
+      </div>
+      <p class="mockup-caption">Minh họa giao diện — không phải ảnh chụp thật. Bảng tài khoản lấy các tài khoản bắt đầu bằng 111 trong danh mục.</p>
+    </div>
+
+    <div>
+      <div class="mockup-window">
+        <div class="mockup-titlebar">SỔ KẾ TOÁN CHI TIẾT QUỸ TIỀN MẶT · <span class="muted" style="font-weight:400;font-style:italic">Tháng 01 năm 2026</span></div>
+        <div class="mockup-toolbar">
+          <span class="btn">⚙️ Chọn tham số...</span><span class="btn">🔄 Nạp</span><span class="btn">🖨️ In</span><span class="btn">📤 Xuất khẩu</span><span class="btn">✉️ Gửi Email</span><span class="btn">💬 Zalo</span><span class="btn">✖ Đóng</span>
+        </div>
+        <div class="mockup-body grid">
+          <table style="min-width:980px">
+            <thead><tr><th>Ngày hạch toán</th><th>Ngày chứng từ</th><th>Số phiếu thu</th><th>Số phiếu chi</th><th>Diễn giải</th><th>Tài khoản</th><th>TK đối ứng</th><th>Phát sinh Nợ</th><th>Phát sinh Có</th><th>Số tồn</th><th>Người nhận/Người nộp</th><th>Mã mục thu/chi</th><th>Tên mục thu/chi</th></tr></thead>
+            <tbody>
+              <tr class="opening"><td></td><td></td><td></td><td></td><td>Số tồn đầu kỳ</td><td class="mono">111</td><td></td><td class="num">0</td><td class="num">0</td><td class="num">100.000.000</td><td></td><td></td><td></td></tr>
+              <tr><td class="mono">05/01/2026</td><td class="mono">05/01/2026</td><td class="link">PT00000</td><td></td><td>Thu tiền khách hàng</td><td class="mono">1111</td><td class="mono">131</td><td class="num">2.000.000</td><td class="num">0</td><td class="num">102.000.000</td><td>Nguyễn Văn A</td><td></td><td></td></tr>
+              <tr><td class="mono">05/01/2026</td><td class="mono">05/01/2026</td><td class="link">PT00000</td><td></td><td>Thu tiền khách hàng</td><td class="mono">1111</td><td class="mono">131</td><td class="num">500.000</td><td class="num">0</td><td class="num">102.500.000</td><td>Nguyễn Văn A</td><td></td><td></td></tr>
+              <tr><td class="mono">07/01/2026</td><td class="mono">07/01/2026</td><td></td><td class="link">PC00000</td><td>đổ xăng</td><td class="mono">1111</td><td class="mono">6418</td><td class="num">0</td><td class="num">700.000</td><td class="num">101.800.000</td><td>Trần Thị B</td><td class="mono">01</td><td>Phòng kinh doanh</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="mockup-footer"><span class="muted">Số dòng = 3 · Tổng phát sinh Nợ: </span><span class="mono">2.500.000</span><span class="muted"> · Tổng phát sinh Có: </span><span class="mono">700.000</span><span class="muted"> · Số tồn cuối kỳ: </span><span class="mono">101.800.000</span></div>
+      </div>
+      <p class="mockup-caption">Minh họa giao diện — không phải ảnh chụp thật. Số phiếu gạch chân là bấm được. Số liệu là ví dụ.</p>
+    </div>
+
+    <ol class="steps">
+      <li class="step"><div class="n">1</div><div class="body"><h3>Mở báo cáo</h3>
+        <p>Màn Quỹ → “📊 Báo cáo ▾” → Sổ kế toán chi tiết quỹ tiền mặt. Trong danh sách còn ba báo cáo khác (Dòng tiền · Dự báo thu, chi công nợ · Bảng kê số dư tiền theo ngày), đang để mờ kèm chữ “(chưa hỗ trợ)”.</p>
+        <div class="callout"><span class="tag">Cần chốt</span>Ba báo cáo còn lại có cần làm không? Nếu có, xin gửi mẫu như đã gửi cho báo cáo này.</div></div></li>
+      <li class="step"><div class="n">2</div><div class="body"><h3>Chọn kỳ báo cáo</h3>
+        <ul><li><b>Theo tháng:</b> chọn Tháng 1 đến Tháng 12; Từ/Đến tự đặt đúng ngày đầu và ngày cuối tháng.</li><li><b>Tùy chọn:</b> tự chọn Từ ngày và Đến ngày. Nếu đang ở một tháng mà sửa tay ngày, ô Kỳ tự chuyển sang “Tùy chọn”.</li><li>Ngoài ra có: Hôm nay · Tuần này · Đầu tháng đến hiện tại · Tháng này · Tháng trước · Quý này · Năm nay · Quý I đến Quý IV.</li></ul>
+        <div class="callout"><span class="tag">Cần chốt</span>“Tháng 1…12” luôn là tháng của <b>năm hiện tại</b>. Muốn xem tháng của năm trước phải dùng Tùy chọn. Có cần thêm ô chọn năm không?</div></div></li>
+      <li class="step"><div class="n">3</div><div class="body"><h3>Chọn tài khoản</h3>
+        <p>Mặc định tick hết. Phải tick ít nhất một tài khoản. Tick 111 là gồm luôn các tài khoản con như 1111.</p></div></li>
+      <li class="step"><div class="n">4</div><div class="body"><h3>Đồng ý</h3>
+        <p>Báo cáo hiện ra: dòng đầu là Số tồn đầu kỳ (in đậm), sau đó <b>mỗi dòng hạch toán một dòng</b> (một phiếu thu hàng loạt có 4 khách thì hiện 4 dòng cùng số phiếu), cột Số tồn cộng dồn theo từng dòng. Tiêu đề phụ ghi “Tháng 01 năm 2026” nếu chọn đúng trọn một tháng, còn lại ghi “Từ ngày … đến ngày …”.</p>
+        <div class="callout"><span class="tag">Cần chốt</span>Báo cáo chỉ gồm phiếu <b>đã ghi sổ</b>. Phiếu đang Treo không có trong báo cáo. Đúng ý kế toán chưa?</div></div></li>
+      <li class="step"><div class="n">5</div><div class="body"><h3>Xem chi tiết một chứng từ</h3>
+        <p>Bấm vào số phiếu thu hoặc số phiếu chi: mở đúng cửa sổ phiếu đó (Phiếu thu, Phiếu chi, hoặc Phiếu thu tiền mặt khách hàng hàng loạt). Bỏ ghi, sửa, cất lại trong phiếu xong thì báo cáo tự tải lại. Các dòng số liệu cũ chuyển từ MISA sang không còn phiếu gốc nên số phiếu là chữ thường, không bấm được.</p></div></li>
+      <li class="step"><div class="n">6</div><div class="body"><h3>In, xuất, gửi</h3>
+        <p>“🖨️ In” in bảng báo cáo (bản in bỏ hai cột mục thu/chi cho vừa giấy). “📤 Xuất khẩu” ra file Excel đủ cột. “✉️ Gửi Email” và “💬 Zalo” lưu file Excel rồi mở ứng dụng thư hoặc Zalo để kế toán tự đính kèm; phần mềm không tự gửi.</p></div></li>
+    </ol>
+  </section>
+
+  <!-- ───────── Quy tắc ───────── -->
+  <section id="quy-tac">
+    <div class="chapter-head"><div class="eyebrow">Tra cứu nhanh</div><h2>Quy tắc phần mềm đang áp dụng</h2></div>
+    <div class="table-wrap">
+      <table class="rules">
+        <thead><tr><th>Quy tắc</th><th>Giá trị hiện tại</th></tr></thead>
+        <tbody>
+          <tr><td>Cất</td><td>Lưu và ghi sổ quỹ ngay, áp dụng cho Phiếu thu, Phiếu chi và Phiếu thu hàng loạt</td></tr>
+          <tr><td>Phiếu đã ghi sổ</td><td>Không sửa, không xóa. Phải “Bỏ ghi” trước</td></tr>
+          <tr><td>Bỏ ghi / Ghi sổ</td><td>Một nút đổi tên theo trạng thái, không hỏi xác nhận. Xóa thì có hỏi</td></tr>
+          <tr><td>Dòng không có Số tiền</td><td>Không được lưu</td></tr>
+          <tr><td>TK mặc định Phiếu thu</td><td>Nợ <span class="mono">1111</span> / Có <span class="mono">1388</span></td></tr>
+          <tr><td>TK mặc định Phiếu chi</td><td>Nợ <span class="mono">6418</span> / Có <span class="mono">1111</span></td></tr>
+          <tr><td>Loại chứng từ trên màn Quỹ</td><td>Thu của nhân viên: “Phiếu thu”. Thu của khách hàng: “Phiếu thu tiền mặt khách hàng”. Hàng loạt: “Phiếu thu tiền mặt khách hàng hàng loạt”. Chi: “Phiếu chi”</td></tr>
+          <tr><td>Diễn giải trên màn Quỹ</td><td>Lấy ô nội dung của phiếu; để trống thì lấy tên lý do</td></tr>
+          <tr><td>Tên đối tượng trên phiếu</td><td>Giữ theo lúc lưu phiếu; sau này đổi tên khách hàng/nhân viên thì phiếu cũ không đổi theo</td></tr>
+          <tr><td>Số tồn đầu kỳ của báo cáo</td><td>Số dư gốc của quỹ cộng toàn bộ thu trừ chi đã ghi sổ trước ngày “Từ”</td></tr>
+          <tr><td>Báo cáo quỹ tiền mặt</td><td>Chỉ tính các dòng thuộc tài khoản 111 và tài khoản con. Phiếu thu vào tiền gửi (112) không nằm trong báo cáo</td></tr>
+          <tr><td>Cộng gộp các bút toán giống nhau</td><td>Các dòng cùng phiếu, cùng diễn giải, cùng tài khoản đối ứng gộp thành một dòng cộng tiền</td></tr>
+          <tr><td>Sắp xếp theo thứ tự lập</td><td>Sắp theo lúc lập phiếu thay vì theo ngày hạch toán</td></tr>
+          <tr><td>Cột không có trong báo cáo</td><td>Số khế ước (phần mềm chưa có khế ước vay). Mã/Tên mục thu/chi chỉ có ở dòng phiếu chi</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- ───────── Cần chốt ───────── -->
+  <section id="can-chot">
+    <div class="chapter-head"><div class="eyebrow">Danh sách rà soát</div><h2>Các điểm cần kế toán chốt</h2></div>
+    <div class="checklist">
+      <div class="progress" id="progress" aria-live="polite">0/13 đã xem qua</div>
+      <div id="checks"></div>
+      <p class="muted" style="font-size:.84rem">Ô tick chỉ để kế toán tự đánh dấu mục nào đã đọc, lưu riêng trên trình duyệt này. Người khác không thấy.</p>
+    </div>
+  </section>
+
+  <footer>
+    <p><b>Gửi góp ý thế nào:</b> nhắn lại cho người gửi file này, ghi rõ mục nào (ví dụ “Phiếu thu, bước 6” hoặc “Cần chốt số 3”). Ô tick ở trên không gửi được ý kiến cho ai cả.</p>
+    <p><b>Nguồn đối chiếu:</b> quy trình lập, ghi sổ, bỏ ghi phiếu thu và phiếu chi; cách tính báo cáo sổ quỹ; cửa sổ Phiếu thu, Phiếu chi, màn Quỹ, hộp tham số và trang báo cáo của ứng dụng Windows. Tài liệu kỹ thuật kèm theo: phieu-thu.md, phieu-chi.md, bao-cao-quy.md, quy.md.</p>
+    <p>Giao diện mới của Phiếu thu, ô gõ tài khoản và Báo cáo Quỹ chưa được chạy thử trên máy Windows tại thời điểm viết (02/10/2026).</p>
+  </footer>
+</div>
+
+<script>
+(function(){
+  var items=[
+    ["cat-ghi-so","Chung","Cất là ghi sổ quỹ ngay, không qua bước duyệt. Đúng quy trình mong muốn?"],
+    ["so-am","Phiếu thu · Phiếu chi","Chưa chặn số tiền âm (số âm trên phiếu thu làm giảm quỹ, trên phiếu chi làm tăng quỹ). Có cần chặn?"],
+    ["trung-so","Phiếu thu · Phiếu chi","Chưa chặn trùng Số chứng từ. Hai phiếu trùng số thì Bỏ ghi một phiếu sẽ ảnh hưởng cả hai. Có cần chặn?"],
+    ["tk-thu","Phiếu thu","TK mặc định Nợ 1111 / Có 1388. Đúng với đa số phiếu thu?"],
+    ["tk-chi","Phiếu chi","TK mặc định Nợ 6418 / Có 1111. Đúng với đa số phiếu chi?"],
+    ["so-tien-tu-dong","Phiếu thu, bước 6","Yêu cầu gốc ghi “tự động nhập số tiền”; hiện kế toán gõ tay. Số tiền cần tự lấy từ đâu?"],
+    ["doi-tuong-thu","Phiếu thu, bước 1","Phiếu thu chỉ chọn được Khách hàng và Nhân viên, không có Nhà cung cấp. Đủ chưa?"],
+    ["ly-do-cu","Phiếu thu, bước 2","“Thu tiền hàng” và “Thu công nợ” không còn chọn mới được. Có cần giữ?"],
+    ["chi-tien-gui","Phiếu chi","Chi bằng tiền gửi (TK Có 112) vẫn trừ vào quỹ tiền mặt. Có lập phiếu chi kiểu này ở đây không?"],
+    ["thu-tien-gui","Báo cáo · Màn Quỹ","Phiếu thu vào tiền gửi (112) không có trong Báo cáo quỹ tiền mặt, nhưng vẫn cộng vào “Tồn quỹ đến hiện tại” ở màn Quỹ, nên hai số có thể lệch. Nên sửa màn Quỹ cho thống nhất?"],
+    ["nam-bao-cao","Báo cáo, bước 2","Tháng 1…12 luôn là năm hiện tại; xem năm trước phải dùng Tùy chọn. Có cần ô chọn năm?"],
+    ["phieu-treo","Báo cáo, bước 4","Báo cáo chỉ gồm phiếu đã ghi sổ, không có phiếu Treo. Đúng ý?"],
+    ["bao-cao-khac","Báo cáo, bước 1","Ba báo cáo còn lại (Dòng tiền · Dự báo thu, chi công nợ · Bảng kê số dư tiền theo ngày) có cần làm? Nếu có, xin gửi mẫu."]
+  ];
+  var KEY="quy-thu-chi-baocao-review:";
+  function get(id){ try{ return localStorage.getItem(KEY+id)==="1"; }catch(e){ return false; } }
+  function set(id,v){ try{ localStorage.setItem(KEY+id, v?"1":"0"); }catch(e){} }
+  var host=document.getElementById("checks"), prog=document.getElementById("progress");
+  function update(){
+    var n=host.querySelectorAll("input:checked").length;
+    prog.textContent=n+"/"+items.length+" đã xem qua";
+  }
+  items.forEach(function(it,i){
+    var row=document.createElement("div"); row.className="check";
+    var cb=document.createElement("input"); cb.type="checkbox"; cb.id="chk-"+it[0]; cb.checked=get(it[0]);
+    cb.addEventListener("change",function(){ set(it[0],cb.checked); update(); });
+    var lb=document.createElement("label"); lb.htmlFor=cb.id;
+    var w=document.createElement("span"); w.className="where"; w.textContent=(i+1)+" · "+it[1];
+    lb.appendChild(w); lb.appendChild(document.createTextNode(it[2]));
+    row.appendChild(cb); row.appendChild(lb); host.appendChild(row);
+  });
+  update();
+})();
+</script>
+</body>
+</html>

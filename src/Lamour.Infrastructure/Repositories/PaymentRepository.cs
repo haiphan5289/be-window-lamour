@@ -51,6 +51,22 @@ public class PaymentRepository : IPaymentRepository
         return rows.ToDictionary(r => r.Id, r => r.ReasonDetail!);
     }
 
+    public async Task<Dictionary<string, Payment>> GetByDocumentNumbersAsync(
+        IEnumerable<string> documentNumbers, CancellationToken ct = default)
+    {
+        var numbers = documentNumbers.Where(n => !string.IsNullOrEmpty(n)).Distinct().ToList();
+        if (numbers.Count == 0) return new Dictionary<string, Payment>();
+
+        var rows = await _db.Payments
+            .AsNoTracking()
+            .Where(x => numbers.Contains(x.DocumentNumber))
+            .Include(p => p.Entries).ThenInclude(e => e.DebitAccountSetting)
+            .Include(p => p.Entries).ThenInclude(e => e.CreditAccountSetting)
+            .Include(p => p.Entries).ThenInclude(e => e.ExpenseCategory)
+            .ToListAsync(ct);
+        return rows.GroupBy(r => r.DocumentNumber).ToDictionary(g => g.Key, g => g.OrderBy(r => r.Id).Last());
+    }
+
     public async Task<Dictionary<string, int>> GetIdsByDocumentNumbersAsync(
         IEnumerable<string> documentNumbers, CancellationToken ct = default)
     {
