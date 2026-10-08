@@ -78,6 +78,8 @@ builder.Services.AddScoped<Lamour.Application.Features.Products.UseCases.IDelete
                            Lamour.Application.Features.Products.UseCases.DeleteProductUseCase>();
 builder.Services.AddScoped<Lamour.Application.Features.Products.UseCases.IDuplicateProductUseCase,
                            Lamour.Application.Features.Products.UseCases.DuplicateProductUseCase>();
+builder.Services.AddScoped<Lamour.Application.Features.Products.UseCases.IGetNextProductCodeUseCase,
+                           Lamour.Application.Features.Products.UseCases.GetNextProductCodeUseCase>();
 builder.Services.AddScoped<Lamour.Application.Features.Products.UseCases.IImportExcelProductsUseCase,
                            Lamour.Infrastructure.UseCases.ImportExcelProductsUseCase>();
 
@@ -194,6 +196,8 @@ builder.Services.AddScoped<Lamour.Application.Features.Warehouse.Repositories.IP
                            Lamour.Infrastructure.Repositories.ProductWarehouseStockRepository>();
 builder.Services.AddScoped<Lamour.Application.Features.Warehouse.UseCases.IGetInventorySummaryUseCase,
                            Lamour.Application.Features.Warehouse.UseCases.GetInventorySummaryUseCase>();
+builder.Services.AddScoped<Lamour.Application.Features.Warehouse.UseCases.IGetInventorySummaryByWarehouseUseCase,
+                           Lamour.Application.Features.Warehouse.UseCases.GetInventorySummaryByWarehouseUseCase>();
 builder.Services.AddScoped<Lamour.Application.Features.Warehouse.UseCases.IGetInventoryDetailByProductUseCase,
                            Lamour.Application.Features.Warehouse.UseCases.GetInventoryDetailByProductUseCase>();
 
@@ -266,6 +270,10 @@ builder.Services.AddScoped<Lamour.Application.Features.WarehouseReceipts.UseCase
                            Lamour.Application.Features.WarehouseReceipts.UseCases.UpdateWarehouseReceiptUseCase>();
 builder.Services.AddScoped<Lamour.Application.Features.WarehouseReceipts.UseCases.IUnconfirmWarehouseReceiptUseCase,
                            Lamour.Application.Features.WarehouseReceipts.UseCases.UnconfirmWarehouseReceiptUseCase>();
+builder.Services.AddScoped<Lamour.Application.Features.WarehouseReceipts.UseCases.IDeleteWarehouseReceiptUseCase,
+                           Lamour.Application.Features.WarehouseReceipts.UseCases.DeleteWarehouseReceiptUseCase>();
+builder.Services.AddScoped<Lamour.Application.Features.WarehouseReceipts.UseCases.IGetNextWarehouseReceiptNumberUseCase,
+                           Lamour.Application.Features.WarehouseReceipts.UseCases.GetNextWarehouseReceiptNumberUseCase>();
 builder.Services.AddScoped<Lamour.Application.Features.Warehouse.UseCases.IGetWarehouseTransactionsUseCase,
                            Lamour.Application.Features.Warehouse.UseCases.GetWarehouseTransactionsUseCase>();
 

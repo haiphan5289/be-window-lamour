@@ -25,9 +25,29 @@ public interface IInventoryRepository
     // từ Tổng hợp tồn kho). Value/ImportValue chỉ tính sẵn cho dòng Nhập (từ Amount thật trên phiếu
     // nhập, khớp cách GetImportsByProductAsync tính) — dòng Xuất/Trả lại chỉ trả Qty, UseCase tự nhân
     // với Product.CostPrice hiện tại (khớp cách GetExportQtyByProductAsync/UseCase tính ExportValue).
+    // Mỗi dòng mang kho của nó (WarehouseId/Code/Name); dòng Sales không có WarehouseId (vd. dòng đặt cọc) bị bỏ qua.
     Task<IEnumerable<(
         DateTime AccountingDate, DateTime DocumentDate, string DocumentNumber, string DocumentType,
         int? SourceId, string? Description, string Unit,
-        int ImportQty, decimal ImportValue, int ExportQty)>> GetTransactionLinesByProductAsync(
+        int ImportQty, decimal ImportValue, int ExportQty,
+        int WarehouseId, string WarehouseCode, string WarehouseName)>> GetTransactionLinesByProductAsync(
         int productId, DateOnly fromDate, DateOnly toDate, IReadOnlyList<int>? warehouseIds = null, CancellationToken ct = default);
+
+    // ── Theo từng kho (Tổng hợp tồn kho chia theo kho) ───────────────────────────────────────────
+    // Danh sách kho (Id, Code, Name); warehouseIds null/empty = tất cả kho.
+    Task<List<(int Id, string Code, string Name)>> GetWarehousesAsync(
+        IReadOnlyList<int>? warehouseIds = null, CancellationToken ct = default);
+
+    // Như GetImportsByProductAsync nhưng group theo (WarehouseId, ProductId).
+    Task<Dictionary<(int WarehouseId, int ProductId), (int Qty, decimal Value, DateTime? LatestDate)>> GetImportsByWarehouseProductAsync(
+        DateOnly fromDate, DateOnly toDate, IReadOnlyList<int>? warehouseIds = null, CancellationToken ct = default);
+
+    // Như GetExportQtyByProductAsync (Sales − SalesReturn) nhưng group theo (WarehouseId, ProductId);
+    // dòng Sales có WarehouseId null bị bỏ qua.
+    Task<Dictionary<(int WarehouseId, int ProductId), int>> GetExportQtyByWarehouseProductAsync(
+        DateOnly fromDate, DateOnly toDate, IReadOnlyList<int>? warehouseIds = null, CancellationToken ct = default);
+
+    // Tồn hiện tại theo (WarehouseId, ProductId) từ ProductWarehouseStock; productId != null = chỉ 1 sản phẩm.
+    Task<Dictionary<(int WarehouseId, int ProductId), int>> GetClosingQtyByWarehouseProductAsync(
+        IReadOnlyList<int>? warehouseIds = null, int? productId = null, CancellationToken ct = default);
 }

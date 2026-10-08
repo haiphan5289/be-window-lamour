@@ -25,10 +25,7 @@ public class DuplicateProductUseCase : IDuplicateProductUseCase
         var source = await _repo.GetByIdAsync(id, ct)
             ?? throw new NotFoundException($"Product {id} not found.");
 
-        var newCode = string.IsNullOrWhiteSpace(source.Code) ? string.Empty : source.Code + "_COPY";
-
-        if (!string.IsNullOrWhiteSpace(newCode) && await _repo.CodeExistsAsync(newCode, ct: ct))
-            throw new DomainException($"Product with code '{newCode}' already exists.");
+        var newCode = await _repo.GetNextCodeAsync(ct);
 
         var copy = new Product
         {

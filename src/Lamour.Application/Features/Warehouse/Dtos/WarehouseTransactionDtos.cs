@@ -17,6 +17,7 @@ public class WarehouseTransactionResponseDto
     [JsonPropertyName("object_name")]          public string?  ObjectName        { get; set; } // Đối tượng — Khách hàng/Nhà cung cấp
     [JsonPropertyName("has_sales_order")]      public bool     HasSalesOrder     { get; set; } // Đã lập CT bán hàng — luôn true ở dòng Xuất kho
     [JsonPropertyName("is_held")]              public bool     IsHeld            { get; set; } // Xuất kho: Chứng từ bán hàng đang Treo. Nhập kho: phiếu chưa ghi sổ (Draft, kể cả sau khi Bỏ ghi)
+    [JsonPropertyName("is_posted")]            public bool     IsPosted          { get; set; } // Đã ghi sổ: Nhập kho = phiếu Confirmed; Xuất kho = Chứng từ bán hàng Normal. Khác IsHeld — Draft "Bỏ ghi" của chứng từ bán hàng vừa không Treo vừa chưa ghi sổ
     [JsonPropertyName("ledger_date")]          public DateTime LedgerDate        { get; set; } // Ngày ghi sổ kho — dùng CreatedAt (không có field riêng)
     [JsonPropertyName("document_type_label")]  public string   DocumentTypeLabel { get; set; } = "";
     [JsonPropertyName("lines")]                public List<WarehouseTransactionLineDto> Lines { get; set; } = new();

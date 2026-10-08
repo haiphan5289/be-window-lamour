@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Quỹ & Phiếu Chi - Phần Mềm Lamour</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:wght@500;600;700&family=Be+Vietnam+Pro:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#FAF8F5; --surface:#FFFFFF; --surface-2:#F2EFE9;
+    --text:#242220; --muted:#6E6A63; --border:#E4E0D8;
+    --accent:#2F6B5C; --accent-soft:#E3EFEA;
+    --accent-2:#B4622A; --accent-2-soft:#F5E9DE;
+    --accent-3:#8A5FB0; --accent-3-soft:#EFE7F5;
+  }
+  @media (prefers-color-scheme: dark){
+    :root{
+      --bg:#1B1917; --surface:#242220; --surface-2:#2C2A27;
+      --text:#EFEBE4; --muted:#A39D92; --border:#3A3733;
+      --accent:#7FBFA9; --accent-soft:#28352F;
+      --accent-2:#E0975A; --accent-2-soft:#3A2C1F;
+      --accent-3:#C4A3E0; --accent-3-soft:#332A3D;
+    }
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body{ background: var(--bg); color: var(--text); font-family: "Be Vietnam Pro", "Segoe UI", sans-serif; padding-inline: 16px; padding-block: 32px; }
+  h1,h2,h3{ font-family: "Fraunces", Georgia, serif; font-weight: 600; margin: 0; }
+  .wrap{ max-width: 720px; margin-inline: auto; display: flex; flex-direction: column; gap: 40px; }
+  .head{ display:flex; flex-direction: column; gap: 10px; padding-bottom: 24px; border-bottom: 1px solid var(--border); }
+  .head .eyebrow{ display:flex; align-items:center; gap:10px; font-size: 13px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); font-weight: 600; }
+  .head .eyebrow .dot{ width:6px; height:6px; border-radius:50%; background: var(--accent); }
+  .head h1{ font-size: clamp(28px, 5vw, 38px); text-wrap: balance; }
+  .section{ display:flex; flex-direction: column; gap: 16px; }
+  .section-head{ display:flex; align-items: baseline; gap: 12px; }
+  .section-head h2{ font-size: 21px; }
+  .tag{ font-size: 12px; font-weight: 700; letter-spacing: 0.04em; padding: 3px 10px; border-radius: 999px; white-space: nowrap; }
+  .tag.new{ background: var(--accent-soft); color: var(--accent); }
+  .tag.fix{ background: var(--accent-2-soft); color: var(--accent-2); }
+  .tag.note{ background: var(--accent-3-soft); color: var(--accent-3); }
+  .items{ display:flex; flex-direction: column; gap: 1px; background: var(--border); border: 1px solid var(--border); border-radius: 10px; overflow: hidden; }
+  .item{ background: var(--surface); padding: 16px 18px; display:flex; flex-direction: column; gap: 4px; }
+  .item .title{ font-weight: 600; font-size: 15.5px; }
+  .item .desc{ color: var(--muted); font-size: 14.5px; line-height: 1.6; }
+  .item .desc b{ color: var(--text); font-weight: 600; }
+  .callout{ background: var(--surface-2); border: 1px solid var(--border); border-radius: 10px; padding: 18px 20px; display:flex; flex-direction: column; gap: 10px; }
+  .callout .title{ font-weight: 700; font-size: 14.5px; color: var(--accent-3); }
+  .callout ul{ margin:0; padding-left: 20px; display:flex; flex-direction: column; gap: 8px; color: var(--muted); font-size: 14.5px; line-height: 1.6; }
+  .callout li b{ color: var(--text); font-weight: 600; }
+  footer{ color: var(--muted); font-size: 13px; text-align: center; padding-top: 8px; }
+  @media (max-width: 480px){ .section-head{ flex-wrap: wrap; } }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="head">
+    <div class="eyebrow"><span class="dot"></span>Phần mềm Lamour · 29/09/2026</div>
+    <h1>Quỹ &amp; Phiếu Chi</h1>
+  </div>
+
+  <div class="section">
+    <div class="section-head"><h2>Tính năng mới</h2><span class="tag new">MỚI</span></div>
+    <div class="items">
+      <div class="item">
+        <div class="title">In phiếu thu hàng loạt</div>
+        <div class="desc">Cửa sổ <b>Phiếu thu tiền mặt khách hàng hàng loạt</b> có thêm nút <b>In</b>, in ra phiếu thu mẫu 01-TT giống bản in MISA: Số tiền, Viết bằng chữ, đủ 5 chữ ký và dòng "Đã nhận đủ số tiền". Bấm In được khi phiếu đã Cất.</div>
+      </div>
+      <div class="item">
+        <div class="title">Tổng tiền trên phiếu thu hàng loạt</div>
+        <div class="desc">Dưới lưới tab <b>1. Hạch toán</b> có dòng tổng tiền nằm thẳng cột Số tiền, giống MISA. Mỗi tab có "Số dòng" riêng: tab Hạch toán đếm theo khách hàng, tab Chứng từ đếm theo hóa đơn.</div>
+      </div>
+      <div class="item">
+        <div class="title">Bản in phiếu chi mới (mẫu 02-TT)</div>
+        <div class="desc">Nút <b>In</b> trên cửa sổ <b>Phiếu chi</b> giờ in đúng mẫu 02-TT giống MISA, cùng khuôn với phiếu thu: Nợ / Có theo tài khoản của phiếu, Họ tên người nhận tiền, Lý do chi là nội dung bạn gõ, 5 chữ ký. Thay cho bản in dạng bảng cũ.</div>
+      </div>
+      <div class="item">
+        <div class="title">Lý do chi giống MISA</div>
+        <div class="desc">Ô <b>Lý do chi</b> trên phiếu chi có 4 lựa chọn bằng tiếng Việt: Tạm ứng cho nhân viên, Gửi tiền vào ngân hàng, Chi khác (mặc định), Thuế TNDN tạm tính.</div>
+      </div>
+      <div class="item">
+        <div class="title">Diễn giải tự điền trên phiếu chi</div>
+        <div class="desc">Gõ nội dung chi tiết cạnh Lý do chi (vd "làm cờ sự kiện 21/7") thì cột <b>Diễn giải</b> ở các dòng hạch toán tự điền theo. Dòng nào bạn đã tự sửa Diễn giải thì giữ nguyên.</div>
+      </div>
+      <div class="item">
+        <div class="title">Tài khoản mặc định 6418 / 1111</div>
+        <div class="desc">Mỗi dòng hạch toán mới trên phiếu chi có sẵn <b>TK Nợ 6418</b> (Chi phí bằng tiền khác) và <b>TK Có 1111</b> (Tiền Việt Nam), không phải chọn lại mỗi lần. Hai tài khoản này đã được thêm vào danh mục Tài khoản kế toán.</div>
+      </div>
+      <div class="item">
+        <div class="title">Sổ quỹ: gộp cột Số chứng từ, đổi tên cột Đối tượng</div>
+        <div class="desc">Trên màn <b>Sổ Kế Toán Chi Tiết Quỹ Tiền Mặt</b>, hai cột Số phiếu thu và Số phiếu chi gộp thành một cột <b>Số chứng từ</b> (PT… hoặc PC…). Cột "Người nhận/Người nộp" đổi tên thành <b>Đối tượng</b>. Xuất Excel cũng theo cột mới.</div>
+      </div>
+      <div class="item">
+        <div class="title">Sổ quỹ: dòng tổng thẳng cột, bỏ số tồn đầu/cuối kỳ</div>
+        <div class="desc">Bỏ dải "Số tồn đầu kỳ / Số tồn cuối kỳ". Dòng tổng cuối lưới giống MISA: <b>Tổng thu</b> dưới cột Số chứng từ, <b>Tổng chi</b> dưới cột Diễn giải, và tổng dưới cột Số tiền (cộng cả thu lẫn chi). Ô "Tồn quỹ đến hiện tại" góc trên phải vẫn giữ.</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="section-head"><h2>Đã sửa lỗi</h2><span class="tag fix">SỬA LỖI</span></div>
+    <div class="items">
+      <div class="item">
+        <div class="title">Diễn giải trên sổ quỹ hiện tên người</div>
+        <div class="desc">Trước đây cột Diễn giải trên sổ quỹ hiện tên người nộp/nhận (vd "Nhi Trúc"). Đã sửa: phiếu thu hiện lý do nộp (vd "Thu tiền khách hàng"), phiếu chi hiện nội dung chi tiết đã gõ. Áp dụng cả cho các phiếu đã ghi sổ trước đây.</div>
+      </div>
+      <div class="item">
+        <div class="title">Đối tượng của phiếu thu hàng loạt</div>
+        <div class="desc">Trước đây phiếu thu hàng loạt không nhập người nộp thì cột Đối tượng trên sổ quỹ hiện chữ "Thu tiền khách hàng hàng loạt". Giờ để trống như MISA; có nhập tên người nộp thì vẫn hiện tên đó.</div>
+      </div>
+      <div class="item">
+        <div class="title">Lý do chi hiện chữ không dấu</div>
+        <div class="desc">Trước đây ô Lý do chi hiện chữ như "ChiKhac", "TamUngNhanVien". Giờ hiện đúng tiếng Việt ở cửa sổ phiếu chi, trên sổ quỹ và trên bản in.</div>
+      </div>
+      <div class="item">
+        <div class="title">Lưới hạch toán phiếu chi bị lệch, cắt chữ</div>
+        <div class="desc">Trước đây các ô trong dòng không thẳng hàng và ô TK Nợ / TK Có bị cắt chữ (vd "1561 — Giá mua hàng h…"). Giờ ô TK Nợ, TK Có, Khoản mục CP chỉ hiện mã như MISA (mở ô ra vẫn thấy đủ tên), mọi ô canh giữa và các cột được chia lại cân đối.</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="callout">
+    <div class="title">Cần lưu ý khi dùng</div>
+    <ul>
+      <li><b>TK Nợ 6418 cho mọi lý do chi</b>: kể cả khi chọn "Tạm ứng cho nhân viên" hay "Thuế TNDN tạm tính", dòng mới vẫn có sẵn 6418 — bạn cần tự đổi TK Nợ. Danh mục tài khoản hiện <b>chưa có 141 và 3334</b>.</li>
+      <li><b>Lý do chi cũ</b>: phiếu chi cũ có lý do Chi mua hàng / Chi trả nợ / Chi lương vẫn mở và hiện đúng, nhưng phiếu mới không chọn được 3 lý do này nữa.</li>
+      <li><b>Diễn giải phiếu chi cũ</b>: phiếu chi cũ không gõ nội dung chi tiết thì trên sổ quỹ cột Diễn giải hiện tên lý do (vd "Chi khác").</li>
+      <li><b>Dòng tổng trên sổ quỹ</b>: canh theo độ rộng cột mặc định, nên sẽ lệch cột nếu bạn kéo giãn cột hoặc cuộn ngang lưới.</li>
+      <li><b>Chưa chặn số tiền âm và trùng số chứng từ</b> trên phiếu chi. Phiếu chi nhập số âm sẽ làm tăng tồn quỹ; hai phiếu trùng số có thể ảnh hưởng nhau khi Bỏ ghi. Vui lòng nhập cẩn thận trong lúc chờ bổ sung.</li>
+      <li><b>Thu/chi bằng tiền gửi (TK 112)</b> vẫn được tính vào sổ quỹ tiền mặt, như trước đây — chưa thay đổi ở bản này.</li>
+      <li><b>Bản in phiếu chi mới</b> chưa được thử in ra giấy trên máy thật. Lần đầu dùng, nhờ bạn in thử một phiếu và báo lại nếu có chỗ lệch.</li>
+      <li><b>Khi cập nhật lên máy chủ</b>, bộ phận kỹ thuật cần chạy bước cập nhật dữ liệu thì phiếu chi mới có sẵn 2 tài khoản 6418 và 1111.</li>
+    </ul>
+  </div>
+
+  <footer>Có thắc mắc gì cứ nhắn lại — bản ghi chi tiết kỹ thuật lưu ở file CHANGELOG.md trong dự án.</footer>
+
+</div>
+</body>
+</html>

@@ -38,6 +38,7 @@ public class CreateSupplierUseCase : ICreateSupplierUseCase
             Address        = request.Address,
             Group          = request.Group,
             TaxCode        = request.TaxCode,
+            IsIndividual   = request.IsIndividual,
             IsStopTracking = request.IsStopTracking,
         };
 
@@ -58,6 +59,7 @@ public class CreateSupplierUseCase : ICreateSupplierUseCase
         Group          = s.Group,
         TaxCode        = s.TaxCode,
         Phone          = s.Phone,
+        IsIndividual   = s.IsIndividual,
         IsStopTracking = s.IsStopTracking,
     };
 }

@@ -12,8 +12,8 @@ namespace Lamour.Infrastructure.Licensing;
 public class LicenseService : ILicenseService
 {
     // Ngày hết hạn CỐ ĐỊNH trong build (UTC). Đổi giá trị này rồi publish lại mỗi lần cấp/gia hạn cho khách.
-    // 2026-10-01 23:59:59 giờ Việt Nam (UTC+7) = 2026-10-01 16:59:59 UTC.
-    public static readonly DateTime ExpiresAtUtc = new(2026, 10, 1, 16, 59, 59, DateTimeKind.Utc);
+    // 2026-10-10 23:59:59 giờ Việt Nam (UTC+7) = 2026-10-10 16:59:59 UTC.
+    public static readonly DateTime ExpiresAtUtc = new(2026, 10, 10, 16, 59, 59, DateTimeKind.Utc);
 
     private const string LastSeenKey = "license_last_seen_utc";
     private static readonly TimeSpan PersistInterval = TimeSpan.FromMinutes(1);

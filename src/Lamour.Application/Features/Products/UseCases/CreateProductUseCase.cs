@@ -48,8 +48,9 @@ public class CreateProductUseCase : ICreateProductUseCase
                 ?? throw new DomainException($"Danh mục với id {request.CategoryId} không tồn tại.");
         }
 
-        if (!string.IsNullOrWhiteSpace(request.Code) && await _repo.CodeExistsAsync(request.Code, ct: ct))
-            throw new DomainException($"Product with code '{request.Code}' already exists.");
+        // Mã tự tăng — luôn sinh ở server, bỏ qua request.Code (client chỉ hiển thị mã dự kiến từ
+        // GET /products/next-code, không tự nhập).
+        var code = await _repo.GetNextCodeAsync(ct);
 
         ProductUnit? productUnit = null;
         if (request.ProductUnitId.HasValue)
@@ -60,7 +61,7 @@ public class CreateProductUseCase : ICreateProductUseCase
 
         var product = new Product
         {
-            Code             = request.Code.Trim(),
+            Code             = code,
             Name             = request.Name.Trim(),
             CategoryId       = request.CategoryId,
             // ĐVT chính (nếu chọn) đồng bộ vào Unit (string) để Sales/SalesReturn/WarehouseReceipt

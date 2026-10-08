@@ -56,6 +56,13 @@ public class WarehouseReceiptRepository : IWarehouseReceiptRepository
         return receipt;
     }
 
+    // Dòng phiếu (WarehouseReceiptLine) tự xóa theo (Cascade).
+    public async Task DeleteAsync(WarehouseReceipt receipt, CancellationToken ct = default)
+    {
+        _db.WarehouseReceipts.Remove(receipt);
+        await _db.SaveChangesAsync(ct);
+    }
+
     public async Task SaveChangesAsync(CancellationToken ct = default)
         => await _db.SaveChangesAsync(ct);
 

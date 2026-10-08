@@ -8,6 +8,7 @@ public interface IProductRepository
     Task<Product?> GetByIdAsync(int id, CancellationToken ct = default);
     Task<Product?> GetByIdTrackedAsync(int id, CancellationToken ct = default);
     Task<bool> CodeExistsAsync(string code, int? excludeId = null, CancellationToken ct = default);
+    Task<string> GetNextCodeAsync(CancellationToken ct = default);
     Task<Product> AddAsync(Product product, CancellationToken ct = default);
     Task AddRangeAsync(IEnumerable<Product> products, CancellationToken ct = default);
     Task<Product> UpdateAsync(Product product, CancellationToken ct = default);

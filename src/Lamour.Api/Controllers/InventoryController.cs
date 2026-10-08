@@ -10,13 +10,16 @@ namespace Lamour.Api.Controllers;
 public class InventoryController : ControllerBase
 {
     private readonly IGetInventorySummaryUseCase _getSummary;
+    private readonly IGetInventorySummaryByWarehouseUseCase _getSummaryByWarehouse;
     private readonly IGetInventoryDetailByProductUseCase _getDetail;
 
     public InventoryController(
         IGetInventorySummaryUseCase getSummary,
+        IGetInventorySummaryByWarehouseUseCase getSummaryByWarehouse,
         IGetInventoryDetailByProductUseCase getDetail)
     {
         _getSummary = getSummary;
+        _getSummaryByWarehouse = getSummaryByWarehouse;
         _getDetail  = getDetail;
     }
 
@@ -31,6 +34,21 @@ public class InventoryController : ControllerBase
         CancellationToken ct)
     {
         var result = await _getSummary.ExecuteAsync(from_date, to_date, warehouse_ids, category_id, product_unit_id, product_ids, ct);
+        return Ok(result);
+    }
+
+    // Tổng hợp tồn kho chia theo kho (nhóm "Tên kho : Hàng Hóa (N)" như MISA) — số liệu riêng từng kho.
+    [HttpGet("summary-by-warehouse")]
+    public async Task<IActionResult> GetSummaryByWarehouse(
+        [FromQuery] DateOnly from_date,
+        [FromQuery] DateOnly to_date,
+        [FromQuery] int[]? warehouse_ids,
+        [FromQuery] int? category_id,
+        [FromQuery] int? product_unit_id,
+        [FromQuery] int[]? product_ids,
+        CancellationToken ct)
+    {
+        var result = await _getSummaryByWarehouse.ExecuteAsync(from_date, to_date, warehouse_ids, category_id, product_unit_id, product_ids, ct);
         return Ok(result);
     }
 

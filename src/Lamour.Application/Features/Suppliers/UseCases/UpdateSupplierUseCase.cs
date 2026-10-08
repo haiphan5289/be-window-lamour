@@ -38,6 +38,7 @@ public class UpdateSupplierUseCase : IUpdateSupplierUseCase
         supplier.Address        = request.Address;
         supplier.Group          = request.Group;
         supplier.TaxCode        = request.TaxCode;
+        supplier.IsIndividual   = request.IsIndividual;
         supplier.IsStopTracking = request.IsStopTracking;
 
         var updated = await _repo.UpdateAsync(supplier, ct);
@@ -52,6 +53,7 @@ public class UpdateSupplierUseCase : IUpdateSupplierUseCase
             Group          = updated.Group,
             TaxCode        = updated.TaxCode,
             Phone          = updated.Phone,
+            IsIndividual   = updated.IsIndividual,
             IsStopTracking = updated.IsStopTracking,
         };
 

@@ -37,6 +37,7 @@ public class DuplicateSupplierUseCase : IDuplicateSupplierUseCase
             Address        = source.Address,
             Group          = source.Group,
             TaxCode        = source.TaxCode,
+            IsIndividual   = source.IsIndividual,
             IsStopTracking = source.IsStopTracking,
         };
 
@@ -52,6 +53,7 @@ public class DuplicateSupplierUseCase : IDuplicateSupplierUseCase
             Group          = created.Group,
             TaxCode        = created.TaxCode,
             Phone          = created.Phone,
+            IsIndividual   = created.IsIndividual,
             IsStopTracking = created.IsStopTracking,
         };
 

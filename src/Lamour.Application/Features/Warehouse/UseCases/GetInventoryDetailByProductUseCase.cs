@@ -36,37 +36,69 @@ public class GetInventoryDetailByProductUseCase : IGetInventoryDetailByProductUs
         _logger.LogInformation("Fetching inventory detail for product {ProductId} from {From} to {To}",
             productId, fromDate, toDate);
 
-        // Opening = Closing(hiện tại) − Import(range) + Export(range) — khớp công thức đã dùng ở
-        // GetInventorySummaryUseCase (ClosingQty là tồn thực tế NGAY BÂY GIỜ từ ProductWarehouseStock,
-        // không phải tồn tại thời điểm toDate — chấp nhận giới hạn này giống màn Tổng hợp).
-        var imports      = await _inventoryRepo.GetImportsByProductAsync(fromDate, toDate, warehouseIds, ct);
-        var exportQtys    = await _inventoryRepo.GetExportQtyByProductAsync(fromDate, toDate, warehouseIds, ct);
-        var closingQtys   = await _inventoryRepo.GetClosingQtyByProductAsync(warehouseIds, ct);
+        // Tính PER KHO: Opening(kho) = Closing(kho, hiện tại) − Nhập(kho, range) + Xuất(kho, range) — khớp công thức
+        // GetInventorySummaryUseCase (ClosingQty là tồn thực tế NGAY BÂY GIỜ từ ProductWarehouseStock, không phải
+        // tồn tại thời điểm toDate). Nhập/Xuất ròng của kho = Σ(ImportQty − ExportQty) trên các dòng của kho
+        // (Hàng bán bị trả lại tính vào ImportQty), nên không cần query tổng riêng.
+        var rawLines = (await _inventoryRepo.GetTransactionLinesByProductAsync(productId, fromDate, toDate, warehouseIds, ct)).ToList();
+        var closingByWarehouse = await _inventoryRepo.GetClosingQtyByWarehouseProductAsync(warehouseIds, productId, ct);
+        var warehouseList      = await _inventoryRepo.GetWarehousesAsync(warehouseIds, ct);
 
-        imports.TryGetValue(productId, out var imp);
-        exportQtys.TryGetValue(productId, out var exportQty);
-        closingQtys.TryGetValue(productId, out var closingQty);
+        var info = new Dictionary<int, (string Code, string Name)>();
+        foreach (var w in warehouseList) info[w.Id] = (w.Code, w.Name);
+        foreach (var l in rawLines) info.TryAdd(l.WarehouseId, (l.WarehouseCode, l.WarehouseName));
 
-        var importQtyTotal = imp.Qty;
-        var openingQty      = closingQty - importQtyTotal + exportQty;
-        var openingValue    = openingQty * product.CostPrice;
-        var closingValue    = closingQty * product.CostPrice;
+        var netByWarehouse = rawLines
+            .GroupBy(l => l.WarehouseId)
+            .ToDictionary(g => g.Key, g => g.Sum(l => l.ImportQty - l.ExportQty));
 
-        var rawLines = await _inventoryRepo.GetTransactionLinesByProductAsync(productId, fromDate, toDate, warehouseIds, ct);
+        // Kho liên quan: đúng các kho được chọn; nếu không chọn kho nào thì mọi kho có tồn hoặc có giao dịch.
+        var involvedIds = warehouseIds is { Count: > 0 }
+            ? warehouseList.Select(w => w.Id).ToHashSet()
+            : closingByWarehouse.Keys.Select(k => k.WarehouseId).Concat(netByWarehouse.Keys).ToHashSet();
 
+        var warehouses = new List<InventoryDetailWarehouseDto>();
+        var openingByWarehouse = new Dictionary<int, int>();
+        foreach (var id in involvedIds.Where(info.ContainsKey).OrderBy(id => info[id].Name, StringComparer.OrdinalIgnoreCase))
+        {
+            closingByWarehouse.TryGetValue((id, productId), out var closing);
+            netByWarehouse.TryGetValue(id, out var net);
+            var opening = closing - net;
+            openingByWarehouse[id] = opening;
+
+            warehouses.Add(new InventoryDetailWarehouseDto
+            {
+                WarehouseId   = id,
+                WarehouseCode = info[id].Code,
+                WarehouseName = info[id].Name,
+                OpeningQty    = opening,
+                OpeningValue  = opening * product.CostPrice,
+                ClosingQty    = closing,
+                ClosingValue  = closing * product.CostPrice,
+            });
+        }
+
+        var warehouseOrder = warehouses.Select((w, i) => (w.WarehouseId, Index: i)).ToDictionary(x => x.WarehouseId, x => x.Index);
         var lines = new List<InventoryDetailLineDto>();
-        var runningQty   = openingQty;
-        var runningValue = openingValue;
+        var runningByWarehouse = new Dictionary<int, int>(openingByWarehouse);
 
-        foreach (var l in rawLines.OrderBy(l => l.AccountingDate).ThenBy(l => l.DocumentNumber))
+        foreach (var l in rawLines
+                     .Where(l => warehouseOrder.ContainsKey(l.WarehouseId))
+                     .OrderBy(l => warehouseOrder[l.WarehouseId])
+                     .ThenBy(l => l.AccountingDate)
+                     .ThenBy(l => l.DocumentNumber))
         {
             // Xuất/Trả lại định giá theo CostPrice HIỆN TẠI của sản phẩm — khớp cách ExportValue
             // được tính ở GetInventorySummaryUseCase (không dùng UnitPrice bán ra trên chứng từ).
             var exportValue = l.ExportQty * product.CostPrice;
             var importValue = l.DocumentType == "SalesReturn" ? l.ImportQty * product.CostPrice : l.ImportValue;
 
-            runningQty   += l.ImportQty - l.ExportQty;
-            runningValue =  runningQty * product.CostPrice;
+            var qty       = l.ImportQty + l.ExportQty;
+            var lineValue = l.ImportQty > 0 ? importValue : exportValue;
+            var unitPrice = qty > 0 ? lineValue / qty : 0m;
+
+            var runningQty = runningByWarehouse[l.WarehouseId] + l.ImportQty - l.ExportQty;
+            runningByWarehouse[l.WarehouseId] = runningQty;
 
             lines.Add(new InventoryDetailLineDto
             {
@@ -81,10 +113,17 @@ public class GetInventoryDetailByProductUseCase : IGetInventoryDetailByProductUs
                 ImportValue    = importValue,
                 ExportQty      = l.ExportQty,
                 ExportValue    = exportValue,
+                WarehouseId    = l.WarehouseId,
+                WarehouseCode  = info[l.WarehouseId].Code,
+                WarehouseName  = info[l.WarehouseId].Name,
+                UnitPrice      = unitPrice,
                 RunningQty     = runningQty,
-                RunningValue   = runningValue,
+                RunningValue   = runningQty * product.CostPrice,
             });
         }
+
+        var openingQty = warehouses.Sum(w => w.OpeningQty);
+        var closingQty = warehouses.Sum(w => w.ClosingQty);
 
         return new InventoryDetailResponseDto
         {
@@ -93,9 +132,10 @@ public class GetInventoryDetailByProductUseCase : IGetInventoryDetailByProductUs
             Name         = product.Name,
             Unit         = product.Unit,
             OpeningQty   = openingQty,
-            OpeningValue = openingValue,
+            OpeningValue = openingQty * product.CostPrice,
             ClosingQty   = closingQty,
-            ClosingValue = closingValue,
+            ClosingValue = closingQty * product.CostPrice,
+            Warehouses   = warehouses,
             Lines        = lines,
         };
     }

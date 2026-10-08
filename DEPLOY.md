@@ -219,8 +219,8 @@ với thông báo chung "Hệ thống tạm thời không khả dụng. Vui lòn
 
 **Đổi ngày hết hạn (mỗi lần cấp / gia hạn cho khách):**
 
-1. Sửa `ExpiresAtUtc` trong `src/Lamour.Infrastructure/Licensing/LicenseService.cs` (giờ UTC; 23:59:59 giờ VN = 16:59:59 UTC cùng ngày).
-2. Publish lại BE (`bash deploy/publish-be-mac.sh`) và copy sang máy khách như quy trình ở trên — nhớ giữ `Password` trong `appsettings.Production.json`.
+1. Không cần sửa tay: `bash deploy/publish-be-mac.sh` tự ghi `ExpiresAtUtc` trong `src/Lamour.Infrastructure/Licensing/LicenseService.cs` = **ngày build + 5 ngày**, 23:59:59 giờ VN (= 16:59:59 UTC cùng ngày). Muốn số ngày khác: `LICENSE_DAYS=30 bash deploy/publish-be-mac.sh`.
+2. Copy `publish/api-win/` sang máy khách như quy trình ở trên — nhớ giữ `Password` trong `appsettings.Production.json`.
 3. Khách trả tiền → gửi bản build có `ExpiresAtUtc` mới; không trả → không cần làm gì, tới hạn API tự khóa.
 
 **Chống chỉnh lùi đồng hồ:** API lưu mốc thời gian lớn nhất từng thấy vào bảng `app_states` (key `license_last_seen_utc`, ghi tối đa 1 lần/phút).
@@ -229,4 +229,4 @@ Nếu giờ hệ thống nhỏ hơn mốc này quá 5 phút thì bị chặn. B�
 **Giới hạn cần biết:** đây là biện pháp răn đe, không tuyệt đối. Khách có quyền truy cập máy + DB vẫn có thể xóa dòng
 `license_last_seen_utc` (rồi lùi đồng hồ) hoặc tự sửa/patch file exe. Muốn chắc hơn cần thêm license key ký số hoặc kiểm tra online.
 
-**Ngày mặc định hiện tại:** 2026-10-01 (tính từ 2026-09-21) — nhớ sửa cho đúng ngày deploy thực tế trước khi publish.
+**Ngày hết hạn:** luôn = ngày chạy `publish-be-mac.sh` + `LICENSE_DAYS` (mặc định 5). Script sửa trực tiếp `LicenseService.cs` nên file này sẽ hiện trong `git diff` sau mỗi lần build. Build bằng lệnh `dotnet publish` gõ tay thì ngày **không** được cập nhật.

@@ -88,6 +88,7 @@ public class GetWarehouseTransactionsUseCase : IGetWarehouseTransactionsUseCase
         // sổ chính thức"), nên tô cùng màu cảnh báo IsHeld. Trước đây hardcode false nên dòng Nhập
         // kho ở Draft (kể cả sau khi Bỏ ghi) không bao giờ đổi màu — đây chính là bug được báo cáo.
         IsHeld             = r.Status != WarehouseReceiptStatus.Confirmed,
+        IsPosted           = r.Status == WarehouseReceiptStatus.Confirmed,
         LedgerDate         = r.CreatedAt,
         DocumentTypeLabel  = "Nhập kho",
         Lines = r.Lines.Select(l => new WarehouseTransactionLineDto
@@ -118,6 +119,7 @@ public class GetWarehouseTransactionsUseCase : IGetWarehouseTransactionsUseCase
         ObjectName         = o.Customer?.Name,
         HasSalesOrder      = true, // dòng Xuất kho luôn phát sinh TỪ 1 Sales Order đã ghi sổ
         IsHeld             = o.Status == SalesOrderStatus.Held,
+        IsPosted           = o.Status == SalesOrderStatus.Normal,
         LedgerDate         = o.CreatedAt,
         DocumentTypeLabel  = "Xuất kho bán hàng",
         Lines = o.Lines.Where(l => !l.IsPromotion && l.WarehouseId.HasValue).Select(l =>

@@ -37,6 +37,19 @@ public class ProductRepository : IProductRepository
         => await _db.Products.AsNoTracking()
             .AnyAsync(p => p.Code.ToLower() == code.ToLower() && (excludeId == null || p.Id != excludeId), ct);
 
+    // Mã tự tăng nối tiếp dãy số của MISA (1, 2, ... 69 → 70): chỉ xét mã toàn chữ số, bỏ qua mã chữ
+    // (CPMH, LPXD, DATCOC, SP001...).
+    public async Task<string> GetNextCodeAsync(CancellationToken ct = default)
+    {
+        var codes = await _db.Products.AsNoTracking().Select(p => p.Code).ToListAsync(ct);
+        var maxNum = codes
+            .Where(c => c.Length > 0 && c.All(char.IsAsciiDigit) && long.TryParse(c, out _))
+            .Select(long.Parse)
+            .DefaultIfEmpty(0)
+            .Max();
+        return (maxNum + 1).ToString();
+    }
+
     public async Task<Product> AddAsync(Product product, CancellationToken ct = default)
     {
         _db.Products.Add(product);

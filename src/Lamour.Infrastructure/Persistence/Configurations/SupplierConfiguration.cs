@@ -18,6 +18,7 @@ public class SupplierConfiguration : IEntityTypeConfiguration<Supplier>
         builder.Property(s => s.TaxCode).HasColumnName("tax_code").HasMaxLength(20);
         builder.Property(s => s.Phone).HasColumnName("phone").HasMaxLength(20);
         builder.Property(s => s.IsStopTracking).HasColumnName("is_stop_tracking").HasDefaultValue(false);
+        builder.Property(s => s.IsIndividual).HasColumnName("is_individual").HasDefaultValue(false);
 
         builder.HasIndex(s => s.Code).IsUnique();
     }

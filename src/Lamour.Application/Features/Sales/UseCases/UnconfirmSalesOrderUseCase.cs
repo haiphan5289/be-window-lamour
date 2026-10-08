@@ -9,8 +9,8 @@ using Microsoft.Extensions.Logging;
 
 namespace Lamour.Application.Features.Sales.UseCases;
 
-// "Bỏ ghi" — mirror HoldSalesOrderUseCase gần như nguyên vẹn (cùng shape: guard trạng thái, 2-pass
-// hoàn tồn kho) nhưng target Status.Draft thay vì Held — đây là 2 khái niệm khác nhau dù cơ chế
+// "Bỏ ghi" — mirror HoldSalesOrderUseCase gần như nguyên vẹn (cùng shape: guard trạng thái, hoàn
+// tồn kho) nhưng target Status.Draft thay vì Held — đây là 2 khái niệm khác nhau dù cơ chế
 // hoàn tồn kho giống hệt (xem comment enum SalesOrderStatus). "Treo" dùng cho đơn CHƯA hoàn chỉnh;
 // "Bỏ ghi" dùng để mở khóa sửa 1 đơn ĐÃ Ghi sổ (Normal) — chỉ đảo trạng thái + tồn kho, KHÔNG tự mở
 // khóa form (xem SalesOrderViewModel.IsReadOnly/CanEdit/Edit() phía WPF).
@@ -47,19 +47,10 @@ public class UnconfirmSalesOrderUseCase : IUnconfirmSalesOrderUseCase
         await _uow.BeginAsync(ct);
         try
         {
-            // Validate ALL lines trước (two-pass) để không hoàn tác dở dang nếu 1 dòng nào đó
-            // không đủ tồn để hoàn — mirror HoldSalesOrderUseCase/UnconfirmSalesReturnUseCase.
-            foreach (var line in order.Lines.Where(l => !l.IsPromotion))
-            {
-                var product = await _productRepo.GetByIdTrackedAsync(line.ProductId, ct);
-                if (product is null || product.IsDepositProduct) continue; // "Đặt cọc" không phải hàng tồn kho thật
-
-                if (product.StockQuantity < line.Quantity)
-                    throw new DomainException(
-                        $"Không thể bỏ ghi vì tồn kho hiện tại của hàng hóa '{product.Name}' không đủ để " +
-                        "hoàn tác (đã phát sinh giao dịch xuất/nhập khác sau khi đơn này được Ghi sổ).");
-            }
-
+            // KHÔNG kiểm tra "đủ tồn" ở đây (2026-10-08): bỏ ghi Chứng từ bán hàng CỘNG LẠI tồn kho
+            // (hàng bán ra được trả về kho) nên không thể thiếu hàng — trước đây có guard
+            // `StockQuantity < line.Quantity` chép từ UnconfirmSalesReturnUseCase (nơi bỏ ghi TRỪ tồn,
+            // guard đó mới đúng), khiến đơn bán gần hết hàng không bỏ ghi được dù cộng thêm là an toàn.
             foreach (var line in order.Lines.Where(l => !l.IsPromotion))
             {
                 var product = await _productRepo.GetByIdTrackedAsync(line.ProductId, ct);

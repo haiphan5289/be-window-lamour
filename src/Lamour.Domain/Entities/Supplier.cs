@@ -10,4 +10,6 @@ public class Supplier
     public string TaxCode        { get; set; } = string.Empty;
     public string Phone          { get; set; } = string.Empty;
     public bool   IsStopTracking { get; set; }
+    // false = Tổ chức (mặc định), true = Cá nhân — bộ lọc "Tổ chức / Cá nhân / Cả hai" trên lưới NCC.
+    public bool   IsIndividual   { get; set; }
 }

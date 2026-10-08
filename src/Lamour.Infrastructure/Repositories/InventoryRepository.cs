@@ -101,7 +101,8 @@ public class InventoryRepository : IInventoryRepository
     public async Task<IEnumerable<(
         DateTime AccountingDate, DateTime DocumentDate, string DocumentNumber, string DocumentType,
         int? SourceId, string? Description, string Unit,
-        int ImportQty, decimal ImportValue, int ExportQty)>> GetTransactionLinesByProductAsync(
+        int ImportQty, decimal ImportValue, int ExportQty,
+        int WarehouseId, string WarehouseCode, string WarehouseName)>> GetTransactionLinesByProductAsync(
         int productId, DateOnly fromDate, DateOnly toDate, IReadOnlyList<int>? warehouseIds = null, CancellationToken ct = default)
     {
         var fromUtc = DateTime.SpecifyKind(fromDate.ToDateTime(TimeOnly.MinValue), DateTimeKind.Utc);
@@ -125,6 +126,9 @@ public class InventoryRepository : IInventoryRepository
                 Unit           = l.Product.Unit,
                 Qty            = l.Quantity,
                 Value          = l.Amount,
+                WarehouseId    = l.WarehouseId,
+                WarehouseCode  = l.Warehouse.Code,
+                WarehouseName  = l.Warehouse.Name,
             })
             .ToListAsync(ct);
 
@@ -132,9 +136,10 @@ public class InventoryRepository : IInventoryRepository
             .AsNoTracking()
             .Where(l => l.ProductId == productId
                      && !l.IsPromotion
+                     && l.WarehouseId.HasValue
                      && l.SalesOrder.AccountingDate >= fromUtc
                      && l.SalesOrder.AccountingDate <  toUtc
-                     && (!hasWarehouseFilter || (l.WarehouseId.HasValue && warehouseIds!.Contains(l.WarehouseId.Value))))
+                     && (!hasWarehouseFilter || warehouseIds!.Contains(l.WarehouseId.Value)))
             .Select(l => new
             {
                 AccountingDate = l.SalesOrder.AccountingDate,
@@ -144,6 +149,9 @@ public class InventoryRepository : IInventoryRepository
                 Description    = "Xuất kho bán hàng " + (l.SalesOrder.Customer != null ? l.SalesOrder.Customer.Name : ""),
                 Unit           = l.Unit,
                 Qty            = l.Quantity,
+                WarehouseId    = l.WarehouseId!.Value,
+                WarehouseCode  = l.Warehouse!.Code,
+                WarehouseName  = l.Warehouse!.Name,
             })
             .ToListAsync(ct);
 
@@ -161,23 +169,122 @@ public class InventoryRepository : IInventoryRepository
                 Description    = "Hàng bán bị trả lại " + (l.SalesReturn.Customer != null ? l.SalesReturn.Customer.Name : ""),
                 Unit           = l.Unit,
                 Qty            = l.Quantity,
+                WarehouseId    = l.WarehouseId,
+                WarehouseCode  = l.Warehouse.Code,
+                WarehouseName  = l.Warehouse.Name,
             })
             .ToListAsync(ct);
 
-        var rows = new List<(DateTime, DateTime, string, string, int?, string?, string, int, decimal, int)>();
+        var rows = new List<(DateTime, DateTime, string, string, int?, string?, string, int, decimal, int, int, string, string)>();
 
         foreach (var i in imports)
-            rows.Add((i.AccountingDate, i.DocumentDate, i.DocumentNumber, "Import", i.SourceId, i.Description, i.Unit, i.Qty, i.Value, 0));
+            rows.Add((i.AccountingDate, i.DocumentDate, i.DocumentNumber, "Import", i.SourceId, i.Description, i.Unit, i.Qty, i.Value, 0, i.WarehouseId, i.WarehouseCode, i.WarehouseName));
 
         foreach (var e in exports)
-            rows.Add((e.AccountingDate, e.DocumentDate, e.DocumentNumber, "Export", e.SourceId, e.Description, e.Unit, 0, 0m, e.Qty));
+            rows.Add((e.AccountingDate, e.DocumentDate, e.DocumentNumber, "Export", e.SourceId, e.Description, e.Unit, 0, 0m, e.Qty, e.WarehouseId, e.WarehouseCode, e.WarehouseName));
 
         // Hàng bán bị trả lại làm TĂNG tồn kho (giống 1 lần Nhập) — không có SourceId (WPF chưa có
         // màn xem lại chứng từ trả hàng từ đây, chỉ hiện text) — khớp GetExportQtyByProductAsync
         // vốn cũng trừ returnRows khỏi export qty, không xử lý riêng.
         foreach (var r in returns)
-            rows.Add((r.AccountingDate, r.DocumentDate, r.DocumentNumber, "SalesReturn", null, r.Description, r.Unit, r.Qty, 0m, 0));
+            rows.Add((r.AccountingDate, r.DocumentDate, r.DocumentNumber, "SalesReturn", null, r.Description, r.Unit, r.Qty, 0m, 0, r.WarehouseId, r.WarehouseCode, r.WarehouseName));
 
         return rows.OrderBy(r => r.Item1).ThenBy(r => r.Item3);
+    }
+
+    public async Task<List<(int Id, string Code, string Name)>> GetWarehousesAsync(
+        IReadOnlyList<int>? warehouseIds = null, CancellationToken ct = default)
+    {
+        var query = _db.Warehouses.AsNoTracking().AsQueryable();
+        if (warehouseIds is { Count: > 0 })
+            query = query.Where(w => warehouseIds.Contains(w.Id));
+
+        var rows = await query
+            .OrderBy(w => w.Name)
+            .Select(w => new { w.Id, w.Code, w.Name })
+            .ToListAsync(ct);
+
+        return rows.Select(w => (w.Id, w.Code, w.Name)).ToList();
+    }
+
+    public async Task<Dictionary<(int WarehouseId, int ProductId), (int Qty, decimal Value, DateTime? LatestDate)>> GetImportsByWarehouseProductAsync(
+        DateOnly fromDate, DateOnly toDate, IReadOnlyList<int>? warehouseIds = null, CancellationToken ct = default)
+    {
+        var fromUtc = DateTime.SpecifyKind(fromDate.ToDateTime(TimeOnly.MinValue), DateTimeKind.Utc);
+        var toUtc   = DateTime.SpecifyKind(toDate.AddDays(1).ToDateTime(TimeOnly.MinValue), DateTimeKind.Utc);
+        var hasWarehouseFilter = warehouseIds is { Count: > 0 };
+
+        var rows = await _db.WarehouseReceiptLines
+            .AsNoTracking()
+            .Where(l => l.WarehouseReceipt.Status == WarehouseReceiptStatus.Confirmed
+                     && l.WarehouseReceipt.AccountingDate >= fromUtc
+                     && l.WarehouseReceipt.AccountingDate <  toUtc
+                     && (!hasWarehouseFilter || warehouseIds!.Contains(l.WarehouseId)))
+            .GroupBy(l => new { l.WarehouseId, l.ProductId })
+            .Select(g => new
+            {
+                g.Key.WarehouseId,
+                g.Key.ProductId,
+                Qty        = g.Sum(l => l.Quantity),
+                Value      = g.Sum(l => l.Amount),
+                LatestDate = (DateTime?)g.Max(l => l.WarehouseReceipt.AccountingDate),
+            })
+            .ToListAsync(ct);
+
+        return rows.ToDictionary(r => (r.WarehouseId, r.ProductId), r => (r.Qty, r.Value, r.LatestDate));
+    }
+
+    public async Task<Dictionary<(int WarehouseId, int ProductId), int>> GetExportQtyByWarehouseProductAsync(
+        DateOnly fromDate, DateOnly toDate, IReadOnlyList<int>? warehouseIds = null, CancellationToken ct = default)
+    {
+        var fromUtc = DateTime.SpecifyKind(fromDate.ToDateTime(TimeOnly.MinValue), DateTimeKind.Utc);
+        var toUtc   = DateTime.SpecifyKind(toDate.AddDays(1).ToDateTime(TimeOnly.MinValue), DateTimeKind.Utc);
+        var hasWarehouseFilter = warehouseIds is { Count: > 0 };
+
+        var salesRows = await _db.SalesOrderLines
+            .AsNoTracking()
+            .Where(l => !l.IsPromotion
+                     && l.WarehouseId.HasValue
+                     && l.SalesOrder.AccountingDate >= fromUtc
+                     && l.SalesOrder.AccountingDate <  toUtc
+                     && (!hasWarehouseFilter || warehouseIds!.Contains(l.WarehouseId.Value)))
+            .GroupBy(l => new { WarehouseId = l.WarehouseId!.Value, l.ProductId })
+            .Select(g => new { g.Key.WarehouseId, g.Key.ProductId, Qty = g.Sum(l => l.Quantity) })
+            .ToListAsync(ct);
+
+        var returnRows = await _db.SalesReturnLines
+            .AsNoTracking()
+            .Where(l => l.SalesReturn.AccountingDate >= fromUtc
+                     && l.SalesReturn.AccountingDate <  toUtc
+                     && (!hasWarehouseFilter || warehouseIds!.Contains(l.WarehouseId)))
+            .GroupBy(l => new { l.WarehouseId, l.ProductId })
+            .Select(g => new { g.Key.WarehouseId, g.Key.ProductId, Qty = g.Sum(l => l.Quantity) })
+            .ToListAsync(ct);
+
+        var result = salesRows.ToDictionary(r => (r.WarehouseId, r.ProductId), r => r.Qty);
+        foreach (var r in returnRows)
+        {
+            var key = (r.WarehouseId, r.ProductId);
+            result[key] = result.TryGetValue(key, out var existing) ? existing - r.Qty : -r.Qty;
+        }
+
+        return result;
+    }
+
+    public async Task<Dictionary<(int WarehouseId, int ProductId), int>> GetClosingQtyByWarehouseProductAsync(
+        IReadOnlyList<int>? warehouseIds = null, int? productId = null, CancellationToken ct = default)
+    {
+        var query = _db.ProductWarehouseStocks.AsNoTracking().AsQueryable();
+        if (warehouseIds is { Count: > 0 })
+            query = query.Where(x => warehouseIds.Contains(x.WarehouseId));
+        if (productId is not null)
+            query = query.Where(x => x.ProductId == productId.Value);
+
+        var rows = await query
+            .GroupBy(x => new { x.WarehouseId, x.ProductId })
+            .Select(g => new { g.Key.WarehouseId, g.Key.ProductId, Qty = g.Sum(x => x.Quantity) })
+            .ToListAsync(ct);
+
+        return rows.ToDictionary(r => (r.WarehouseId, r.ProductId), r => r.Qty);
     }
 }

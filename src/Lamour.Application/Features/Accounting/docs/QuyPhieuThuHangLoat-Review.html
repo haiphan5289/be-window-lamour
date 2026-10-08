@@ -152,6 +152,10 @@ h1,h2,h3{text-wrap:balance;margin:0;}
 .gridwrap td.frozen,.gridwrap th.frozen{box-shadow:inset -1px 0 0 var(--border-strong);}
 .edit{color:var(--accent-ink);font-weight:700;}
 .totals{display:flex;justify-content:flex-end;gap:22px;flex-wrap:wrap;padding:10px 18px;border-top:1px solid var(--border);font-size:.82rem;color:var(--text-muted);}
+.mockup-titlebar.split{display:flex;justify-content:space-between;align-items:flex-start;gap:16px;flex-wrap:wrap;}
+.balance-box{border:1px solid var(--border-strong);border-radius:8px;padding:6px 14px;text-align:right;font-weight:500;}
+.balance-box span{display:block;font-size:.74rem;color:var(--text-muted);}
+.balance-box b{font-family:"IBM Plex Mono",ui-monospace,monospace;font-size:1rem;}
 .totals b{color:var(--text);font-family:"IBM Plex Mono",ui-monospace,monospace;font-weight:600;}
 .mockup-footer{display:flex;justify-content:space-between;align-items:center;gap:16px;flex-wrap:wrap;padding:11px 18px;border-top:1px solid var(--border);font-size:.84rem;}
 .mockup-footer .muted{color:var(--text-muted);}
@@ -217,19 +221,19 @@ footer b{color:var(--text);}
       <div><dt>Đối tượng</dt><dd>Kế toán lên đơn</dd></div>
       <div><dt>Mục tiêu</dt><dd>Review trước khi vận hành</dd></div>
       <div><dt>Nguồn đối chiếu</dt><dd>Mã nguồn BE + WPF</dd></div>
-      <div><dt>Ngày</dt><dd class="mono">26/09/2026</dd></div>
+      <div><dt>Ngày</dt><dd class="mono">28/09/2026</dd></div>
     </dl>
   </section>
 
   <!-- ============ VÒNG ĐỜI ============ -->
   <section class="section">
     <h2>Vòng đời một phiếu thu</h2>
-    <p class="intro">Chỉ có 2 trạng thái: <b>Treo</b> (đã lưu, chưa vào sổ quỹ) và <b>Đã ghi sổ</b>. Không còn trạng thái "Nháp".</p>
+    <p class="intro">Chỉ có 2 trạng thái: <b>Treo</b> (đã lưu, chưa vào sổ quỹ) và <b>Đã ghi sổ</b>. Không còn trạng thái "Nháp". Từ 28/09, <b>Cất = lưu và ghi sổ luôn</b>, giống Chứng từ bán hàng; phiếu chỉ về Treo khi bấm Bỏ ghi.</p>
     <div class="flow" role="list">
       <span class="node" role="listitem">Chọn chứng từ còn nợ</span><span class="arrow" aria-hidden="true">→ ✔ Thu tiền →</span>
       <span class="node" role="listitem">Phiếu mới (chưa lưu)</span><span class="arrow" aria-hidden="true">→ 💾 Cất →</span>
-      <span class="node treo" role="listitem">⏸ Treo</span><span class="arrow" aria-hidden="true">⇄ Ghi sổ / Bỏ ghi ⇄</span>
-      <span class="node posted" role="listitem">✔ Đã ghi sổ</span>
+      <span class="node posted" role="listitem">✔ Đã ghi sổ</span><span class="arrow" aria-hidden="true">⇄ Bỏ ghi / Ghi sổ ⇄</span>
+      <span class="node treo" role="listitem">⏸ Treo</span>
     </div>
   </section>
 
@@ -237,7 +241,7 @@ footer b{color:var(--text);}
   <section class="section">
     <h2>Màn hình Quỹ <span class="tag">Sổ kế toán chi tiết quỹ tiền mặt</span></h2>
     <div class="mockup-window">
-      <div class="mockup-titlebar">Sổ Kế Toán Chi Tiết Quỹ Tiền Mặt<small>Tài khoản: 111 — Tiền mặt</small></div>
+      <div class="mockup-titlebar split"><div>Sổ Kế Toán Chi Tiết Quỹ Tiền Mặt<small>Tài khoản: 111 — Tiền mặt</small></div><div class="balance-box"><span>Tồn quỹ đến hiện tại</span><b>8.700.000</b></div></div>
       <div class="mockup-toolbar">
         <span class="btn primary">➕ Thêm ▾</span>
         <span class="btn">✏️ Sửa</span>
@@ -260,19 +264,20 @@ footer b{color:var(--text);}
         <table>
           <thead><tr>
             <th>Ngày hạch toán</th><th>Ngày chứng từ</th><th>Số phiếu thu</th><th>Số phiếu chi</th><th>Diễn giải</th>
-            <th class="num">Số tiền</th><th>Người nhận/Người nộp</th><th>Lý do thu/chi</th><th>Loại chứng từ</th>
+            <th class="num">Số tiền</th><th>Người nhận/Người nộp</th><th>Lý do thu/chi</th><th>Ngày ghi sổ quỹ</th><th>Loại chứng từ</th>
           </tr></thead>
           <tbody>
-            <tr><td class="mono">26/09/2026</td><td class="mono">26/09/2026</td><td class="mono">PT00003</td><td></td><td>Khách hàng mẫu A</td><td class="num mono">1.200.000</td><td>Khách hàng mẫu A</td><td>Thu công nợ</td><td>Phiếu thu tiền mặt khách hàng</td></tr>
-            <tr class="row-held"><td class="mono">26/09/2026</td><td class="mono">26/09/2026</td><td class="mono">PT00004</td><td></td><td>Thu tiền khách hàng hàng loạt</td><td class="num mono">1.903.600</td><td>Thu tiền khách hàng hàng loạt</td><td>Thu công nợ</td><td>Phiếu thu tiền mặt khách hàng hàng loạt</td></tr>
-            <tr><td class="mono">26/09/2026</td><td class="mono">26/09/2026</td><td></td><td class="mono">PC00012</td><td>Nhà cung cấp mẫu B</td><td class="num mono">500.000</td><td>Nhà cung cấp mẫu B</td><td>Chi mua hàng</td><td>Phiếu chi</td></tr>
+            <tr><td class="mono">26/09/2026</td><td class="mono">26/09/2026</td><td class="mono">PT00003</td><td></td><td>Khách hàng mẫu A</td><td class="num mono">1.200.000</td><td>Khách hàng mẫu A</td><td>Thu công nợ</td><td class="mono">26/09/2026</td><td>Phiếu thu tiền mặt khách hàng</td></tr>
+            <tr class="row-held"><td class="mono">26/09/2026</td><td class="mono">26/09/2026</td><td class="mono">PT00004</td><td></td><td>Thu tiền khách hàng hàng loạt</td><td class="num mono">1.903.600</td><td>Thu tiền khách hàng hàng loạt</td><td>Phiếu thu tiền mặt khách hàng hàng loạt</td><td></td><td>Phiếu thu tiền mặt khách hàng hàng loạt</td></tr>
+            <tr><td class="mono">26/09/2026</td><td class="mono">26/09/2026</td><td></td><td class="mono">PC00012</td><td>Nhà cung cấp mẫu B</td><td class="num mono">500.000</td><td>Nhà cung cấp mẫu B</td><td>Chi mua hàng</td><td class="mono">26/09/2026</td><td>Phiếu chi</td></tr>
           </tbody>
         </table>
       </div>
+      <div class="mockup-footer"><span class="muted">Số dòng = 3</span><span style="display:flex;gap:22px;flex-wrap:wrap"><span>Tổng thu: <b>3.103.600</b></span><span>Tổng chi: <b>500.000</b></span></span></div>
       <div class="totals"><div>Số tồn đầu kỳ: <b>8.000.000</b></div><div>Số tồn cuối kỳ: <b>8.700.000</b></div></div>
-      <p class="note"><span class="swatch" aria-hidden="true"></span><span>Dòng <b class="held-ink">chữ cam đậm</b> = phiếu đang <b>Treo</b> (chưa ghi sổ), giống danh sách Chứng từ bán hàng. Chọn dòng Treo thì nền cam, chữ trắng. Không có cột "Trạng thái" riêng; bộ lọc "Trạng thái" vẫn dùng được. Ví dụ trên: PT00004 đang Treo nên tồn cuối kỳ không cộng 1.903.600.</span></p>
+      <p class="note"><span class="swatch" aria-hidden="true"></span><span>Dòng <b class="held-ink">chữ cam đậm</b> = phiếu đang <b>Treo</b> (chưa ghi sổ), giống danh sách Chứng từ bán hàng. Chọn dòng Treo thì nền cam, chữ trắng. Không có cột "Trạng thái" riêng; bộ lọc "Trạng thái" vẫn dùng được. Ví dụ trên: PT00004 đã bị Bỏ ghi nên đang Treo — tồn cuối kỳ không cộng 1.903.600 và cột "Ngày ghi sổ quỹ" để trống.</span></p>
     </div>
-    <p class="caption">Minh họa giao diện — không phải ảnh chụp thật. Tên khách hàng và số tiền là số liệu mẫu. Chuột phải trên lưới có menu ➕ Thêm ▸ · 👁 Xem · ✏️ Sửa · 🗑️ Xóa · 📗 Ghi sổ · ↩️ Bỏ ghi · 📨 Gửi email, Zalo ▸. Phím tắt: <span class="mono">Ctrl+E</span> Sửa · <span class="mono">Ctrl+D</span> Xóa · <span class="mono">Ctrl+G</span> Ghi sổ · <span class="mono">Ctrl+B</span> Bỏ ghi.</p>
+    <p class="caption">Minh họa giao diện — không phải ảnh chụp thật. Tên khách hàng và số tiền là số liệu mẫu. <b>Mới 28/09 (khớp mẫu MISA):</b> ô <b>"Tồn quỹ đến hiện tại"</b> góc trên phải luôn tính tới hôm nay, không đổi theo Từ/Đến ngày (khác "Số tồn cuối kỳ"); dòng tổng <b>Số dòng · Tổng thu · Tổng chi</b> chỉ tính các dòng đang hiện sau khi lọc; cột <b>"Ngày ghi sổ quỹ"</b> là ngày bấm Ghi sổ thật, trống với phiếu Treo. Chữ dài bị cắt thì rê chuột để xem đủ. Chuột phải trên lưới có menu ➕ Thêm ▸ · 👁 Xem · ✏️ Sửa · 🗑️ Xóa · 📗 Ghi sổ · ↩️ Bỏ ghi · 📨 Gửi email, Zalo ▸. Phím tắt: <span class="mono">Ctrl+E</span> Sửa · <span class="mono">Ctrl+D</span> Xóa · <span class="mono">Ctrl+G</span> Ghi sổ · <span class="mono">Ctrl+B</span> Bỏ ghi.</p>
   </section>
 
   <!-- ============ SCREEN 2: BỘ CHỌN ============ -->
@@ -347,10 +352,10 @@ footer b{color:var(--text);}
         </table>
       </div>
       <div class="totals"><div>Số phải thu: <b>1.903.600</b></div><div>Số chưa thu: <b>1.903.600</b></div><div>Số thu: <b>1.903.600</b></div></div>
-      <div class="mockup-footer"><span class="muted">Số dòng = 2</span><span>Tổng tiền: <b>1.903.600</b></span></div>
+      <div class="mockup-footer"><span class="muted">Số dòng = 2</span></div>
       <p class="note" style="padding-top:10px"><span>Số chứng từ hiển thị là dự đoán — số thật gán khi bấm Cất.</span></p>
     </div>
-    <p class="caption">Minh họa giao diện — không phải ảnh chụp thật. Tab "2. Chứng từ": mỗi hóa đơn 1 dòng, 2 cột đầu đứng yên khi cuộn ngang, cột "Số thu" (chữ màu nhấn) là cột duy nhất sửa được. Tab "1. Hạch toán" gộp theo khách hàng (Diễn giải · TK Nợ · TK Có · Số tiền · Mã khách hàng · Tên khách hàng): một khách có 2 hóa đơn chỉ hiện 1 dòng với số tiền cộng lại.</p>
+    <p class="caption">Minh họa giao diện — không phải ảnh chụp thật. Tab "2. Chứng từ": mỗi hóa đơn 1 dòng, 2 cột đầu đứng yên khi cuộn ngang, cột "Số thu" là cột duy nhất sửa được. Từ 28/09 mọi số tiền hiện chữ đen (không còn cam), ngày tháng không bị mờ khi form khóa, và bỏ dòng "Tổng tiền" dưới cùng vì trùng với "Số thu". Tab "1. Hạch toán" gộp theo khách hàng (Diễn giải · TK Nợ · TK Có · Số tiền · Mã khách hàng · Tên khách hàng): một khách có 2 hóa đơn chỉ hiện 1 dòng với số tiền cộng lại.</p>
   </section>
 
   <!-- ============ WORKFLOW ============ -->
@@ -364,16 +369,16 @@ footer b{color:var(--text);}
 
     <div class="step"><div class="num">3</div><div class="body"><span class="where">Bộ chọn → Cửa sổ phiếu</span><br>Bấm <b>✔ Thu tiền</b> → cửa sổ phiếu mở ra với các hóa đơn đã chọn. Ngày hạch toán và Ngày chứng từ lấy theo Ngày thu tiền. <b>Số thu</b> mặc định bằng số còn nợ; sửa nhỏ hơn để thu một phần. Nhập thêm Người nộp, NV thu nợ, Kèm theo nếu cần.</div></div>
 
-    <div class="step"><div class="num">4</div><div class="body"><span class="where">Cửa sổ phiếu</span><br>Bấm <b>💾 Cất</b> → phiếu được lưu ở trạng thái <b>Treo</b>, có số chứng từ thật, form khóa lại, cửa sổ vẫn mở, màn Quỹ tự tải lại. Phiếu Treo <b>đã trừ vào số còn nợ</b> của các hóa đơn (lần thu sau sẽ không thấy lại phần tiền này), nhưng <b>chưa</b> vào sổ quỹ.
-      <div class="decided"><span class="tag">Đã chốt 26/09</span><b>Phiếu thu thường</b> giờ cũng làm giống phiếu thu hàng loạt: <b>Cất chỉ lưu (Treo)</b>, phải bấm <b>Ghi sổ</b> riêng mới vào sổ quỹ. <b>Phiếu chi</b> chưa đổi: Cất vẫn ghi sổ ngay.</div>
+    <div class="step"><div class="num">4</div><div class="body"><span class="where">Cửa sổ phiếu</span><br>Bấm <b>💾 Cất</b> → phiếu được lưu <b>và ghi sổ ngay</b>: có số chứng từ thật, vào sổ quỹ, được cộng vào số tồn, form khóa lại, cửa sổ vẫn mở, nút chuyển thành <b>"Bỏ ghi"</b>, màn Quỹ tự tải lại. Số thu <b>đã trừ vào số còn nợ</b> của các hóa đơn (lần thu sau sẽ không thấy lại phần tiền này). Nếu lưu được mà ghi sổ lỗi, phiếu vẫn nằm ở <b>Treo</b> và có thông báo để bấm Ghi sổ lại.
+      <div class="decided"><span class="tag">Đã chốt 28/09</span><b>Đổi lại quyết định 26/09.</b> Cất = lưu + ghi sổ ngay cho <b>phiếu thu hàng loạt, phiếu thu thường và phiếu chi</b> — cùng một cách với Chứng từ bán hàng.</div>
     </div></div>
 
-    <div class="step"><div class="num">5</div><div class="body"><span class="where">Cửa sổ phiếu hoặc màn Quỹ</span><br>Kiểm tra xong, bấm <b>Ghi sổ</b> (trong cửa sổ phiếu) hoặc <b>📗 Ghi sổ</b> trên dòng đang chọn ở màn Quỹ (<span class="mono">Ctrl+G</span>). Phiếu vào sổ quỹ và được cộng vào số tồn. <b>Bỏ ghi</b> làm ngược lại: phiếu về Treo, số tồn trừ lại.
+    <div class="step"><div class="num">5</div><div class="body"><span class="where">Cửa sổ phiếu hoặc màn Quỹ</span><br><b>Bỏ ghi</b> (trong cửa sổ phiếu, hoặc <b>↩️ Bỏ ghi</b> trên màn Quỹ, <span class="mono">Ctrl+B</span>) đưa phiếu về Treo, số tồn trừ lại. Phiếu đang Treo thì bấm <b>Ghi sổ</b> (hoặc <b>📗 Ghi sổ</b> trên màn Quỹ, <span class="mono">Ctrl+G</span>) để vào sổ quỹ lại.
       <div class="decided"><span class="tag">Đã chốt 26/09</span><b>Ghi sổ và Bỏ ghi không hỏi lại</b>, bấm một lần là sổ quỹ đổi ngay, giống Chứng từ bán hàng và Hàng bán trả lại. Chỉ <b>Xóa</b> mới hỏi Có/Không, vì Xóa là thao tác duy nhất không làm ngược lại được; Ghi sổ nhầm thì bấm Bỏ ghi và ngược lại.</div>
       <div class="callout"><span class="tag">Cần xác nhận</span>Phiếu thu chọn <b>Tiền gửi (TK 112)</b>, sau khi ghi sổ, vẫn hiện trên <b>sổ quỹ tiền mặt (TK 111)</b> và <b>được cộng vào số tồn tiền mặt</b>. Loại chứng từ cũng vẫn ghi "tiền mặt". Nên chỉ hiện tiền mặt, hay thêm ô chọn tài khoản trên màn Quỹ?</div>
     </div></div>
 
-    <div class="step"><div class="num">6</div><div class="body"><span class="where">Cửa sổ phiếu</span><br>Muốn sửa phiếu đã Cất: nếu đã ghi sổ thì bấm <b>Bỏ ghi</b> trước, rồi bấm <b>✏️ Sửa</b>, đổi Số thu hoặc thông tin chung, bấm <b>💾 Cất</b>. Dùng <b>◀ Trước / ▶ Sau</b> để xem các phiếu hàng loạt cũ.
+    <div class="step"><div class="num">6</div><div class="body"><span class="where">Cửa sổ phiếu</span><br>Muốn sửa phiếu đã Cất: nếu đã ghi sổ thì bấm <b>Bỏ ghi</b> trước, rồi bấm <b>✏️ Sửa</b>, đổi Số thu hoặc thông tin chung, bấm <b>💾 Cất</b> — phiếu được ghi sổ lại luôn. Dùng <b>◀ Trước / ▶ Sau</b> để xem các phiếu hàng loạt cũ.
       <div class="callout"><span class="tag">Cần xác nhận</span>Lúc <b>tạo mới</b>, hệ thống kiểm tra lại số còn nợ thực tế của từng hóa đơn. Lúc <b>sửa phiếu đã lưu</b>, chỉ màn hình chặn theo số chưa thu lúc mở phiếu, hệ thống <b>không kiểm tra lại</b>. Nếu trong lúc đó có người khác thu cùng hóa đơn thì có thể thu vượt.</div>
     </div></div>
 
@@ -397,13 +402,13 @@ footer b{color:var(--text);}
           <tr><td>Số còn nợ</td><td><code>Tổng thanh toán − đã thu (mọi phiếu thu, kể cả Treo) − đã trừ cọc</code></td></tr>
           <tr><td>Một phiếu, nhiều khách hàng</td><td>Phiếu không gắn 1 khách hàng; mỗi hóa đơn là 1 dòng hạch toán riêng mang mã/tên khách hàng của nó. Tab "1. Hạch toán" chỉ <b>gộp để xem</b>, dữ liệu vẫn tách theo từng hóa đơn để theo dõi đúng nợ</td></tr>
           <tr><td>Định khoản</td><td>Nợ <code>111</code> (Tiền mặt) hoặc <code>112</code> (Tiền gửi) / Có <code>131</code> — chọn 1 lần ở bộ chọn, áp cho mọi dòng</td></tr>
-          <tr><td>Lý do nộp</td><td>Cố định "Thu tiền khách hàng" (thu công nợ)</td></tr>
+          <tr><td>Lý do nộp</td><td>Cố định "Thu tiền khách hàng". Cột "Lý do thu/chi" trên màn Quỹ hiện <b>"Phiếu thu tiền mặt khách hàng hàng loạt"</b> (từ 28/09, trước là "Thu công nợ"); định khoản vẫn Có 131. Phiếu tạo trước 28/09 vẫn hiện "Thu công nợ"</td></tr>
           <tr><td>Người nộp để trống</td><td>Lấy tên NV thu nợ; không có NV thì ghi "Thu tiền khách hàng hàng loạt"</td></tr>
           <tr><td>Số thu mỗi dòng</td><td>Mặc định = số còn nợ; phải &gt; 0 và không vượt Số chưa thu</td></tr>
           <tr><td>Số chứng từ</td><td>Dãy <code>PT#####</code> dùng chung với phiếu thu thường; số trên màn hình trước khi Cất chỉ là dự đoán</td></tr>
-          <tr><td>Số tồn trên màn Quỹ</td><td>Tồn đầu kỳ = tổng thu − chi đã ghi sổ trước ngày bắt đầu; mỗi dòng chỉ cộng/trừ vào tồn khi <b>Đã ghi sổ</b></td></tr>
+          <tr><td>Số tồn trên màn Quỹ</td><td>Tồn đầu kỳ = tổng thu − chi đã ghi sổ trước ngày bắt đầu; mỗi dòng chỉ cộng/trừ vào tồn khi <b>Đã ghi sổ</b>. "Tồn quỹ đến hiện tại" = tồn tính tới hết hôm nay, không theo bộ lọc ngày</td></tr>
           <tr><td>Trạng thái</td><td>Chỉ "Treo" và "Đã ghi sổ"; trên màn Quỹ dòng Treo chữ cam đậm (từ 26/09, giống Bán hàng); bộ lọc Trạng thái/Loại và lọc từng cột chỉ lọc trên dữ liệu đã tải, không tải lại</td></tr>
-          <tr><td>Cất</td><td>Chỉ lưu, phiếu ở <b>Treo</b> — áp dụng cho cả phiếu thu hàng loạt lẫn phiếu thu thường (từ 26/09). Phiếu chi: Cất vẫn ghi sổ ngay</td></tr>
+          <tr><td>Cất</td><td>Lưu + <b>ghi sổ ngay</b> — áp dụng cho phiếu thu hàng loạt, phiếu thu thường và phiếu chi (từ 28/09, giống Chứng từ bán hàng)</td></tr>
           <tr><td>Sửa / Xóa</td><td>Chỉ khi Treo. Đã ghi sổ phải Bỏ ghi trước (cả màn hình lẫn máy chủ đều chặn)</td></tr>
         </tbody>
       </table>
@@ -424,7 +429,7 @@ footer b{color:var(--text);}
   </section>
 
   <footer>
-    <div><b>Nguồn đối chiếu:</b> ReceiptsController · AccountingController · CreateBulkCustomerReceiptUseCase · CreateReceiptUseCase · UpdateReceiptUseCase · Confirm/Unconfirm/DeleteReceiptUseCase · GetCashLedgerUseCase · CashLedgerRepository · ReceiptRepository · AccountingViewModel + AccountingView.xaml · BulkCustomerReceiptViewModel + BulkCustomerReceiptWindow.xaml · BulkCustomerReceiptSearchViewModel + BulkCustomerReceiptSearchWindow.xaml · ReceiptViewModel · DocumentToolbar.xaml — đọc trực tiếp mã nguồn ngày 26/09/2026, cùng tài liệu quy.md và phieu-thu-hang-loat.md.</div>
+    <div><b>Nguồn đối chiếu:</b> ReceiptsController · AccountingController · CreateBulkCustomerReceiptUseCase · CreateReceiptUseCase · UpdateReceiptUseCase · Confirm/Unconfirm/DeleteReceiptUseCase · GetCashLedgerUseCase · CashLedgerRepository · ReceiptRepository · AccountingViewModel + AccountingView.xaml · BulkCustomerReceiptViewModel + BulkCustomerReceiptWindow.xaml · BulkCustomerReceiptSearchViewModel + BulkCustomerReceiptSearchWindow.xaml · ReceiptViewModel · DocumentToolbar.xaml · PaymentReasonDisplayConverter — đọc trực tiếp mã nguồn ngày 26/09/2026, cập nhật 28/09/2026, cùng tài liệu quy.md và phieu-thu-hang-loat.md.</div>
     <div>Bản lưu local của Artifact "Quỹ &amp; Phiếu Thu Hàng Loạt" — dấu tick chỉ lưu trên trình duyệt mở file này, không đồng bộ với bản online. Góp ý xin để lại bằng bình luận trên bản Artifact.</div>
   </footer>
 

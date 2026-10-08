@@ -16,6 +16,8 @@ public class WarehouseReceiptsController : ControllerBase
     private readonly IConfirmWarehouseReceiptUseCase _confirm;
     private readonly IUpdateWarehouseReceiptUseCase  _update;
     private readonly IUnconfirmWarehouseReceiptUseCase _unconfirm;
+    private readonly IDeleteWarehouseReceiptUseCase  _delete;
+    private readonly IGetNextWarehouseReceiptNumberUseCase _getNextNumber;
 
     public WarehouseReceiptsController(
         IGetWarehouseReceiptsUseCase getAll,
@@ -23,7 +25,9 @@ public class WarehouseReceiptsController : ControllerBase
         ICreateWarehouseReceiptUseCase create,
         IConfirmWarehouseReceiptUseCase confirm,
         IUpdateWarehouseReceiptUseCase update,
-        IUnconfirmWarehouseReceiptUseCase unconfirm)
+        IUnconfirmWarehouseReceiptUseCase unconfirm,
+        IDeleteWarehouseReceiptUseCase delete,
+        IGetNextWarehouseReceiptNumberUseCase getNextNumber)
     {
         _getAll    = getAll;
         _getById   = getById;
@@ -31,6 +35,8 @@ public class WarehouseReceiptsController : ControllerBase
         _confirm   = confirm;
         _update    = update;
         _unconfirm = unconfirm;
+        _delete    = delete;
+        _getNextNumber = getNextNumber;
     }
 
     [HttpGet]
@@ -38,6 +44,14 @@ public class WarehouseReceiptsController : ControllerBase
     {
         var result = await _getAll.ExecuteAsync(ct);
         return Ok(result);
+    }
+
+    // Số phiếu xem trước cho form "Phiếu nhập kho" — số thật vẫn sinh lúc Create.
+    [HttpGet("next-number")]
+    public async Task<IActionResult> NextNumber(CancellationToken ct)
+    {
+        var code = await _getNextNumber.ExecuteAsync(ct);
+        return Ok(new { code });
     }
 
     [HttpGet("{id:int}")]
@@ -68,6 +82,13 @@ public class WarehouseReceiptsController : ControllerBase
     {
         var result = await _update.ExecuteAsync(id, request, ct);
         return Ok(result);
+    }
+
+    [HttpDelete("{id:int}")]
+    public async Task<IActionResult> Delete(int id, CancellationToken ct)
+    {
+        await _delete.ExecuteAsync(id, ct);
+        return NoContent();
     }
 
     [HttpPost("{id:int}/unconfirm")]

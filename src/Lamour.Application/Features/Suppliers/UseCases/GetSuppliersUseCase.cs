@@ -28,6 +28,7 @@ public class GetSuppliersUseCase : IGetSuppliersUseCase
             Group          = s.Group,
             TaxCode        = s.TaxCode,
             Phone          = s.Phone,
+            IsIndividual   = s.IsIndividual,
             IsStopTracking = s.IsStopTracking,
         });
     }

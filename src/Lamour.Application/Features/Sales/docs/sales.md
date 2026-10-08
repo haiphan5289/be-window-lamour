@@ -54,7 +54,7 @@
 | **Trạng thái (2026-09-10)** | `Held` ("Treo", mặc định khi Cất — KHÔNG trừ tồn kho) ⇄ `Normal` ("Đã ghi sổ", TRỪ tồn kho) ⇄ `Draft` ("Bỏ ghi", sau khi hoàn tác) — cùng sơ đồ với SalesReturn (xem `sales-return.md`) |
 | Cất (Create/Update, 2026-09-10) | LUÔN kết thúc ở `Held`, không trừ tồn kho cho dòng MỚI. Nếu đơn trước đó đang `Normal`, hoàn tác tồn kho dòng CŨ trước |
 | Ghi sổ (Confirm, 2026-09-10) | Trừ `StockQuantity` cho mỗi line (two-pass validate đủ tồn trước) — cho phép từ `Held` **hoặc** `Draft`; chặn nếu đã `Normal` |
-| Bỏ ghi (Unconfirm) | Hoàn `StockQuantity` cho mỗi line (two-pass validate đủ tồn trước) — chỉ cho phép khi đang `Normal`; chuyển về `Draft` |
+| Bỏ ghi (Unconfirm) | Hoàn `StockQuantity` cho mỗi line (**cộng lại**, không kiểm tra đủ tồn — đổi 2026-10-08, xem changelog cuối file) — chỉ cho phép khi đang `Normal`; chuyển về `Draft` |
 | Sửa/Xóa đơn (2026-09-10) | **Không bị chặn theo trạng thái ở BE** — cho phép ở mọi status, chỉ tự động hoàn tác tồn kho nếu đơn đang `Normal` trước khi thao tác. WPF tự giới hạn thêm ở UI |
 | Line khuyến mại | `IsPromotion = true` → không trừ/hoàn tồn kho |
 | Tỷ lệ chiết khấu | `DiscountRate` (0–100%) per line — BE clamp `Math.Max(0, Math.Min(100, dto.DiscountRate))` |
@@ -742,3 +742,15 @@ như mọi `SalesOrderLine`, mở lại đơn thì hiện lại đúng.
 
 Bảng `deposit_deductions` và màn Đặt Cọc/Trừ Cọc riêng không đổi. Đơn cũ từng "trừ cọc" qua `DepositDeduction` sẽ
 không còn hiển thị dòng trừ trong chứng từ (dữ liệu vẫn còn trong DB).
+
+---
+
+## Changelog — 2026-10-08: fix "Bỏ ghi" Chứng từ bán hàng bị chặn oan khi tồn kho thấp
+
+> User báo qua `/ct-be-to-desktop`: bấm "Bỏ ghi" 1 chứng từ bán hàng thì app báo "Không thể bỏ ghi vì tồn kho hiện tại của hàng hóa 'Ống Xilanh Pro' không đủ để hoàn tác (đã phát sinh giao dịch xuất/nhập khác sau khi đơn này được Ghi sổ)".
+
+- **Nguyên nhân:** `UnconfirmSalesOrderUseCase` có vòng kiểm tra "two-pass" `if (product.StockQuantity < line.Quantity) throw` chép từ `UnconfirmSalesReturnUseCase`. Ở Hàng bán bị trả lại, bỏ ghi **trừ** tồn kho nên cần đủ tồn — guard đó đúng. Ở Chứng từ bán hàng, bỏ ghi **cộng lại** tồn (`StockQuantity += line.Quantity`, hàng bán ra quay về kho) nên không thể thiếu hàng; guard này chỉ chặn oan, và càng bán hết hàng thì càng không bỏ ghi được.
+- **Fix:** bỏ hẳn vòng kiểm tra đó. Trạng thái vẫn chỉ cho bỏ ghi khi đang `Normal`; hoàn tồn (tổng + theo kho) và chuyển về `Held` giữ nguyên, vẫn trong 1 transaction `IUnitOfWork`. Không đổi schema/migration/endpoint.
+- **Không đổi:** guard tương tự ở `UnconfirmSalesReturnUseCase`/`UpdateSalesReturnUseCase`/`DeleteSalesReturnUseCase` — các use case đó trừ tồn nên guard đúng.
+- **Test:** `UnconfirmSalesOrderUseCaseTests` (mới) — tồn hiện tại 10 < đã bán 100 vẫn bỏ ghi được và tồn thành 110; đơn chưa ghi sổ thì từ chối. Đã kiểm tra test đỏ khi đưa guard cũ trở lại.
+

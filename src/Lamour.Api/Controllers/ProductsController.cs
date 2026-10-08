@@ -16,6 +16,7 @@ public class ProductsController : ControllerBase
     private readonly IDeleteProductUseCase    _delete;
     private readonly IDuplicateProductUseCase _duplicate;
     private readonly IImportExcelProductsUseCase _importExcel;
+    private readonly IGetNextProductCodeUseCase _nextCode;
 
     public ProductsController(
         IGetProductsUseCase      getAll,
@@ -23,7 +24,8 @@ public class ProductsController : ControllerBase
         IUpdateProductUseCase    update,
         IDeleteProductUseCase    delete,
         IDuplicateProductUseCase duplicate,
-        IImportExcelProductsUseCase importExcel)
+        IImportExcelProductsUseCase importExcel,
+        IGetNextProductCodeUseCase nextCode)
     {
         _getAll      = getAll;
         _create      = create;
@@ -31,6 +33,7 @@ public class ProductsController : ControllerBase
         _delete      = delete;
         _duplicate   = duplicate;
         _importExcel = importExcel;
+        _nextCode    = nextCode;
     }
 
     [HttpGet]
@@ -38,6 +41,13 @@ public class ProductsController : ControllerBase
     {
         var result = await _getAll.ExecuteAsync(ct);
         return Ok(result);
+    }
+
+    [HttpGet("next-code")]
+    public async Task<IActionResult> NextCode(CancellationToken ct)
+    {
+        var code = await _nextCode.ExecuteAsync(ct);
+        return Ok(new { code });
     }
 
     [HttpPost]
