@@ -112,9 +112,15 @@ public class CreateSalesOrderUseCase : ICreateSalesOrderUseCase
         if (stockErrors.Count > 0)
             throw new DomainException("Các sản phẩm không đủ tồn kho:\n" + string.Join("\n", stockErrors));
 
+        // Số xuất kho (XK) hiện ở màn Kho: đơn tạo từ Kho đã mang số XK thì dùng luôn; đơn BH được cấp thêm 1 số XK kế tiếp.
+        var exportNumber = request.DocumentNumber.StartsWith("XK", StringComparison.OrdinalIgnoreCase)
+            ? request.DocumentNumber
+            : $"XK{await _repo.GetNextCodeNumberAsync("XK", ct):D5}";
+
         var order = new SalesOrder
         {
             DocumentNumber = request.DocumentNumber,
+            ExportNumber   = exportNumber,
             AccountingDate = DateTime.SpecifyKind(request.AccountingDate, DateTimeKind.Utc),
             DocumentDate   = DateTime.SpecifyKind(request.DocumentDate,   DateTimeKind.Utc),
             CustomerId     = request.CustomerId,

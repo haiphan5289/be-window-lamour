@@ -49,6 +49,9 @@ public class SalesOrderConfiguration : IEntityTypeConfiguration<SalesOrder>
 
         builder.HasIndex(x => x.AccountingDate);
         builder.HasIndex(x => x.DocumentNumber).IsUnique();
+
+        builder.Property(x => x.ExportNumber).HasColumnName("export_number").HasMaxLength(50);
+        builder.HasIndex(x => x.ExportNumber).IsUnique();
     }
 }
 

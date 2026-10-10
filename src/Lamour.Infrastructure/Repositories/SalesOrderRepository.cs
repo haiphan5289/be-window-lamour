@@ -139,6 +139,17 @@ public class SalesOrderRepository : ISalesOrderRepository
             .Where(n => n.StartsWith(prefix))
             .ToListAsync(ct);
 
+        // Dãy XK dùng chung cho số chứng từ của đơn tạo từ Kho VÀ số xuất kho (ExportNumber) cấp thêm cho đơn BH —
+        // phải tính max trên cả hai cột để không cấp trùng.
+        if (prefix == "XK")
+        {
+            numbers.AddRange(await _db.SalesOrders
+                .AsNoTracking()
+                .Where(o => o.ExportNumber != null && o.ExportNumber.StartsWith(prefix))
+                .Select(o => o.ExportNumber!)
+                .ToListAsync(ct));
+        }
+
         var max = numbers
             .Select(n => int.TryParse(n[prefix.Length..], out var num) ? num : 0)
             .DefaultIfEmpty(0)

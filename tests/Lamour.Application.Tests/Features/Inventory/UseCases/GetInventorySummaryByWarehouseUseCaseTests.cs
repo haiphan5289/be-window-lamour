@@ -20,7 +20,7 @@ public class GetInventorySummaryByWarehouseUseCaseTests
 
     private void Setup(
         IEnumerable<Product> products,
-        List<(int Id, string Code, string Name)> warehouses,
+        List<(int Id, string Code, string Name, bool IsActive)> warehouses,
         Dictionary<(int, int), (int Qty, decimal Value, DateTime? LatestDate)> imports,
         Dictionary<(int, int), int> exports,
         Dictionary<(int, int), int> closing)
@@ -44,7 +44,7 @@ public class GetInventorySummaryByWarehouseUseCaseTests
 
         Setup(
             new[] { p1, p2 },
-            new() { (5, "TB", "Trưng bày"), (4, "HH", "Hàng Hóa") },
+            new() { (5, "TB", "Trưng bày", true), (4, "HH", "Hàng Hóa", true) },
             imports: new()
             {
                 [(4, 1)] = (10, 900m, importDate),   // HH: nhập 10 SP001 giá trị thật 900
@@ -98,7 +98,7 @@ public class GetInventorySummaryByWarehouseUseCaseTests
 
         Setup(
             new[] { p1 },
-            new() { (4, "HH", "Hàng Hóa"), (5, "TB", "Trưng bày") },
+            new() { (4, "HH", "Hàng Hóa", true), (5, "TB", "Trưng bày", true) },
             imports: new(),
             exports: new(),
             closing: new() { [(4, 1)] = 7 });
@@ -107,5 +107,44 @@ public class GetInventorySummaryByWarehouseUseCaseTests
 
         var group = Assert.Single(result);
         Assert.Equal(4, group.WarehouseId);
+    }
+
+    // Kho đã ngưng hoạt động (vd "Kho chính" cũ) không lên báo cáo khi không chọn đích danh kho nào,
+    // kể cả khi vẫn còn tồn.
+    [Fact]
+    public async Task InactiveWarehouse_IsOmitted_WhenNoWarehouseSelected()
+    {
+        var p1 = new Product { Id = 1, Code = "SP001", Name = "Kem", Unit = "Hộp", CostPrice = 100m };
+
+        Setup(
+            new[] { p1 },
+            new() { (4, "HH", "Hàng Hóa", true), (1, "KHO01", "Kho chính", false) },
+            imports: new(),
+            exports: new(),
+            closing: new() { [(4, 1)] = 7, [(1, 1)] = 2 });
+
+        var result = (await CreateSut().ExecuteAsync(From, To)).ToList();
+
+        var group = Assert.Single(result);
+        Assert.Equal(4, group.WarehouseId);
+    }
+
+    [Fact]
+    public async Task InactiveWarehouse_IsReturned_WhenExplicitlySelected()
+    {
+        var p1 = new Product { Id = 1, Code = "SP001", Name = "Kem", Unit = "Hộp", CostPrice = 100m };
+
+        Setup(
+            new[] { p1 },
+            new() { (1, "KHO01", "Kho chính", false) },
+            imports: new(),
+            exports: new(),
+            closing: new() { [(1, 1)] = 2 });
+
+        var result = (await CreateSut().ExecuteAsync(From, To, warehouseIds: new[] { 1 })).ToList();
+
+        var group = Assert.Single(result);
+        Assert.Equal(1, group.WarehouseId);
+        Assert.Equal(2, Assert.Single(group.Items).ClosingQty);
     }
 }

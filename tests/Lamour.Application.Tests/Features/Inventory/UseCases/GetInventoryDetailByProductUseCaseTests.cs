@@ -29,7 +29,7 @@ public class GetInventoryDetailByProductUseCaseTests
         _products.Setup(r => r.GetByIdAsync(1, It.IsAny<CancellationToken>())).ReturnsAsync(product);
 
         _inventory.Setup(r => r.GetWarehousesAsync(It.IsAny<IReadOnlyList<int>?>(), It.IsAny<CancellationToken>()))
-                  .ReturnsAsync(new List<(int Id, string Code, string Name)> { (4, "HH", "Hàng Hóa"), (5, "TB", "Trưng bày") });
+                  .ReturnsAsync(new List<(int Id, string Code, string Name, bool IsActive)> { (4, "HH", "Hàng Hóa", true), (5, "TB", "Trưng bày", true) });
 
         // HH: closing 20; nhập 10 (ngày 5) + xuất 3 (ngày 6) => opening = 20 - (10 - 3) = 13
         // TB: closing 4;  xuất 1 (ngày 2) + trả lại 2 (ngày 7) => opening = 4 - (2 - 1) = 3
@@ -82,7 +82,7 @@ public class GetInventoryDetailByProductUseCaseTests
         var product = new Product { Id = 1, Code = "SP001", Name = "Kem", Unit = "Hộp", CostPrice = 100m };
         _products.Setup(r => r.GetByIdAsync(1, It.IsAny<CancellationToken>())).ReturnsAsync(product);
         _inventory.Setup(r => r.GetWarehousesAsync(It.IsAny<IReadOnlyList<int>?>(), It.IsAny<CancellationToken>()))
-                  .ReturnsAsync(new List<(int Id, string Code, string Name)> { (5, "TB", "Trưng bày") });
+                  .ReturnsAsync(new List<(int Id, string Code, string Name, bool IsActive)> { (5, "TB", "Trưng bày", true) });
         _inventory.Setup(r => r.GetClosingQtyByWarehouseProductAsync(It.IsAny<IReadOnlyList<int>?>(), 1, It.IsAny<CancellationToken>()))
                   .ReturnsAsync(new Dictionary<(int WarehouseId, int ProductId), int>());
         _inventory.Setup(r => r.GetTransactionLinesByProductAsync(1, From, To, It.IsAny<IReadOnlyList<int>?>(), It.IsAny<CancellationToken>()))

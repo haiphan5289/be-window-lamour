@@ -15,7 +15,12 @@ public enum SalesOrderStatus
 public class SalesOrder
 {
     public int      Id             { get; set; }
-    public string   DocumentNumber { get; set; } = "";   // BH prefix
+    public string   DocumentNumber { get; set; } = "";   // BH prefix (tạo từ Bán hàng) hoặc XK (tạo từ Kho)
+
+    // Số chứng từ XUẤT KHO hiện ở màn Kho ("Nhập, Xuất Kho", Sổ chi tiết vật tư) — khớp MISA, mỗi lần xuất kho
+    // có 1 số XK riêng, độc lập với số chứng từ bán hàng. Đơn tạo từ Kho: = DocumentNumber (đã là XK);
+    // đơn BH: cấp thêm 1 số XK kế tiếp lúc tạo. Null chỉ với dữ liệu chưa backfill (hiển thị lùi về DocumentNumber).
+    public string?  ExportNumber   { get; set; }
 
     public DateTime AccountingDate { get; set; }
     public DateTime DocumentDate   { get; set; }

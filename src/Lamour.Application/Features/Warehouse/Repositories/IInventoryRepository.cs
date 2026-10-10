@@ -34,8 +34,9 @@ public interface IInventoryRepository
         int productId, DateOnly fromDate, DateOnly toDate, IReadOnlyList<int>? warehouseIds = null, CancellationToken ct = default);
 
     // ── Theo từng kho (Tổng hợp tồn kho chia theo kho) ───────────────────────────────────────────
-    // Danh sách kho (Id, Code, Name); warehouseIds null/empty = tất cả kho.
-    Task<List<(int Id, string Code, string Name)>> GetWarehousesAsync(
+    // Danh sách kho (Id, Code, Name, IsActive); warehouseIds null/empty = tất cả kho (kể cả kho ngưng
+    // hoạt động — UseCase tự loại khi người dùng không chọn đích danh).
+    Task<List<(int Id, string Code, string Name, bool IsActive)>> GetWarehousesAsync(
         IReadOnlyList<int>? warehouseIds = null, CancellationToken ct = default);
 
     // Như GetImportsByProductAsync nhưng group theo (WarehouseId, ProductId).

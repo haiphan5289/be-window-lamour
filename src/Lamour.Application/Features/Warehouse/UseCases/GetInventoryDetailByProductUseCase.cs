@@ -52,10 +52,13 @@ public class GetInventoryDetailByProductUseCase : IGetInventoryDetailByProductUs
             .GroupBy(l => l.WarehouseId)
             .ToDictionary(g => g.Key, g => g.Sum(l => l.ImportQty - l.ExportQty));
 
-        // Kho liên quan: đúng các kho được chọn; nếu không chọn kho nào thì mọi kho có tồn hoặc có giao dịch.
+        // Kho liên quan: đúng các kho được chọn; nếu không chọn kho nào thì mọi kho ĐANG HOẠT ĐỘNG có tồn
+        // hoặc có giao dịch (kho đã ngưng không lên báo cáo — khớp GetInventorySummaryByWarehouseUseCase).
+        var inactiveIds = warehouseList.Where(w => !w.IsActive).Select(w => w.Id).ToHashSet();
         var involvedIds = warehouseIds is { Count: > 0 }
             ? warehouseList.Select(w => w.Id).ToHashSet()
-            : closingByWarehouse.Keys.Select(k => k.WarehouseId).Concat(netByWarehouse.Keys).ToHashSet();
+            : closingByWarehouse.Keys.Select(k => k.WarehouseId).Concat(netByWarehouse.Keys)
+                .Where(id => !inactiveIds.Contains(id)).ToHashSet();
 
         var warehouses = new List<InventoryDetailWarehouseDto>();
         var openingByWarehouse = new Dictionary<int, int>();

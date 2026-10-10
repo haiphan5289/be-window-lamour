@@ -445,3 +445,23 @@ public class CreateWarehouseReceiptLineDto  // mới 2026-08-15: 7 field thống
 - `running_qty` / `running_value` tính **theo từng kho** (bắt đầu từ tồn đầu của kho đó); `lines` sắp theo tên kho → ngày ghi sổ → số chứng từ. `opening_*`/`closing_*` cấp trên = tổng các kho trong `warehouses[]`.
 - Tồn đầu mỗi kho = tồn cuối hiện tại của kho − Σ(`import_qty` − `export_qty`) các dòng của kho trong kỳ (Hàng bán bị trả lại tính vào nhập). `GetTransactionLinesByProductAsync` trả thêm `WarehouseId/WarehouseCode/WarehouseName`; dòng Sales không có kho không còn xuất hiện trong sổ chi tiết.
 - Test: `tests/Lamour.Application.Tests/Features/Inventory/UseCases/` (`GetInventorySummaryByWarehouseUseCaseTests`, `GetInventoryDetailByProductUseCaseTests`).
+
+---
+
+## Changelog — 2026-10-09: Tổng hợp tồn kho chỉ còn kho `HH`/`TB`
+
+> Kho ngưng hoạt động không còn lên hộp tham số và báo cáo Tổng hợp tồn kho / Sổ chi tiết khi không chọn đích danh; `KHO01`/`KHO02` bị gộp về `HH` và xoá hẳn (migration `RemoveLegacyWarehouses`). Chi tiết ở [`warehouses.md`](../../Warehouses/docs/warehouses.md) mục "Update — 2026-10-09".
+
+---
+
+## Changelog — 2026-10-10: "Nhập, Xuất Kho" — số XK riêng cho mỗi lần xuất kho + Tổng tiền dòng xuất = 0
+
+> Yêu cầu qua `/ct-be-to-desktop` (kèm ảnh MISA: số chứng từ `XK05540…`, Tổng tiền `0`). Chốt qua `AskUserQuestion`: **cấp số XK riêng cho mỗi đơn BH**; **chỉ dòng Xuất kho hiện 0**.
+
+- **`SalesOrder.ExportNumber`** (cột `export_number`, unique, nullable) — số xuất kho hiện ở màn Kho; **không thay** `DocumentNumber` (số BH trên Chứng từ bán hàng giữ nguyên). Đơn tạo từ Kho (đã mang số XK): `ExportNumber = DocumentNumber`. Đơn BH: `CreateSalesOrderUseCase` cấp thêm `XK{n:D5}` kế tiếp (`ISalesOrderRepository.GetNextCodeNumberAsync("XK")`).
+- **Dãy XK dùng chung**: `SalesOrderRepository.GetNextCodeNumberAsync("XK")` giờ lấy max trên CẢ `document_number` lẫn `export_number` để không cấp trùng giữa số chứng từ của đơn tạo từ Kho và số xuất kho của đơn BH.
+- **Migration `AddSalesOrderExportNumber`** — thêm cột + backfill TRƯỚC khi tạo unique index: 23 đơn XK giữ nguyên số; 38 đơn BH được cấp `XK00024…XK00061` theo thứ tự ngày hạch toán rồi id (cũ trước). `Down()` chỉ bỏ cột/index — các số XK đã cấp mất theo. Chạy lại an toàn (chỉ đụng dòng `export_number IS NULL`).
+- **Hiển thị**: `GetWarehouseTransactionsUseCase.MapSalesOrder` — `DocumentNumber = ExportNumber ?? DocumentNumber`, `TotalAmount = 0` (khớp MISA: giá vốn xuất kho chưa tính; tiền bán hàng xem ở Chứng từ bán hàng). Dòng Nhập kho giữ nguyên số NK và tổng tiền thật, nên chân bảng "Tổng tiền" của WPF chỉ cộng các dòng Nhập kho. `InventoryRepository` (Sổ chi tiết vật tư hàng hóa) cũng hiện `ExportNumber ?? DocumentNumber` cho dòng Xuất.
+- **Lưu ý**: số XK cấp ở BE lúc tạo đơn (race giữa 2 request đồng thời bị unique index chặn, giống `GetNextCodeNumberAsync` cũ). WPF **không đổi** — chỉ hiển thị chuỗi BE trả về. Tìm theo số BH ở màn Kho không còn khớp (hiện số XK).
+- Test: `GetWarehouseTransactionsUseCaseTests` (3), `CreateSalesOrderExportNumberTests` (2) — tổng 63/63 pass.
+

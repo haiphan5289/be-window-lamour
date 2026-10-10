@@ -40,7 +40,11 @@ public class GetInventorySummaryByWarehouseUseCase : IGetInventorySummaryByWareh
             products = products.Where(p => productIds.Contains(p.Id));
         var productList = products.ToList();
 
-        var warehouses  = await _repo.GetWarehousesAsync(warehouseIds, ct);
+        // Không chọn đích danh kho nào => chỉ lấy kho đang hoạt động (kho đã ngưng không lên báo cáo).
+        var explicitWarehouses = warehouseIds is { Count: > 0 };
+        var warehouses  = (await _repo.GetWarehousesAsync(warehouseIds, ct))
+            .Where(w => explicitWarehouses || w.IsActive)
+            .ToList();
         var imports     = await _repo.GetImportsByWarehouseProductAsync(fromDate, toDate, warehouseIds, ct);
         var exportQtys  = await _repo.GetExportQtyByWarehouseProductAsync(fromDate, toDate, warehouseIds, ct);
         var closingQtys = await _repo.GetClosingQtyByWarehouseProductAsync(warehouseIds, ct: ct);

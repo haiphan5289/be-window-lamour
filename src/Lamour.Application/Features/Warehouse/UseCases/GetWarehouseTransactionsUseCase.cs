@@ -110,11 +110,12 @@ public class GetWarehouseTransactionsUseCase : IGetWarehouseTransactionsUseCase
     {
         Id                 = o.Id,
         TransactionType    = "Export",
-        DocumentNumber     = o.DocumentNumber,
+        // Số XK riêng của lần xuất kho (đơn BH được cấp khi tạo); dữ liệu chưa backfill thì lùi về số chứng từ bán hàng.
+        DocumentNumber     = o.ExportNumber ?? o.DocumentNumber,
         AccountingDate     = o.AccountingDate,
         DocumentDate       = o.DocumentDate,
         Description        = string.IsNullOrWhiteSpace(o.Description) ? $"Xuất kho bán hàng {o.Customer?.Name}" : o.Description,
-        TotalAmount        = o.TotalAmount,
+        TotalAmount        = 0m, // khớp MISA: dòng xuất kho hiện 0 (giá vốn xuất kho chưa tính) — tiền bán hàng xem ở Chứng từ bán hàng
         DeliveryOrReceiver = null, // SalesOrder không lưu tên người giao/nhận riêng (chỉ có DeliveryMethod dạng mô tả)
         ObjectName         = o.Customer?.Name,
         HasSalesOrder      = true, // dòng Xuất kho luôn phát sinh TỪ 1 Sales Order đã ghi sổ

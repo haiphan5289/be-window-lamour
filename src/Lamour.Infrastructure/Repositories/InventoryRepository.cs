@@ -144,7 +144,7 @@ public class InventoryRepository : IInventoryRepository
             {
                 AccountingDate = l.SalesOrder.AccountingDate,
                 DocumentDate   = l.SalesOrder.DocumentDate,
-                DocumentNumber = l.SalesOrder.DocumentNumber,
+                DocumentNumber = l.SalesOrder.ExportNumber ?? l.SalesOrder.DocumentNumber,
                 SourceId       = l.SalesOrder.Id,
                 Description    = "Xuất kho bán hàng " + (l.SalesOrder.Customer != null ? l.SalesOrder.Customer.Name : ""),
                 Unit           = l.Unit,
@@ -192,7 +192,7 @@ public class InventoryRepository : IInventoryRepository
         return rows.OrderBy(r => r.Item1).ThenBy(r => r.Item3);
     }
 
-    public async Task<List<(int Id, string Code, string Name)>> GetWarehousesAsync(
+    public async Task<List<(int Id, string Code, string Name, bool IsActive)>> GetWarehousesAsync(
         IReadOnlyList<int>? warehouseIds = null, CancellationToken ct = default)
     {
         var query = _db.Warehouses.AsNoTracking().AsQueryable();
@@ -201,10 +201,10 @@ public class InventoryRepository : IInventoryRepository
 
         var rows = await query
             .OrderBy(w => w.Name)
-            .Select(w => new { w.Id, w.Code, w.Name })
+            .Select(w => new { w.Id, w.Code, w.Name, w.IsActive })
             .ToListAsync(ct);
 
-        return rows.Select(w => (w.Id, w.Code, w.Name)).ToList();
+        return rows.Select(w => (w.Id, w.Code, w.Name, w.IsActive)).ToList();
     }
 
     public async Task<Dictionary<(int WarehouseId, int ProductId), (int Qty, decimal Value, DateTime? LatestDate)>> GetImportsByWarehouseProductAsync(

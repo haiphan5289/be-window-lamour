@@ -3,6 +3,7 @@ using System;
 using Lamour.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
@@ -11,9 +12,11 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace Lamour.Infrastructure.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20261009125909_RemoveLegacyWarehouses")]
+    partial class RemoveLegacyWarehouses
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -1748,11 +1751,6 @@ namespace Lamour.Infrastructure.Migrations
                         .HasColumnType("integer")
                         .HasColumnName("employee_id");
 
-                    b.Property<string>("ExportNumber")
-                        .HasMaxLength(50)
-                        .HasColumnType("character varying(50)")
-                        .HasColumnName("export_number");
-
                     b.Property<decimal>("GrandTotal")
                         .ValueGeneratedOnAdd()
                         .HasPrecision(18, 2)
@@ -1816,9 +1814,6 @@ namespace Lamour.Infrastructure.Migrations
                         .IsUnique();
 
                     b.HasIndex("EmployeeId");
-
-                    b.HasIndex("ExportNumber")
-                        .IsUnique();
 
                     b.ToTable("sales_orders", (string)null);
                 });

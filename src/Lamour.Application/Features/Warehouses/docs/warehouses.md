@@ -15,6 +15,25 @@
 
 ---
 
+## Update — 2026-10-09: xoá hẳn `KHO01`/`KHO02`, chỉ còn 2 kho `HH`/`TB`
+
+Yêu cầu qua `/ct-be-to-desktop` (kế toán: "hiện tại mình chỉ có 2 kho thôi, kho hàng hóa và kho trưng
+bày", kèm ảnh hộp tham số Tổng hợp tồn kho vẫn liệt kê `KHO01`/"Kho chính"). Nguyên nhân: lần
+2026-09-11 chỉ ngưng hoạt động 2 kho thừa, còn hộp tham số báo cáo không lọc `IsActive`. Chốt qua
+`AskUserQuestion`: **gộp dữ liệu về HH rồi xoá hẳn**.
+
+| Thành phần | Thay đổi |
+|---|---|
+| Migration `RemoveLegacyWarehouses` | Gộp `product_warehouse_stocks` của `KHO01`/`KHO02` vào `HH` (cộng dồn theo sản phẩm), đổi `warehouse_id` trên `warehouse_receipt_lines`/`sales_order_lines`/`sales_return_lines` và `products.default_warehouse_id` sang `HH`, rồi xoá 2 dòng kho. Tìm kho theo `code` nên chạy được trên DB có id khác; DB không còn 2 kho này thì no-op. `Down()` chỉ tạo lại dòng `KHO01`, **không** tách dữ liệu đã gộp |
+| `WarehouseConfiguration` (`HasData`) | Bỏ seed `KHO01` — seed chỉ còn `HH` (id 4), `TB` (id 5) |
+| `IInventoryRepository.GetWarehousesAsync` | Tuple trả thêm `IsActive` |
+| `GetInventorySummaryByWarehouseUseCase` / `GetInventoryDetailByProductUseCase` | Không truyền `warehouseIds` ⇒ bỏ qua kho ngưng hoạt động; truyền đích danh thì vẫn trả |
+| WPF `TongHopTonKhoViewModel` | Hộp tham số chỉ liệt kê kho `IsActive` |
+
+`Product.StockQuantity` không đổi (tồn chỉ đổi kho). Verify local: `warehouses` còn 2 dòng, `HH` 19083 → 19084,
+tổng tồn theo kho khớp `stock_quantity` của mọi sản phẩm; 55/55 unit test pass (thêm 2 test cho kho ngưng
+hoạt động). **Chưa test trên UTM / chưa chạy trên DB production.**
+
 ## Update — 2026-09-11: backfill Kho ngầm định = Hàng hoá cho toàn bộ sản phẩm hiện có
 
 Theo yêu cầu ("chuyển tất cả sản phẩm sang kho Hàng hoá hết đi"), xác nhận phạm vi qua
