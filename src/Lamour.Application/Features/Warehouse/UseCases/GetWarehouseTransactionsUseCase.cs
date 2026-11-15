@@ -90,7 +90,13 @@ public class GetWarehouseTransactionsUseCase : IGetWarehouseTransactionsUseCase
         IsHeld             = r.Status != WarehouseReceiptStatus.Confirmed,
         IsPosted           = r.Status == WarehouseReceiptStatus.Confirmed,
         LedgerDate         = r.CreatedAt,
-        DocumentTypeLabel  = "Nhập kho",
+        // Khớp MISA: phiếu tự sinh từ hàng bán trả lại (CreateSalesReturnWarehouseReceiptUseCase, luôn
+        // ReceiptType=ReturnedGoods) ghi rõ nguồn gốc; mọi phiếu nhập khác (nhập tay, ...) chung 1 nhãn
+        // "Nhập kho khác" — không tách riêng FinishedGoodsProduced/ProcessingReceived vì 2 luồng đó
+        // chưa có trong app, tránh suy diễn nhãn chưa được yêu cầu.
+        DocumentTypeLabel  = r.ReceiptType == WarehouseReceiptType.ReturnedGoods
+            ? "Nhập kho từ hàng bán trả lại"
+            : "Nhập kho khác",
         Lines = r.Lines.Select(l => new WarehouseTransactionLineDto
         {
             ProductCode   = l.Product?.Code ?? "",

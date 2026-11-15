@@ -84,7 +84,10 @@ public class GetSalesOrderSummaryReportUseCase : IGetSalesOrderSummaryReportUseC
                 l.SalesOrder.Customer?.Province ?? "", l.SalesOrder.Customer?.District ?? "", l.SalesOrder.Customer?.Ward ?? "",
                 l.SalesOrder.EmployeeId, l.SalesOrder.Employee?.Code, l.SalesOrder.Employee?.Name, l.SalesOrder.Employee?.Unit);
 
-            dto.QuantitySold += l.Quantity;
+            if (!l.IsPromotion)
+            {
+                dto.QuantitySold += l.Quantity;
+            }
             if (l.IsAmountManual)
             {
                 // Thành tiền thủ công (vd. dòng "Cọc"/"Trừ cọc" — Quantity/UnitPrice luôn = 0 nên
@@ -110,8 +113,14 @@ public class GetSalesOrderSummaryReportUseCase : IGetSalesOrderSummaryReportUseC
                 l.SalesReturn.Customer?.Province ?? "", l.SalesReturn.Customer?.District ?? "", l.SalesReturn.Customer?.Ward ?? "",
                 l.SalesReturn.EmployeeId, l.SalesReturn.Employee?.Code, l.SalesReturn.Employee?.Name, l.SalesReturn.Employee?.Unit);
 
+            // Khớp MISA: "Giá trị trả lại" là giá trị GỘP (trước chiết khấu, l.Amount) — phần chiết
+            // khấu của dòng trả lại phải ĐẨY RIÊNG vào cột "Chiết khấu" (trừ ra, vì trả hàng thì phần
+            // chiết khấu đã cấp cho số lượng đó cũng bị hoàn lại/đảo ngược), không được trừ thẳng vào
+            // Giá trị trả lại — trước đây "ReturnValue += l.Amount - l.DiscountAmount" làm Giá trị trả
+            // lại hiện SAI (ra giá trị ròng) còn cột Chiết khấu bị thiếu hẳn phần trả lại.
             dto.ReturnQuantity += l.Quantity;
-            dto.ReturnValue    += l.Amount - l.DiscountAmount;
+            dto.ReturnValue    += l.Amount;
+            dto.DiscountAmount -= l.DiscountAmount;
         }
 
         foreach (var dto in map.Values)

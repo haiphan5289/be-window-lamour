@@ -63,46 +63,56 @@ public class CreateSalesReturnWarehouseReceiptUseCase : ICreateSalesReturnWareho
             var currentSignature  = BuildLineSignature(salesReturn.Lines.Select(l => (l.ProductId, l.WarehouseId, l.Quantity)));
             var existingSignature = BuildLineSignature(existingActive.Lines.Select(l => (l.ProductId, l.WarehouseId, l.Quantity)));
 
-            if (currentSignature == existingSignature)
-            {
-                _logger.LogInformation(
-                    "Reused existing WarehouseReceipt {ReceiptNumber} for SalesReturn {DocumentNumber} — lines unchanged",
-                    existingActive.ReceiptNumber, salesReturn.DocumentNumber);
-                return CreateWarehouseReceiptUseCase.MapToDto(existingActive);
-            }
+            var linesChanged = currentSignature != existingSignature;
 
-            // Chứng từ đã bị sửa sau khi lập PN — cập nhật lại THẲNG chính PN đó (giữ nguyên số PN),
-            // không lập PN mới. `existingActive` đến từ GetAllAsync (AsNoTracking) nên phải nạp lại
-            // TRACKED qua GetByIdAsync mới sửa được.
+            // 2026-11-15 (bug "đổi khách rồi Cất nhưng phiếu nhập kho in tên khách cũ"): trước đây nhánh
+            // "dòng hàng khớp" trả về PN cũ nguyên xi, còn nhánh "dòng hàng lệch" chỉ cập nhật ngày/diễn
+            // giải/dòng — CẢ HAI không bao giờ cập nhật CustomerId/EmployeeId của PN. Đổi khách (Kathy Spa →
+            // Spa Kim Lợi) ở chứng từ trả hàng rồi Cất thì PN vẫn giữ khách cũ → bản in ra tên cũ, còn địa
+            // chỉ lấy từ khách đang chọn trên form (mới) nên 2 dòng lệch nhau. Giờ luôn đồng bộ phần đầu
+            // PN (khách/nhân viên/ngày/diễn giải) theo chứng từ trả hàng, bất kể dòng hàng có đổi hay không.
+            //
+            // `existingActive` đến từ GetAllAsync (AsNoTracking) nên phải nạp lại TRACKED qua GetByIdAsync
+            // mới sửa được. Giữ nguyên số PN, không lập PN mới.
             var tracked = await _receiptRepo.GetByIdAsync(existingActive.Id, ct)
                 ?? throw new NotFoundException($"WarehouseReceipt {existingActive.Id} not found.");
 
+            tracked.CustomerId     = salesReturn.CustomerId;
+            tracked.EmployeeId     = salesReturn.EmployeeId;
             tracked.AccountingDate = salesReturn.AccountingDate;
             tracked.DocumentDate   = salesReturn.DocumentDate;
             tracked.Description    = salesReturn.Description;
-            tracked.DeliveryPerson = salesReturn.Customer?.Name;
-            tracked.TotalAmount    = salesReturn.Lines.Sum(l => l.CostAmount);
+            // Khớp MISA: PN tự sinh từ hàng bán trả lại để trống "Người giao/Người nhận" — không tự
+            // điền tên khách (đã có sẵn ở cột "Đối tượng"/CustomerId, tự điền thêm vào đây là dư thừa).
+            // Luôn xoá luôn cả giá trị cũ còn sót từ các PN lập trước đây (từng lưu thẳng tên khách vào
+            // đây — chính là nguồn tên khách cũ bị in ra khi đổi khách).
+            tracked.DeliveryPerson = null;
 
-            tracked.Lines.Clear();
-            foreach (var l in salesReturn.Lines)
+            if (linesChanged)
             {
-                tracked.Lines.Add(new WarehouseReceiptLine
+                tracked.TotalAmount = salesReturn.Lines.Sum(l => l.CostAmount);
+
+                tracked.Lines.Clear();
+                foreach (var l in salesReturn.Lines)
                 {
-                    ProductId     = l.ProductId,
-                    WarehouseId   = l.WarehouseId,
-                    Quantity      = l.Quantity,
-                    UnitPrice     = l.CostPrice,
-                    Amount        = l.CostAmount,
-                    DebitAccount  = l.CostAccount,
-                    CreditAccount = l.CogsAccount,
-                });
+                    tracked.Lines.Add(new WarehouseReceiptLine
+                    {
+                        ProductId     = l.ProductId,
+                        WarehouseId   = l.WarehouseId,
+                        Quantity      = l.Quantity,
+                        UnitPrice     = l.CostPrice,
+                        Amount        = l.CostAmount,
+                        DebitAccount  = l.CostAccount,
+                        CreditAccount = l.CogsAccount,
+                    });
+                }
             }
 
             await _receiptRepo.SaveChangesAsync(ct);
 
             _logger.LogInformation(
-                "Updated WarehouseReceipt {ReceiptNumber} in place for SalesReturn {DocumentNumber} — lines changed after edit, receipt number kept unchanged",
-                tracked.ReceiptNumber, salesReturn.DocumentNumber);
+                "Synced WarehouseReceipt {ReceiptNumber} in place for SalesReturn {DocumentNumber} — linesChanged={LinesChanged}, receipt number kept unchanged",
+                tracked.ReceiptNumber, salesReturn.DocumentNumber, linesChanged);
 
             return CreateWarehouseReceiptUseCase.MapToDto(tracked);
         }
@@ -119,7 +129,9 @@ public class CreateSalesReturnWarehouseReceiptUseCase : ICreateSalesReturnWareho
             AccountingDate = salesReturn.AccountingDate,
             DocumentDate   = salesReturn.DocumentDate,
             Description    = salesReturn.Description,
-            DeliveryPerson = salesReturn.Customer?.Name,
+            // Khớp MISA: PN tự sinh từ hàng bán trả lại để trống "Người giao/Người nhận" — không tự
+            // điền tên khách (đã có sẵn ở cột "Đối tượng"/CustomerId, tự điền thêm vào đây là dư thừa).
+            DeliveryPerson = null,
             Reference      = salesReturn.DocumentNumber,
             TotalAmount    = salesReturn.Lines.Sum(l => l.CostAmount),
             CreatedAt      = DateTime.UtcNow,

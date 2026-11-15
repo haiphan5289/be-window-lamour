@@ -67,10 +67,27 @@ public class InventoryRepository : IInventoryRepository
             .Select(g => new { ProductId = g.Key, Qty = g.Sum(l => l.Quantity) })
             .ToListAsync(ct);
 
+        // Khớp MISA: chứng từ trả hàng ĐÃ "Lập PN" (có WarehouseReceipt ReceiptType=ReturnedGoods đang
+        // hiệu lực) được GetImportsByProductAsync tính vào Nhập kho rồi — không được trừ lại ở Xuất kho
+        // nữa kẻo tính đôi 1 lần trả hàng thành 2 lần biến động (trước đây luôn trừ returnRows khỏi
+        // exportQty vô điều kiện, ra Xuất kho âm dù Nhập kho đã phản ánh đúng). Chỉ chứng từ trả hàng
+        // CHƯA lập PN mới cần trừ ở đây để Opening (= Closing − Import + Export) vẫn khớp tồn kho thật.
+        var pnDocumentNumbers = (await _db.WarehouseReceipts
+            .AsNoTracking()
+            .Where(r => r.ReceiptType == WarehouseReceiptType.ReturnedGoods
+                     && r.Status == WarehouseReceiptStatus.Confirmed
+                     && !r.IsSuperseded)
+            .Select(r => r.Reference)
+            .ToListAsync(ct))
+            .Where(r => r != null)
+            .Select(r => r!)
+            .ToHashSet();
+
         var returnRows = await _db.SalesReturnLines
             .AsNoTracking()
             .Where(l => l.SalesReturn.AccountingDate >= fromUtc
                      && l.SalesReturn.AccountingDate <  toUtc
+                     && !pnDocumentNumbers.Contains(l.SalesReturn.DocumentNumber)
                      && (!hasWarehouseFilter || warehouseIds!.Contains(l.WarehouseId)))
             .GroupBy(l => l.ProductId)
             .Select(g => new { ProductId = g.Key, Qty = g.Sum(l => l.Quantity) })
@@ -252,10 +269,24 @@ public class InventoryRepository : IInventoryRepository
             .Select(g => new { g.Key.WarehouseId, g.Key.ProductId, Qty = g.Sum(l => l.Quantity) })
             .ToListAsync(ct);
 
+        // Khớp MISA — cùng lý do với GetExportQtyByProductAsync: chứng từ trả hàng đã "Lập PN" thì bỏ
+        // qua ở đây, chỉ trừ những chứng từ CHƯA lập PN (xem comment chi tiết ở GetExportQtyByProductAsync).
+        var pnDocumentNumbers = (await _db.WarehouseReceipts
+            .AsNoTracking()
+            .Where(r => r.ReceiptType == WarehouseReceiptType.ReturnedGoods
+                     && r.Status == WarehouseReceiptStatus.Confirmed
+                     && !r.IsSuperseded)
+            .Select(r => r.Reference)
+            .ToListAsync(ct))
+            .Where(r => r != null)
+            .Select(r => r!)
+            .ToHashSet();
+
         var returnRows = await _db.SalesReturnLines
             .AsNoTracking()
             .Where(l => l.SalesReturn.AccountingDate >= fromUtc
                      && l.SalesReturn.AccountingDate <  toUtc
+                     && !pnDocumentNumbers.Contains(l.SalesReturn.DocumentNumber)
                      && (!hasWarehouseFilter || warehouseIds!.Contains(l.WarehouseId)))
             .GroupBy(l => new { l.WarehouseId, l.ProductId })
             .Select(g => new { g.Key.WarehouseId, g.Key.ProductId, Qty = g.Sum(l => l.Quantity) })
