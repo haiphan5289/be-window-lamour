@@ -1,6 +1,8 @@
 # Sales Orders — Feature Document (BE)
 
-> **Jira:** — | **Branch:** `dev` | **Generated:** 2026-05-01 | **Last updated:** 2026-09-11 (cùng
+> **Jira:** — | **Branch:** `dev` | **Generated:** 2026-05-01 | **Last updated:** 2026-11-16 (**thiếu tồn kho
+> KHÔNG còn chặn lưu — đơn được lưu Treo + không trừ kho + trả `stock_warning`**, giống MISA — xem mục
+> "Update — 2026-11-16" cuối file, đè lên mô tả "throw `DomainException`" của Stock guard ở các mục cũ) | 2026-09-11 (cùng
 > ngày, mục mới nhất) — **gộp "Nháp" (Draft) và "Treo" (Held) thành 1 trạng thái duy nhất "Treo"**,
 > mirror SalesReturn cùng ngày — xem mục "Update — 2026-09-11: gộp Nháp + Treo thành 1" cuối file.
 > Trước đó cùng ngày: **ĐẢO NGƯỢC quyết định 2026-09-10 — "Cất" = "Ghi sổ" ngay, không còn 2 lần
@@ -50,7 +52,7 @@
 | Số chứng từ | Prefix `XK`, format `XK{5 digits}` (XK00001...) — sinh tại WPF client |
 | Ít nhất 1 line (nới lỏng 2026-08-25) | BE không còn chặn `Lines.Count == 0` — chứng từ có thể chỉ dùng để trừ cọc (không có dòng sản phẩm thật nào), cần số chứng từ XK để gắn với lần trừ cọc thay vì số TC từ màn Đặt Cọc/Trừ Cọc riêng. WPF (`SalesOrderViewModel.SaveAsync`) vẫn chặn Ghi sổ nếu **cả** sản phẩm thật lẫn dòng Trừ cọc đều không có |
 | Hàng còn kinh doanh | Chỉ cho phép `IsActive = true` — `DomainException` nếu sản phẩm đã ngưng |
-| Stock guard | Trước khi trừ kho: kiểm tra **tất cả** lines. Nếu bất kỳ sản phẩm nào không đủ kho → gom tất cả lỗi thành 1 message rồi throw `DomainException` — không dừng sớm |
+| Stock guard (đổi 2026-11-16) | Kiểm tra **tất cả** lines, gom mọi dòng thiếu thành 1 message. Nếu có dòng thiếu tồn → **KHÔNG throw**: Create/Update lưu đơn ở `Held` (Treo), Confirm giữ nguyên `Held`; cả 3 **không trừ kho** (toàn đơn, kể cả dòng đủ tồn) và trả `stock_warning` = message đó. Đủ tồn → hành vi cũ (`Normal` + trừ kho, `stock_warning = null`). Lỗi khác (SP không tồn tại/ngưng KD, thiếu Kho, thành tiền âm) vẫn `DomainException` → 400 |
 | **Trạng thái (2026-09-10)** | `Held` ("Treo", mặc định khi Cất — KHÔNG trừ tồn kho) ⇄ `Normal` ("Đã ghi sổ", TRỪ tồn kho) ⇄ `Draft` ("Bỏ ghi", sau khi hoàn tác) — cùng sơ đồ với SalesReturn (xem `sales-return.md`) |
 | Cất (Create/Update, 2026-09-10) | LUÔN kết thúc ở `Held`, không trừ tồn kho cho dòng MỚI. Nếu đơn trước đó đang `Normal`, hoàn tác tồn kho dòng CŨ trước |
 | Ghi sổ (Confirm, 2026-09-10) | Trừ `StockQuantity` cho mỗi line (two-pass validate đủ tồn trước) — cho phép từ `Held` **hoặc** `Draft`; chặn nếu đã `Normal` |
@@ -754,3 +756,47 @@ không còn hiển thị dòng trừ trong chứng từ (dữ liệu vẫn còn 
 - **Không đổi:** guard tương tự ở `UnconfirmSalesReturnUseCase`/`UpdateSalesReturnUseCase`/`DeleteSalesReturnUseCase` — các use case đó trừ tồn nên guard đúng.
 - **Test:** `UnconfirmSalesOrderUseCaseTests` (mới) — tồn hiện tại 10 < đã bán 100 vẫn bỏ ghi được và tồn thành 110; đơn chưa ghi sổ thì từ chối. Đã kiểm tra test đỏ khi đưa guard cũ trở lại.
 
+---
+
+## Update — 2026-11-16: thiếu tồn kho → lưu Treo + cảnh báo (`stock_warning`)
+
+Theo yêu cầu (giống MISA): thiếu tồn kho vẫn báo cho người dùng nhưng **đơn không bị mất** — được lưu ở
+trạng thái Treo (`Held`), KHÔNG trừ kho. Trước đây `Create/Update/ConfirmSalesOrderUseCase` gom `stockErrors`
+rồi `throw DomainException("Các sản phẩm không đủ tồn kho:...")` → 400 và đơn không được lưu.
+
+### Hành vi
+
+| Thao tác | Đủ tồn (KHÔNG ĐỔI) | Thiếu tồn (MỚI) |
+|---|---|---|
+| `POST /api/v1/sales-orders` (Create) | 201, `Normal`, trừ kho, `stock_warning = null` | **201**, `Status = Held`, **không trừ kho** (bỏ qua pass 2 cho cả dòng đủ tồn — toàn đơn không đụng kho), `stock_warning` có nội dung |
+| `PUT /{id}` (Update) | 200, `Normal`, hoàn kho dòng cũ rồi trừ dòng mới | **200**, `Status = Held`, không trừ kho dòng mới, `stock_warning` có nội dung. Nếu đơn trước đó `Normal`, khối hoàn kho dòng CŨ vẫn chạy (đã chạy trước validate) → kết quả: đơn `Held`, kho đã hoàn |
+| `POST /{id}/confirm` (Ghi sổ) | 200, `Normal`, trừ kho | **200**, đơn **giữ nguyên `Held`** (đơn `Draft` cũ được chuẩn hoá về `Held`), không trừ kho, DTO kèm `stock_warning` |
+| Lỗi khác: SP không tồn tại / ngưng KD, thiếu Kho, thành tiền âm, đơn không tồn tại, Confirm khi đã `Normal` | `DomainException` → 400 | **KHÔNG ĐỔI** — vẫn 400 |
+
+### Contract
+
+`SalesOrderResponseDto` thêm `[JsonPropertyName("stock_warning")] string? StockWarning`:
+
+- Nội dung đúng format cũ: `"Các sản phẩm không đủ tồn kho:\n• {tên}: kho có X, cần Y\n..."` (mỗi SP thiếu 1 dòng).
+- Đơn đủ tồn → `null`. Chỉ được set bởi Create/Update/Confirm sau khi map; `GetSalesOrdersUseCase.MapToDto` (dùng
+  chung cho danh sách, chi tiết, Unconfirm, ...) luôn để `null`. **Không lưu DB** — chỉ là cảnh báo của lần gọi đó.
+- WPF cần đọc `stock_warning` từ response 201/200 của Create/Update/Confirm và hiển thị cảnh báo thay vì xử lý lỗi 400 như trước.
+- Format message dùng chung ở `SalesOrderStockWarning.Build` (`Features/Sales/SalesOrderStockWarning.cs`, mới).
+
+### Ghi chú nghiệp vụ
+
+- **Đơn Treo thiếu tồn không giữ chỗ hàng**: `Held` vốn không trừ/giữ kho (xem "Update — 2026-09-01"), nên số tồn vẫn
+  tự do cho đơn khác. Khi nhập thêm hàng, người dùng bấm "Ghi sổ" lại — nếu đủ tồn thì chuyển `Normal` + trừ kho.
+- Use case ghi log `LogWarning` mỗi lần lưu Treo do thiếu tồn.
+- `DuplicateSalesOrderUseCase` gọi `ICreateSalesOrderUseCase` nên tự động trả đơn `Held` + `stock_warning` khi bản sao thiếu tồn
+  (trước đây 400). Không cần sửa code — DTO trả thẳng cho controller (200 như cũ).
+- **Không đổi route, không cần EF migration** (không thêm cột; `stock_warning` chỉ nằm trong response).
+- Giữ nguyên `IUnitOfWork` transaction, `[Authorize]`, `CancellationToken`.
+
+### Test
+
+`SalesOrderInsufficientStockTests` (mới, `tests/Lamour.Application.Tests/Features/Sales/UseCases/`): Create thiếu tồn → `Held`,
+không `AdjustQuantityAsync` âm / `UpdateAsync` product, warning chứa tên SP, dòng đủ tồn cũng không bị trừ; Create đủ tồn → `Normal` +
+trừ kho + warning null; Update đơn `Normal` dòng mới thiếu → hoàn kho cũ + `Held` + không trừ mới; Confirm `Held`/`Draft` thiếu
+tồn → vẫn `Held`, không trừ kho; Confirm đủ tồn / đã `Normal` giữ như cũ; SP ngưng KD / không tồn tại / thiếu Kho vẫn
+`DomainException`. Đã kiểm tra test Create thiếu tồn đỏ khi đưa lại `throw` cũ.

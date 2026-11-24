@@ -109,8 +109,11 @@ public class CreateSalesOrderUseCase : ICreateSalesOrderUseCase
             });
         }
 
-        if (stockErrors.Count > 0)
-            throw new DomainException("Các sản phẩm không đủ tồn kho:\n" + string.Join("\n", stockErrors));
+        // 2026-11-16: thiếu tồn KHÔNG còn throw — đơn vẫn được lưu nhưng ở trạng thái Treo, không đụng
+        // kho (kể cả dòng đủ tồn), kèm StockWarning (giống MISA). Lỗi khác (SP không tồn tại/ngưng KD,
+        // thiếu Kho, thành tiền âm) vẫn throw ở vòng lặp trên.
+        var insufficientStock = stockErrors.Count > 0;
+        var stockWarning      = insufficientStock ? SalesOrderStockWarning.Build(stockErrors) : null;
 
         // Số xuất kho (XK) hiện ở màn Kho: đơn tạo từ Kho đã mang số XK thì dùng luôn; đơn BH được cấp thêm 1 số XK kế tiếp.
         var exportNumber = request.DocumentNumber.StartsWith("XK", StringComparison.OrdinalIgnoreCase)
@@ -143,7 +146,8 @@ public class CreateSalesOrderUseCase : ICreateSalesOrderUseCase
             CreatedAt      = DateTime.UtcNow,
             // 2026-09-11: "Cất" = "Ghi sổ" ngay — đảo ngược quyết định 2026-09-10 ("Cất luôn ra
             // Treo"). Chứng từ mới luôn ở Normal, trừ tồn kho ngay (pass 2 bên dưới, trong transaction).
-            Status         = SalesOrderStatus.Normal,
+            // Thiếu tồn kho (2026-11-16) → Held, không trừ kho.
+            Status         = insufficientStock ? SalesOrderStatus.Held : SalesOrderStatus.Normal,
             Lines          = lines,
         };
 
@@ -154,6 +158,9 @@ public class CreateSalesOrderUseCase : ICreateSalesOrderUseCase
 
             // Pass 2 — trừ tồn kho thật cho các dòng đã qua validate đủ tồn ở trên (mirror
             // ConfirmSalesOrderUseCase, vẫn giữ nguyên dùng cho luồng "Ghi sổ" thẳng từ Nháp).
+            // Đơn thiếu tồn (Held) bỏ qua hẳn pass 2: stockLines chỉ chứa dòng ĐỦ tồn, nhưng toàn đơn
+            // không được đụng kho.
+            if (!insufficientStock)
             foreach (var (productId, warehouseId, quantity, product) in stockLines)
             {
                 product.StockQuantity -= quantity;
@@ -165,8 +172,13 @@ public class CreateSalesOrderUseCase : ICreateSalesOrderUseCase
 
             _logger.LogInformation("Created SalesOrder {DocumentNumber} for customer {CustomerId}",
                 saved.DocumentNumber, saved.CustomerId);
+            if (insufficientStock)
+                _logger.LogWarning("SalesOrder {DocumentNumber} saved as Held (no stock deducted) — insufficient stock: {StockWarning}",
+                    saved.DocumentNumber, stockWarning);
 
-            return GetSalesOrdersUseCase.MapToDto(saved);
+            var result = GetSalesOrdersUseCase.MapToDto(saved);
+            result.StockWarning = stockWarning;
+            return result;
         }
         catch
         {

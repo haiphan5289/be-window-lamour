@@ -62,8 +62,29 @@ public class ConfirmSalesOrderUseCase : IConfirmSalesOrderUseCase
                     stockErrors.Add($"• {product.Name}: kho có {availableQty}, cần {line.Quantity}");
             }
 
+            // 2026-11-16: thiếu tồn KHÔNG còn throw — Ghi sổ không thực hiện được nhưng đơn vẫn được giữ ở
+            // Treo (Held), không trừ kho, trả DTO kèm StockWarning (giống MISA). Đơn đang Draft (dữ liệu cũ)
+            // được chuẩn hoá về Held vì Draft/Held đã gộp thành "Treo".
             if (stockErrors.Count > 0)
-                throw new DomainException("Các sản phẩm không đủ tồn kho:\n" + string.Join("\n", stockErrors));
+            {
+                var stockWarning = SalesOrderStockWarning.Build(stockErrors);
+
+                if (order.Status != SalesOrderStatus.Held)
+                {
+                    order.Status = SalesOrderStatus.Held;
+                    await _repo.UpdateAsync(order, ct);
+                }
+
+                await _uow.CommitAsync(ct);
+
+                _logger.LogWarning("Confirm SalesOrder {Id} ({DocumentNumber}) skipped — insufficient stock, kept as Held: {StockWarning}",
+                    id, order.DocumentNumber, stockWarning);
+
+                var held = await _repo.GetByIdAsync(id, ct);
+                var heldDto = GetSalesOrdersUseCase.MapToDto(held!);
+                heldDto.StockWarning = stockWarning;
+                return heldDto;
+            }
 
             foreach (var line in order.Lines.Where(l => !l.IsPromotion))
             {

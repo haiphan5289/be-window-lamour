@@ -129,8 +129,11 @@ public class UpdateSalesOrderUseCase : IUpdateSalesOrderUseCase
                 });
             }
 
-            if (stockErrors.Count > 0)
-                throw new DomainException("Các sản phẩm không đủ tồn kho:\n" + string.Join("\n", stockErrors));
+            // 2026-11-16: thiếu tồn KHÔNG còn throw — đơn vẫn được cập nhật nhưng ở trạng thái Treo, không
+            // trừ kho dòng mới (kể cả dòng đủ tồn), kèm StockWarning. Khối hoàn kho dòng CŨ ở trên đã
+            // chạy (nếu đơn cũ Normal) nên kết quả nhất quán: đơn Held, kho đã hoàn.
+            var insufficientStock = stockErrors.Count > 0;
+            var stockWarning      = insufficientStock ? SalesOrderStockWarning.Build(stockErrors) : null;
 
             order.DocumentNumber = request.DocumentNumber;
             order.AccountingDate = DateTime.SpecifyKind(request.AccountingDate, DateTimeKind.Utc);
@@ -152,7 +155,7 @@ public class UpdateSalesOrderUseCase : IUpdateSalesOrderUseCase
             // 2026-09-11: "Cất" (Update) = "Ghi sổ" ngay — đảo ngược quyết định 2026-09-10 ("Cất
             // luôn ra Held"). Luôn đưa đơn về Normal, trừ tồn kho dòng mới ngay ở pass 2 bên dưới —
             // block hoàn tác dòng cũ ở trên giữ nguyên, vẫn cần hoàn tác nếu đơn cũ đang Normal.
-            order.Status         = SalesOrderStatus.Normal;
+            order.Status         = insufficientStock ? SalesOrderStatus.Held : SalesOrderStatus.Normal;
             order.TotalAmount    = newLines.Sum(l => l.Amount);
             order.TotalTaxAmount = newLines.Sum(l => l.TaxAmount);
             order.GrandTotal     = newLines.Sum(l => l.Amount + l.TaxAmount);
@@ -161,7 +164,9 @@ public class UpdateSalesOrderUseCase : IUpdateSalesOrderUseCase
             await _repo.UpdateAsync(order, ct);
 
             // Pass 2 — trừ tồn kho thật cho các dòng đã qua validate đủ tồn ở trên (mirror
-            // ConfirmSalesOrderUseCase/CreateSalesOrderUseCase cùng ngày).
+            // ConfirmSalesOrderUseCase/CreateSalesOrderUseCase cùng ngày). Đơn thiếu tồn (Held) bỏ qua
+            // hẳn pass 2 — không dòng nào bị trừ kho.
+            if (!insufficientStock)
             foreach (var (productId, warehouseId, quantity, product) in stockLines)
             {
                 product.StockQuantity -= quantity;
@@ -172,9 +177,14 @@ public class UpdateSalesOrderUseCase : IUpdateSalesOrderUseCase
             await _uow.CommitAsync(ct);
 
             _logger.LogInformation("Updated SalesOrder {Id}", id);
+            if (insufficientStock)
+                _logger.LogWarning("SalesOrder {Id} saved as Held (no stock deducted) — insufficient stock: {StockWarning}",
+                    id, stockWarning);
 
             var updated = await _repo.GetByIdAsync(id, ct);
-            return GetSalesOrdersUseCase.MapToDto(updated!);
+            var result = GetSalesOrdersUseCase.MapToDto(updated!);
+            result.StockWarning = stockWarning;
+            return result;
         }
         catch
         {
