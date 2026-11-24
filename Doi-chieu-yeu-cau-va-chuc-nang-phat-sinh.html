@@ -1,0 +1,572 @@
+<title>Quản Lý Kho La'mour — Yêu Cầu Gốc &amp; Chức Năng Phát Sinh</title>
+<style>
+:root{
+  --bg:#f0ede3;
+  --surface:#faf8f1;
+  --surface-2:#e8e2d2;
+  --text:#272216;
+  --text-muted:#716a54;
+  --border:#d9d0b9;
+  --border-strong:#b7ac8c;
+  --accent:#a9651f;
+  --accent-ink:#7a4a16;
+  --accent-soft:#f1e1c6;
+  --accent-soft-border:#dcbd8b;
+  --flag:#8a3b3b;
+  --flag-soft:#f3dcdb;
+  --flag-soft-border:#d9a8a7;
+  --draft:#3f6b55;
+  --draft-soft:#dbe8df;
+  --draft-soft-border:#b7cdbd;
+  --shadow:0 2px 14px rgba(40,30,10,.08);
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#1b1812; --surface:#231f16; --surface-2:#2c271b;
+    --text:#ece5d3; --text-muted:#a89d82;
+    --border:#3a3425; --border-strong:#4e4532;
+    --accent:#dd9e4f; --accent-ink:#f2c689;
+    --accent-soft:#3b2c16; --accent-soft-border:#5d441f;
+    --flag:#dd8c8a; --flag-soft:#3a2120; --flag-soft-border:#5c3230;
+    --draft:#82bb9c; --draft-soft:#203329; --draft-soft-border:#345142;
+    --shadow:0 2px 14px rgba(0,0,0,.45);
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#1b1812; --surface:#231f16; --surface-2:#2c271b;
+  --text:#ece5d3; --text-muted:#a89d82;
+  --border:#3a3425; --border-strong:#4e4532;
+  --accent:#dd9e4f; --accent-ink:#f2c689;
+  --accent-soft:#3b2c16; --accent-soft-border:#5d441f;
+  --flag:#dd8c8a; --flag-soft:#3a2120; --flag-soft-border:#5c3230;
+  --draft:#82bb9c; --draft-soft:#203329; --draft-soft-border:#345142;
+  --shadow:0 2px 14px rgba(0,0,0,.45);
+}
+:root[data-theme="light"]{
+  --bg:#f0ede3; --surface:#faf8f1; --surface-2:#e8e2d2;
+  --text:#272216; --text-muted:#716a54;
+  --border:#d9d0b9; --border-strong:#b7ac8c;
+  --accent:#a9651f; --accent-ink:#7a4a16;
+  --accent-soft:#f1e1c6; --accent-soft-border:#dcbd8b;
+  --flag:#8a3b3b; --flag-soft:#f3dcdb; --flag-soft-border:#d9a8a7;
+  --draft:#3f6b55; --draft-soft:#dbe8df; --draft-soft-border:#b7cdbd;
+  --shadow:0 2px 14px rgba(40,30,10,.08);
+}
+
+*{box-sizing:border-box;}
+html,body{margin:0;}
+body{
+  background:var(--bg); color:var(--text);
+  font-family:"Be Vietnam Pro","Segoe UI",system-ui,-apple-system,"Helvetica Neue",Arial,sans-serif;
+  line-height:1.55; font-size:16px;
+  text-rendering:optimizeLegibility;
+}
+.mono{font-family:"IBM Plex Mono",ui-monospace,"SF Mono","Cascadia Code","Roboto Mono",Consolas,monospace; font-variant-numeric:tabular-nums;}
+.page{max-width:960px; margin:0 auto; padding:40px max(16px,4vw) 80px;}
+h1,h2,h3{text-wrap:balance; font-weight:700; margin:0;}
+a{color:var(--accent-ink);}
+::selection{background:var(--accent-soft);}
+
+/* ---------- masthead ---------- */
+.masthead{border:1px solid var(--border-strong); border-radius:10px; background:var(--surface); box-shadow:var(--shadow); padding:28px 28px 22px; margin-bottom:34px;}
+.eyebrow{font-family:"IBM Plex Mono",ui-monospace,monospace; font-size:.72rem; letter-spacing:.12em; text-transform:uppercase; color:var(--accent-ink); margin:0 0 10px;}
+.masthead h1{font-size:1.65rem; line-height:1.25; margin-bottom:12px;}
+.lede{color:var(--text-muted); font-size:.98rem; max-width:640px; margin:0 0 20px;}
+.meta-grid{display:grid; grid-template-columns:repeat(4,1fr); gap:16px; padding-top:18px; border-top:1px dashed var(--border-strong);}
+@media (max-width:700px){.meta-grid{grid-template-columns:repeat(2,1fr);}}
+.meta-grid div{display:flex; flex-direction:column; gap:3px;}
+.meta-label{font-size:.68rem; text-transform:uppercase; letter-spacing:.06em; color:var(--text-muted);}
+.meta-value{font-size:.86rem; font-weight:600;}
+
+/* ---------- toc ---------- */
+.toc{display:flex; gap:18px; flex-wrap:wrap; margin-bottom:40px; font-size:.86rem;}
+.toc a{text-decoration:none; font-weight:600; border-bottom:2px solid var(--accent-soft-border); padding-bottom:2px;}
+.toc a:hover{border-bottom-color:var(--accent);}
+
+section{margin-bottom:52px;}
+.section-head{display:flex; align-items:baseline; gap:10px; margin-bottom:6px; flex-wrap:wrap;}
+.section-head h2{font-size:1.28rem;}
+.section-num{font-family:"IBM Plex Mono",monospace; color:var(--text-muted); font-size:1rem;}
+.section-intro{color:var(--text-muted); max-width:680px; margin:8px 0 26px; font-size:.94rem;}
+
+/* ---------- requirement cards (phần 1) ---------- */
+.req-grid{display:grid; grid-template-columns:repeat(auto-fill,minmax(260px,1fr)); gap:14px;}
+.req-card{border:1px solid var(--border); border-radius:8px; background:var(--surface); padding:16px 18px;}
+.req-card h3{font-size:.92rem; display:flex; gap:9px; align-items:baseline; margin-bottom:10px;}
+.req-card .num{font-family:"IBM Plex Mono",monospace; color:var(--accent-ink); background:var(--accent-soft); border:1px solid var(--accent-soft-border); border-radius:4px; padding:1px 6px; font-size:.74rem;}
+.req-card ul{margin:0; padding-left:18px; font-size:.84rem; color:var(--text);}
+.req-card li{margin-bottom:5px;}
+.req-card li::marker{color:var(--text-muted);}
+
+/* ---------- stat row ---------- */
+.stat-row{display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:12px; margin-bottom:30px;}
+.stat{border:1px solid var(--border); background:var(--surface); border-radius:8px; padding:14px 16px;}
+.stat .n{font-family:"IBM Plex Mono",monospace; font-size:1.5rem; font-weight:600; color:var(--accent-ink);}
+.stat .l{font-size:.76rem; color:var(--text-muted); text-transform:uppercase; letter-spacing:.04em;}
+
+/* ---------- feature blocks (phần 2) ---------- */
+.feature-block{border:1px solid var(--border); border-radius:10px; background:var(--surface); padding:22px 24px; margin-bottom:22px;}
+.feature-head{display:flex; justify-content:space-between; align-items:flex-start; gap:12px; flex-wrap:wrap; margin-bottom:8px;}
+.feature-head h3{font-size:1.1rem;}
+.flag-badge{font-family:"IBM Plex Mono",monospace; font-size:.68rem; letter-spacing:.05em; text-transform:uppercase; color:var(--flag); background:var(--flag-soft); border:1px solid var(--flag-soft-border); border-radius:20px; padding:4px 10px; white-space:nowrap;}
+.feature-desc{color:var(--text-muted); font-size:.92rem; margin:0 0 14px; max-width:680px;}
+.feature-meta{display:flex; gap:18px; flex-wrap:wrap; font-size:.78rem; margin-bottom:18px; font-family:"IBM Plex Mono",monospace;}
+.feature-meta .path{color:var(--text-muted);}
+.feature-meta .path b{color:var(--text); font-weight:600;}
+.size-chip{color:var(--accent-ink); background:var(--accent-soft); border:1px solid var(--accent-soft-border); border-radius:4px; padding:2px 8px; font-weight:600;}
+.no-ui-note{border:1px dashed var(--border-strong); border-radius:8px; padding:14px 16px; color:var(--text-muted); font-size:.86rem; background:var(--surface-2);}
+
+/* ---------- mockup window (fixed shape, per ct-review-artifact) ---------- */
+.mockup-window{border:1px solid var(--border-strong); border-radius:8px; background:var(--surface); box-shadow:var(--shadow); overflow:hidden; margin-bottom:10px;}
+.mockup-titlebar{padding:10px 16px; font-weight:700; font-size:.92rem; border-bottom:1px solid var(--border); display:flex; justify-content:space-between; gap:10px; align-items:baseline;}
+.mockup-titlebar .screen-type{font-family:"IBM Plex Mono",monospace; font-size:.66rem; color:var(--text-muted); text-transform:uppercase; font-weight:500;}
+.mockup-tabs{display:flex; gap:2px; padding:0 12px; background:var(--surface-2); border-bottom:1px solid var(--border); overflow-x:auto;}
+.mockup-tabs span{padding:8px 12px; font-size:.76rem; color:var(--text-muted); border-bottom:2px solid transparent; white-space:nowrap;}
+.mockup-tabs span.active{color:var(--accent-ink); border-bottom-color:var(--accent); font-weight:600;}
+.mockup-toolbar{display:flex; flex-wrap:wrap; gap:8px; padding:10px 16px; border-bottom:1px solid var(--border); background:var(--surface-2);}
+.mockup-toolbar .btn{display:inline-flex; gap:6px; align-items:center; font-size:.78rem; font-weight:600; padding:5px 10px; border:1px solid var(--border-strong); border-radius:4px; background:var(--surface); white-space:nowrap;}
+.mockup-filterbar{padding:8px 16px; border-bottom:1px solid var(--border); font-size:.78rem; color:var(--text-muted); background:var(--surface);}
+.mockup-filterbar b{color:var(--text); font-weight:600;}
+.mockup-body{padding:16px;}
+.mockup-body.form{display:grid; grid-template-columns:repeat(auto-fill,minmax(150px,1fr)); gap:12px 20px;}
+.mockup-body .field label{display:block; font-size:.66rem; text-transform:uppercase; letter-spacing:.04em; color:var(--text-muted); margin-bottom:3px;}
+.mockup-body .field .value{font-size:.88rem; font-weight:600;}
+.mockup-body .field .value.readonly{color:var(--text-muted); font-style:italic; font-weight:500;}
+.mockup-note{grid-column:1/-1; font-size:.78rem; color:var(--text-muted); font-style:italic; border-top:1px dashed var(--border); padding-top:10px; margin-top:4px;}
+.mockup-divider{grid-column:1/-1; font-size:.68rem; text-transform:uppercase; letter-spacing:.05em; color:var(--text-muted); border-top:1px solid var(--border); padding-top:12px; margin-top:4px;}
+.mockup-body.grid{overflow-x:auto; padding:0;}
+.mockup-body.grid table{width:100%; border-collapse:collapse; font-size:.78rem;}
+.mockup-body.grid th{text-align:left; padding:8px 10px; background:var(--surface-2); color:var(--text-muted); font-size:.64rem; text-transform:uppercase; white-space:nowrap;}
+.mockup-body.grid td{padding:7px 10px; border-top:1px solid var(--border); white-space:nowrap; font-family:"IBM Plex Mono",monospace;}
+.mockup-body.grid td.wrap{white-space:normal; font-family:"Be Vietnam Pro","Segoe UI",sans-serif;}
+.mockup-body.grid tr.status-draft td{background:var(--draft-soft); color:var(--draft);}
+.mockup-footer{padding:10px 16px; border-top:1px solid var(--border); text-align:right; font-size:.82rem; font-family:"IBM Plex Mono",monospace;}
+.mockup-caption{font-size:.74rem; font-style:italic; color:var(--text-muted); margin:4px 0 20px;}
+
+/* compact variant for simple master-data screens */
+.mini-grid{display:grid; grid-template-columns:repeat(auto-fill,minmax(210px,1fr)); gap:12px;}
+.mini-mockup{border:1px solid var(--border-strong); border-radius:8px; background:var(--surface); overflow:hidden; font-size:.78rem;}
+.mini-mockup .mt{padding:7px 12px; font-weight:700; border-bottom:1px solid var(--border); font-size:.82rem;}
+.mini-mockup .mtb{display:flex; gap:5px; padding:7px 12px; background:var(--surface-2); border-bottom:1px solid var(--border); flex-wrap:wrap;}
+.mini-mockup .mtb span{border:1px solid var(--border-strong); border-radius:3px; padding:2px 6px; font-size:.68rem; font-weight:600; background:var(--surface);}
+.mini-mockup .mcols{padding:8px 12px; font-family:"IBM Plex Mono",monospace; font-size:.68rem; color:var(--text-muted); border-bottom:1px solid var(--border);}
+.mini-mockup .mcols b{color:var(--text);}
+.mini-mockup .mform{padding:8px 12px; font-size:.72rem; color:var(--text-muted);}
+.mini-mockup .mform b{color:var(--text); font-weight:600;}
+
+footer{border-top:1px solid var(--border-strong); padding-top:20px; font-size:.82rem; color:var(--text-muted);}
+footer p{margin:0 0 8px;}
+footer .feedback{color:var(--accent-ink); font-weight:600;}
+</style>
+
+<div class="page">
+
+  <header class="masthead">
+    <p class="eyebrow">Báo cáo đối chiếu</p>
+    <h1>Quản Lý Kho La'mour — Yêu Cầu Gốc &amp; Chức Năng Phát Sinh</h1>
+    <p class="lede">Nội dung file <em>"App Quản lý kho - La'mour.pdf"</em> (10 trang) được tái hiện lại ở Phần 1, đối chiếu với code thực tế trong <code class="mono">be-window-lamour</code> (BE) và <code class="mono">desktop-lamour</code> (WPF). Phần 2 liệt kê 14 chức năng đã được xây dựng thêm, ngoài phạm vi file PDF, kèm wireframe minh hoạ dựng từ XAML thật.</p>
+    <div class="meta-grid">
+      <div><span class="meta-label">Đối tượng</span><span class="meta-value">Hai Phan — chủ dự án</span></div>
+      <div><span class="meta-label">Mục tiêu</span><span class="meta-value">Xác định phần phát sinh ngoài spec gốc</span></div>
+      <div><span class="meta-label">Nguồn</span><span class="meta-value">PDF gốc + source BE/WPF</span></div>
+      <div><span class="meta-label">Ngày</span><span class="meta-value">20/10/2026</span></div>
+    </div>
+  </header>
+
+  <nav class="toc">
+    <a href="#pdf-goc">Phần 1 — Yêu cầu gốc (PDF)</a>
+    <a href="#phat-sinh">Phần 2 — 14 chức năng phát sinh</a>
+    <a href="#danh-muc-dung-chung">Danh mục dùng chung</a>
+  </nav>
+
+  <!-- ===================== PHẦN 1 — PDF GỐC ===================== -->
+  <section id="pdf-goc">
+    <div class="section-head"><span class="section-num">01</span><h2>Yêu cầu gốc theo file PDF</h2></div>
+    <p class="section-intro">Tái hiện lại nội dung text của 14 khu vực chức năng trong file PDF gốc (10 trang, định dạng Google Docs → PDF). File gốc có kèm ảnh mô tả UI cho từng mục — phần ảnh không trích xuất được do dung lượng file; nội dung dưới đây là phần text yêu cầu, giữ nguyên ý.</p>
+    <div class="req-grid">
+
+      <article class="req-card"><h3><span class="num">01</span>Chứng từ bán hàng</h3><ul>
+        <li>Nhập MSKH → hiện DS khách hàng (lọc SĐT/tên/địa chỉ) → tự điền MSKH, tên, địa chỉ, NVBH</li>
+        <li>Diễn giải: tự nhập tay</li>
+        <li>Nhập mã SP → hiện danh sách → chọn tự điền giá</li>
+        <li>In biên lai bán hàng — chỉ in sau khi đã lưu</li>
+        <li>Thêm cột hàng khuyến mãi (click = 0đ)</li>
+        <li>Thêm cột tiền chiết khấu + tỉ lệ chiết khấu (nhập 1 trong 2, tự tính field còn lại)</li>
+        <li>Thêm tab "Thông tin bổ sung": ghi chú, phương thức giao hàng, phương thức thanh toán</li>
+        <li>MSKH/SĐT không có → nút "+" tạo KH mới ngay tại màn hình</li>
+        <li>IN HOA toàn app · số lượng tính sau khuyến mãi · format ngày dd/mm/yyyy</li>
+      </ul></article>
+
+      <article class="req-card"><h3><span class="num">02</span>DS chứng từ bán hàng</h3><ul>
+        <li>Chỉ hiển thị (read-only)</li>
+        <li>Sắp xếp theo thứ tự mới nhất → thấp nhất</li>
+      </ul></article>
+
+      <article class="req-card"><h3><span class="num">03</span>DS vật tư hàng hoá</h3><ul>
+        <li>Field mã cho user nhập tuỳ ý</li>
+        <li>"Thông tin chung" giữ nguyên</li>
+        <li>"Ngầm định": field TK hiện mặc định, sửa được dạng list khi user thay đổi</li>
+        <li>Field đối diện TK: chỉ cần hiển thị đơn giá bán</li>
+      </ul></article>
+
+      <article class="req-card"><h3><span class="num">04</span>Cập nhật số liệu kho</h3><ul>
+        <li>Mã SP, tên SP, số lượng, mã hoá đơn nhập/xuất</li>
+        <li>Hiển thị số lượng tồn kho đang có</li>
+        <li>Mỗi lần chọn chỉ hiển thị 1 kho, có nút đổi kho</li>
+        <li>Mã hàng hoá: 01, 02, 03…</li>
+        <li>Thêm dòng tồn kho đầu kỳ, bôi đậm, theo ngày đầu của khoảng lọc</li>
+      </ul></article>
+
+      <article class="req-card"><h3><span class="num">05</span>Hệ thống tài khoản <em>(màn hình mới)</em></h3><ul>
+        <li>Dữ liệu cố định</li>
+        <li>Import Excel</li>
+      </ul></article>
+
+      <article class="req-card"><h3><span class="num">06</span>Phiếu nhập kho</h3><ul>
+        <li>Mã SP, tên SP, số lượng</li>
+        <li>Nhập kho thành công → tự cập nhật tồn kho</li>
+        <li>Sản phẩm chia theo ngày sắp hết hạn</li>
+      </ul></article>
+
+      <article class="req-card"><h3><span class="num">07</span>Phiếu xuất kho</h3><ul>
+        <li>Người nhận, địa chỉ, lý do xuất</li>
+        <li>Tên sản phẩm, số lượng</li>
+        <li>Xuất kho thành công → tự cập nhật tồn kho</li>
+        <li>Sản phẩm chia theo ngày sắp hết hạn</li>
+      </ul></article>
+
+      <article class="req-card"><h3><span class="num">08</span>DS khách hàng</h3><ul>
+        <li>MSKH, tên KH, địa chỉ, tỉnh, SĐT, MSNV, SĐT chi nhánh</li>
+        <li>Thêm, xoá, sửa</li>
+        <li>MSKH tự động +1</li>
+        <li>Thêm dòng đếm tổng số lượng KH</li>
+      </ul></article>
+
+      <article class="req-card"><h3><span class="num">09</span>Thêm/Sửa khách hàng</h3><ul>
+        <li>MSKH không được sửa (cần xác nhận lại)</li>
+        <li>Tên, địa chỉ, SĐT có thể sửa</li>
+      </ul></article>
+
+      <article class="req-card"><h3><span class="num">10</span>DS nhân viên</h3><ul>
+        <li>MSNV, tên, chức danh, vai trò</li>
+      </ul></article>
+
+      <article class="req-card"><h3><span class="num">11</span>Thêm/Sửa nhân viên</h3><ul>
+        <li>Có thể sửa thông tin nhân viên</li>
+      </ul></article>
+
+      <article class="req-card"><h3><span class="num">12</span>Quỹ tiền mặt</h3><ul>
+        <li>Số phiếu thu, số phiếu chi, diễn giải, số tiền</li>
+        <li>Thêm chức năng sửa/xoá</li>
+        <li>Mỗi item trong phiếu thu/chi = 1 hàng riêng nếu phiếu có nhiều item</li>
+      </ul></article>
+
+      <article class="req-card"><h3><span class="num">13</span>Phiếu thu/Phiếu chi</h3><ul>
+        <li>MSKH, ngày thu tiền, MSNV, số tiền, diễn giải</li>
+        <li>Bỏ "hạn thanh toán" &amp; "số tiền thu"</li>
+        <li>Thêm chức năng in/sửa</li>
+        <li>Thêm cột TK nợ, TK có — lọc theo "Hệ thống tài khoản" khi gõ</li>
+      </ul></article>
+
+      <article class="req-card"><h3><span class="num">14</span>Đăng nhập/đăng xuất + phân quyền</h3><ul>
+        <li>Username, mật khẩu</li>
+        <li>Giới hạn vai trò (VD: chỉ giám đốc in được DS khách hàng)</li>
+        <li>Nhân viên nghỉ → khoá app</li>
+        <li>Màn hình DS tính năng app để admin cấu hình quyền theo từng nhân viên</li>
+      </ul></article>
+
+    </div>
+  </section>
+
+  <!-- ===================== PHẦN 2 — PHÁT SINH ===================== -->
+  <section id="phat-sinh">
+    <div class="section-head"><span class="section-num">02</span><h2>14 chức năng phát sinh ngoài PDF</h2></div>
+    <p class="section-intro">Các màn hình dưới đây tồn tại đầy đủ trong code (BE + WPF) nhưng không nằm trong 14 khu vực ở Phần 1. Wireframe dựng từ cột/field/nút bấm thật đọc trực tiếp từ <code class="mono">.xaml</code> — không phải ảnh chụp thật, không bịa field.</p>
+
+    <div class="stat-row">
+      <div class="stat"><div class="n">14</div><div class="l">chức năng phát sinh</div></div>
+      <div class="stat"><div class="n">38–47</div><div class="l">ngày công đã xây</div></div>
+      <div class="stat"><div class="n">3</div><div class="l">khối lớn &gt;4 ngày</div></div>
+      <div class="stat"><div class="n">0</div><div class="l">màn hình lệch pha BE/WPF</div></div>
+    </div>
+
+    <!-- 1. SalesReturn -->
+    <article class="feature-block">
+      <div class="feature-head"><h3>SalesReturn — Chứng từ hàng bán bị trả lại</h3><span class="flag-badge">Ngoài phạm vi PDF</span></div>
+      <p class="feature-desc">Luồng trả hàng hoàn chỉnh đối ứng một chứng từ bán hàng gốc: tạo chứng từ trả/giảm trừ công nợ hoặc trả tiền mặt, hoàn kho, đánh số riêng, khớp chuẩn MISA.</p>
+      <div class="feature-meta"><span class="path">BE: <b>Features/SalesReturn/</b> (25 files)</span><span class="path">WPF: <b>Features/HomePage/SalesReturn/</b></span><span class="size-chip">~5–6 ngày</span></div>
+
+      <div class="mockup-window">
+        <div class="mockup-titlebar">Danh sách chứng từ trả hàng<span class="screen-type">list</span></div>
+        <div class="mockup-toolbar">
+          <span class="btn">Thêm</span><span class="btn">Xem</span><span class="btn">Sửa</span><span class="btn">Ghi sổ</span><span class="btn">Bỏ ghi</span><span class="btn">Xóa</span><span class="btn">Xuất khẩu</span>
+        </div>
+        <div class="mockup-body grid"><table>
+          <tr><th>Loại CT</th><th>Số chứng từ</th><th>Ngày HT</th><th>Ngày CT</th><th>Khách hàng</th><th>Nhân viên</th><th class="wrap" style="font-family:'Be Vietnam Pro'">Diễn giải</th><th>Tổng tiền hàng</th><th>Tổng CK</th><th>Thuế GTGT</th><th>Tổng TT</th></tr>
+          <tr><td>Trả hàng</td><td>TH00128</td><td>18/10/26</td><td>18/10/26</td><td class="wrap" style="font-family:'Be Vietnam Pro'">Nguyễn Thị A</td><td>NV03</td><td class="wrap" style="font-family:'Be Vietnam Pro'">Trả hàng lỗi</td><td>1.250.000</td><td>0</td><td>125.000</td><td>1.375.000</td></tr>
+          <tr><td>Trả hàng</td><td>TH00127</td><td>15/10/26</td><td>15/10/26</td><td class="wrap" style="font-family:'Be Vietnam Pro'">Trần Văn B</td><td>NV01</td><td class="wrap" style="font-family:'Be Vietnam Pro'">Đổi size</td><td>480.000</td><td>24.000</td><td>45.600</td><td>501.600</td></tr>
+        </table></div>
+      </div>
+      <p class="mockup-caption">Minh họa giao diện — không phải ảnh chụp thật.</p>
+
+      <div class="mockup-window">
+        <div class="mockup-titlebar">Chứng từ hàng bán bị trả lại<span class="screen-type">form</span></div>
+        <div class="mockup-tabs">
+          <span class="active">1. Hàng tiền</span><span>2. Thuế</span><span>3. Giá vốn</span><span>4. Thống kê</span><span>5. Thông tin bổ sung</span><span>Phiếu nhập</span><span>Hóa đơn</span>
+        </div>
+        <div class="mockup-body form">
+          <div class="field"><label>Mã KH</label><div class="value">KH00042</div></div>
+          <div class="field"><label>Tên KH</label><div class="value">Nguyễn Thị A</div></div>
+          <div class="field"><label>NV bán hàng</label><div class="value">NV03</div></div>
+          <div class="field"><label>Ngày chứng từ</label><div class="value">18/10/2026</div></div>
+          <div class="field"><label>Ngày hạch toán</label><div class="value">18/10/2026</div></div>
+          <div class="field"><label>Số chứng từ</label><div class="value">TH00128</div></div>
+          <div class="field"><label>Loại trả hàng</label><div class="value">Giảm trừ công nợ</div></div>
+          <div class="field"><label>Tham chiếu</label><div class="value">BH00341</div></div>
+          <div class="field"><label>Diễn giải</label><div class="value">Trả hàng lỗi</div></div>
+          <div class="mockup-divider">Tab "1. Hàng tiền" — chi tiết hàng trả</div>
+          <div style="grid-column:1/-1" class="mockup-body grid" style="padding:0">
+            <table><tr><th>Mã hàng</th><th>Tên hàng</th><th>Kho</th><th>TK trả lại</th><th>TK công nợ</th><th>ĐVT</th><th>SL</th><th>Đơn giá</th><th>Thành tiền</th><th>CK%</th></tr>
+            <tr><td>SP0091</td><td class="wrap" style="font-family:'Be Vietnam Pro'">Son môi 3CE #312</td><td>Kho chính</td><td>5212</td><td>1311</td><td>Cái</td><td>2</td><td>250.000</td><td>500.000</td><td>0</td></tr></table>
+          </div>
+        </div>
+        <div class="mockup-footer">Tổng tiền hàng 500.000 · Tổng CK 0 · Thuế GTGT 50.000 · <b>Tổng thanh toán 550.000</b></div>
+      </div>
+      <p class="mockup-caption">Minh họa giao diện — không phải ảnh chụp thật. Chỉ tab "1. Hàng tiền" được vẽ chi tiết; 4 tab khác tồn tại nhưng không minh hoạ ở đây.</p>
+    </article>
+
+    <!-- 2. Deposits -->
+    <article class="feature-block">
+      <div class="feature-head"><h3>Deposits — Đặt cọc &amp; Trừ cọc</h3><span class="flag-badge">Ngoài phạm vi PDF</span></div>
+      <p class="feature-desc">Sổ cọc khách hàng: ghi nhận tiền cọc, theo dõi số dư còn lại, và trừ dần vào các đơn bán hàng sau đó.</p>
+      <div class="feature-meta"><span class="path">BE: <b>Features/Deposits/</b>, DepositDeductionsController</span><span class="path">WPF: <b>Features/HomePage/Deposits/</b></span><span class="size-chip">~4–5 ngày</span></div>
+
+      <div class="mockup-window">
+        <div class="mockup-titlebar">Đặt cọc<span class="screen-type">form</span></div>
+        <div class="mockup-toolbar"><span class="btn">◀ Trước</span><span class="btn">Sau ▶</span><span class="btn">Thêm</span><span class="btn">Xóa</span><span class="btn">Hoàn</span><span class="btn">Ghi sổ</span><span class="btn">Đóng</span></div>
+        <div class="mockup-body form">
+          <div class="field"><label>Khách hàng</label><div class="value">Lê Thị C</div></div>
+          <div class="field"><label>NV nhận cọc</label><div class="value">NV02</div></div>
+          <div class="field"><label>Diễn giải</label><div class="value">Cọc đơn hàng tháng 10</div></div>
+          <div class="field"><label>Tham chiếu</label><div class="value">—</div></div>
+          <div class="field"><label>Số tiền cọc</label><div class="value">2.000.000</div></div>
+          <div class="field"><label>Ngày hạch toán</label><div class="value">18/10/2026</div></div>
+          <div class="field"><label>Ngày chứng từ</label><div class="value">18/10/2026</div></div>
+          <div class="field"><label>Số chứng từ</label><div class="value">DC00017</div></div>
+          <div class="field"><label>Số dư còn lại</label><div class="value readonly">1.200.000</div></div>
+          <div class="mockup-note">Trừ cọc cho đơn bán hàng được thực hiện trong màn hình "Chứng từ bán hàng" — không có tab trừ cọc riêng trong màn này.</div>
+        </div>
+      </div>
+      <p class="mockup-caption">Minh họa giao diện — không phải ảnh chụp thật.</p>
+
+      <div class="mockup-window">
+        <div class="mockup-titlebar">Báo cáo trừ cọc<span class="screen-type">list</span></div>
+        <div class="mockup-toolbar"><span class="btn">Xem báo cáo</span><span class="btn">Xóa</span></div>
+        <div class="mockup-body grid"><table>
+          <tr><th>Số chứng từ</th><th>Ngày</th><th>Cọc</th><th>Đơn bán hàng</th><th>Khách hàng</th><th>Nhân viên</th><th>Số tiền trừ</th></tr>
+          <tr><td>TC00009</td><td>18/10/26</td><td>DC00017</td><td>BH00341</td><td class="wrap" style="font-family:'Be Vietnam Pro'">Lê Thị C</td><td>NV02</td><td>800.000</td></tr>
+        </table></div>
+      </div>
+      <p class="mockup-caption">Minh họa giao diện — không phải ảnh chụp thật.</p>
+    </article>
+
+    <!-- 3. Backups -->
+    <article class="feature-block">
+      <div class="feature-head"><h3>Backups — Sao lưu &amp; Lịch tự động</h3><span class="flag-badge">Ngoài phạm vi PDF</span></div>
+      <p class="feature-desc">Backup/restore database thủ công, kèm lịch tự động chạy định kỳ — admin-only.</p>
+      <div class="feature-meta"><span class="path">BE: <b>Features/Backups/</b>, BackupsController, BackupScheduleController</span><span class="path">WPF: <b>Features/HomePage/Backups/</b></span><span class="size-chip">~4–5 ngày</span></div>
+
+      <div class="mockup-window">
+        <div class="mockup-titlebar">Sao lưu dữ liệu<span class="screen-type">list</span></div>
+        <div class="mockup-toolbar"><span class="btn">Tạo bản sao lưu mới</span><span class="btn">Mở thư mục</span></div>
+        <div class="mockup-body grid"><table>
+          <tr><th>Tên file</th><th>Ngày tạo</th><th>Kích thước</th><th>Hành động</th></tr>
+          <tr><td>lamour_2026-10-18.bak</td><td>18/10/26 02:00</td><td>84 MB</td><td class="wrap" style="font-family:'Be Vietnam Pro'">Phục hồi · Xóa</td></tr>
+          <tr><td>lamour_2026-10-17.bak</td><td>17/10/26 02:00</td><td>83 MB</td><td class="wrap" style="font-family:'Be Vietnam Pro'">Phục hồi · Xóa</td></tr>
+        </table></div>
+      </div>
+      <p class="mockup-caption">Minh họa giao diện — không phải ảnh chụp thật.</p>
+
+      <div class="mockup-window">
+        <div class="mockup-titlebar">⏰ Lịch tự động<span class="screen-type">form</span></div>
+        <div class="mockup-body form">
+          <div class="field"><label>Bật backup hàng ngày lúc</label><div class="value">02 : 00</div></div>
+          <div class="field"><label>Chạy mỗi</label><div class="value">1 ngày/lần</div></div>
+          <div class="field"><label>Giữ tối đa</label><div class="value">30 ngày</div></div>
+          <div class="field"><label>Thư mục lưu trữ (máy chạy BE)</label><div class="value">D:\Backups\Lamour</div></div>
+          <div class="field"><label>Lần chạy gần nhất</label><div class="value readonly">18/10/2026 02:00</div></div>
+        </div>
+        <div class="mockup-footer">[ Lưu cấu hình ]</div>
+      </div>
+      <p class="mockup-caption">Minh họa giao diện — không phải ảnh chụp thật. Hộp thoại xác nhận phục hồi (nhập mật khẩu Admin, cảnh báo không thể hoàn tác) tồn tại riêng, không vẽ ở đây.</p>
+    </article>
+
+    <!-- 4. Realtime sync (no UI) -->
+    <article class="feature-block">
+      <div class="feature-head"><h3>Realtime Sync</h3><span class="flag-badge">Ngoài phạm vi PDF</span></div>
+      <p class="feature-desc">Service nền đồng bộ trạng thái sau khi đăng nhập / theo thời gian thực giữa các client WPF.</p>
+      <div class="feature-meta"><span class="path">BE: —</span><span class="path">WPF: <b>Features/Realtime/</b> (IRealtimeSyncService)</span><span class="size-chip">~3–4 ngày</span></div>
+      <div class="no-ui-note">Không có màn hình — xử lý hoàn toàn ngầm, không vẽ wireframe.</div>
+    </article>
+
+    <!-- 5. Báo cáo Quỹ -->
+    <article class="feature-block">
+      <div class="feature-head"><h3>Báo cáo Quỹ — Sổ kế toán chi tiết quỹ tiền mặt</h3><span class="flag-badge">Ngoài phạm vi PDF</span></div>
+      <p class="feature-desc">Báo cáo quỹ chuẩn MISA theo tài khoản/TK đối ứng, có phát sinh Nợ/Có và số tồn luỹ kế — PDF gốc chỉ yêu cầu một danh sách phiếu thu/chi đơn giản (mục 12).</p>
+      <div class="feature-meta"><span class="path">BE: <b>AccountingController</b> /reports/cash-ledger, /cash-ledger-detail</span><span class="path">WPF: Accounting reports</span><span class="size-chip">~3–4 ngày</span></div>
+
+      <div class="mockup-window">
+        <div class="mockup-titlebar">Sổ kế toán chi tiết quỹ tiền mặt<span class="screen-type">list</span></div>
+        <div class="mockup-toolbar"><span class="btn">Chọn tham số...</span><span class="btn">In</span><span class="btn">Xuất khẩu</span><span class="btn">Gửi Email</span><span class="btn">Zalo</span><span class="btn">Nạp</span><span class="btn">Đóng</span></div>
+        <div class="mockup-body grid"><table>
+          <tr><th>Ngày HT</th><th>Số PT</th><th>Số PC</th><th>Người nhận/nộp</th><th>TK</th><th>TK đối ứng</th><th>PS Nợ</th><th>PS Có</th><th>Số tồn</th></tr>
+          <tr><td>18/10/26</td><td>PT00211</td><td>—</td><td class="wrap" style="font-family:'Be Vietnam Pro'">Nguyễn Thị A</td><td>1111</td><td>1311</td><td>1.375.000</td><td>0</td><td>18.420.000</td></tr>
+          <tr><td>18/10/26</td><td>—</td><td>PC00098</td><td class="wrap" style="font-family:'Be Vietnam Pro'">Cty In Ấn Sao Mai</td><td>1111</td><td>6418</td><td>0</td><td>450.000</td><td>17.970.000</td></tr>
+        </table></div>
+      </div>
+      <p class="mockup-caption">Minh họa giao diện — không phải ảnh chụp thật. Màn hình chọn tham số lọc (theo tài khoản, gộp bút toán...) tồn tại riêng, không vẽ ở đây.</p>
+    </article>
+
+    <!-- 6. Phiếu thu hàng loạt -->
+    <article class="feature-block">
+      <div class="feature-head"><h3>Phiếu thu hàng loạt</h3><span class="flag-badge">Ngoài phạm vi PDF</span></div>
+      <p class="feature-desc">Thu tiền nhiều khách hàng/nhiều hoá đơn trong một hành động, với TK Nợ/Có riêng cho luồng hàng loạt — PDF chỉ mô tả 1 phiếu thu cho 1 khách (mục 13).</p>
+      <div class="feature-meta"><span class="path">BE: <b>phieu-thu-hang-loat.md</b></span><span class="path">WPF: Accounting feature</span><span class="size-chip">~3–4 ngày</span></div>
+
+      <div class="mockup-window">
+        <div class="mockup-titlebar">Thu tiền khách hàng hàng loạt<span class="screen-type">form</span></div>
+        <div class="mockup-tabs"><span class="active">1. Hạch toán</span><span>2. Chứng từ</span></div>
+        <div class="mockup-toolbar"><span class="btn">Xuất khẩu</span></div>
+        <div class="mockup-body grid"><table>
+          <tr><th>Mã KH</th><th>Tên KH</th><th>Số CT</th><th>Hạn TT</th><th>Số phải thu</th><th>Số chưa thu</th><th>Số thu</th><th>TK Nợ</th><th>TK Có</th></tr>
+          <tr><td>KH00042</td><td class="wrap" style="font-family:'Be Vietnam Pro'">Nguyễn Thị A</td><td>BH00341</td><td>25/10/26</td><td>1.375.000</td><td>1.375.000</td><td>1.375.000</td><td>1111</td><td>1311</td></tr>
+          <tr><td>KH00051</td><td class="wrap" style="font-family:'Be Vietnam Pro'">Trần Văn B</td><td>BH00339</td><td>22/10/26</td><td>820.000</td><td>820.000</td><td>820.000</td><td>1111</td><td>1311</td></tr>
+        </table></div>
+      </div>
+      <p class="mockup-caption">Minh họa giao diện — không phải ảnh chụp thật, chỉ tab "1. Hạch toán".</p>
+
+      <div class="mockup-window">
+        <div class="mockup-titlebar">Tìm chứng từ thu tiền<span class="screen-type">list</span></div>
+        <div class="mockup-tabs"><span class="active">Tiền mặt</span><span>Tiền gửi</span></div>
+        <div class="mockup-toolbar"><span class="btn">Lấy dữ liệu</span><span class="btn">Thu tiền</span><span class="btn">Hủy bỏ</span></div>
+        <div class="mockup-body grid"><table>
+          <tr><th>Mã KH</th><th>Tên KH</th><th>Số CT</th><th>Ngày CT</th><th>Còn nợ</th></tr>
+          <tr><td>KH00042</td><td class="wrap" style="font-family:'Be Vietnam Pro'">Nguyễn Thị A</td><td>BH00341</td><td>18/10/26</td><td>1.375.000</td></tr>
+        </table></div>
+      </div>
+      <p class="mockup-caption">Minh họa giao diện — không phải ảnh chụp thật.</p>
+    </article>
+
+    <!-- 7. Suppliers -->
+    <article class="feature-block">
+      <div class="feature-head"><h3>Suppliers — Nhà cung cấp</h3><span class="flag-badge">Ngoài phạm vi PDF</span></div>
+      <p class="feature-desc">Quản lý master data nhà cung cấp đầy đủ, kèm import Excel và kiểm tra trùng — PDF chỉ ngụ ý NCC tồn tại qua "phiếu nhập kho", chưa bao giờ yêu cầu màn hình riêng.</p>
+      <div class="feature-meta"><span class="path">BE: <b>Features/Suppliers/</b> (CRUD + duplicate + import-excel)</span><span class="path">WPF: <b>Features/HomePage/Suppliers/</b></span><span class="size-chip">~3–4 ngày</span></div>
+
+      <div class="mockup-window">
+        <div class="mockup-titlebar">Danh sách nhà cung cấp<span class="screen-type">list</span></div>
+        <div class="mockup-toolbar"><span class="btn">Thêm</span><span class="btn">Sửa</span><span class="btn">Nhân bản</span><span class="btn">Xóa</span><span class="btn">Nhập khẩu</span><span class="btn">Xuất khẩu</span><span class="btn">Nạp</span></div>
+        <div class="mockup-filterbar">Nhóm KH, NCC: <b>Cả hai</b> ▾</div>
+        <div class="mockup-body grid"><table>
+          <tr><th>Mã NCC</th><th>Tên nhà cung cấp</th><th>Điện thoại</th><th>Địa chỉ</th><th>MST</th><th>Ngừng theo dõi</th></tr>
+          <tr><td>NCC0012</td><td class="wrap" style="font-family:'Be Vietnam Pro'">Cty TNHH Mỹ Phẩm Sao Việt</td><td>0901234567</td><td class="wrap" style="font-family:'Be Vietnam Pro'">Q.1, TP.HCM</td><td>0312345678</td><td>Không</td></tr>
+        </table></div>
+      </div>
+      <p class="mockup-caption">Minh họa giao diện — không phải ảnh chụp thật.</p>
+
+      <div class="mockup-window">
+        <div class="mockup-titlebar">Thông tin nhà cung cấp<span class="screen-type">form</span></div>
+        <div class="mockup-body form">
+          <div class="field"><label>Mã nhà cung cấp *</label><div class="value">NCC0012</div></div>
+          <div class="field"><label>Tên nhà cung cấp *</label><div class="value">Cty TNHH Mỹ Phẩm Sao Việt</div></div>
+          <div class="field"><label>Điện thoại</label><div class="value">0901234567</div></div>
+          <div class="field"><label>Địa chỉ</label><div class="value">Q.1, TP.HCM</div></div>
+          <div class="field"><label>Nhóm KH, NCC</label><div class="value">Nhà cung cấp mỹ phẩm</div></div>
+          <div class="field"><label>Mã số thuế</label><div class="value">0312345678</div></div>
+          <div class="field"><label>Loại nhà cung cấp</label><div class="value">Tổ chức</div></div>
+          <div class="field"><label>☐ Ngừng theo dõi nhà cung cấp</label><div class="value">—</div></div>
+        </div>
+        <div class="mockup-footer">[ Hủy ]&nbsp; [ Lưu ]</div>
+      </div>
+      <p class="mockup-caption">Minh họa giao diện — không phải ảnh chụp thật.</p>
+    </article>
+
+    <!-- 8. Sales Summary Report -->
+    <article class="feature-block">
+      <div class="feature-head"><h3>Báo cáo tổng hợp bán hàng theo mặt hàng</h3><span class="flag-badge">Ngoài phạm vi PDF</span></div>
+      <p class="feature-desc">Báo cáo doanh số/lãi gộp tổng hợp theo mặt hàng, NV, khách hàng, khu vực — PDF mục 02 chỉ yêu cầu 1 danh sách chứng từ thuần, không có báo cáo tổng hợp.</p>
+      <div class="feature-meta"><span class="path">BE: <b>SalesOrdersController</b> GET /report, /summary-report</span><span class="path">WPF: SalesOrderReportView</span><span class="size-chip">~2–3 ngày</span></div>
+
+      <div class="mockup-window">
+        <div class="mockup-titlebar">Tổng hợp báo cáo bán hàng theo mặt hàng<span class="screen-type">list</span></div>
+        <div class="mockup-toolbar"><span class="btn">Chọn tham số...</span><span class="btn">In</span><span class="btn">Xuất khẩu</span><span class="btn">Email</span><span class="btn">Zalo</span><span class="btn">Đóng</span></div>
+        <div class="mockup-body grid"><table>
+          <tr><th>Mã hàng</th><th>Tên hàng</th><th>ĐVT</th><th>SL bán</th><th>Doanh số</th><th>Chiết khấu</th><th>Doanh thu thuần</th><th>Tiền vốn</th><th>Lãi gộp</th><th>Tỷ lệ lãi gộp</th></tr>
+          <tr><td>SP0091</td><td class="wrap" style="font-family:'Be Vietnam Pro'">Son môi 3CE #312</td><td>Cái</td><td>126</td><td>31.500.000</td><td>630.000</td><td>30.870.000</td><td>18.900.000</td><td>11.970.000</td><td>38,8%</td></tr>
+        </table></div>
+      </div>
+      <p class="mockup-caption">Minh họa giao diện — không phải ảnh chụp thật. Màn hình chi tiết theo chứng từ (SalesOrderReportDetailView) là màn drill-down riêng, không vẽ ở đây.</p>
+    </article>
+
+    <!-- 9. Licensing (no UI) -->
+    <article class="feature-block">
+      <div class="feature-head"><h3>Licensing — Giới hạn thời hạn sử dụng</h3><span class="flag-badge">Ngoài phạm vi PDF</span></div>
+      <p class="feature-desc">Chặn phần mềm hoạt động sau một ngày hết hạn cố định trong code, có chống tua ngược giờ hệ thống để qua mặt hạn dùng.</p>
+      <div class="feature-meta"><span class="path">BE: <b>Lamour.Infrastructure/Licensing/LicenseService.cs</b></span><span class="path">WPF: —</span><span class="size-chip">~2–3 ngày</span></div>
+      <div class="no-ui-note">Không có màn hình — enforce ngầm phía BE. <strong style="color:var(--flag)">Lưu ý vận hành: hạn hiện tại đang hardcode là 24/10/2026 — còn 4 ngày tính từ ngày lập báo cáo.</strong></div>
+    </article>
+
+    <!-- group: common master data -->
+    <div id="danh-muc-dung-chung">
+      <h3 style="font-size:1rem; margin:30px 0 6px;">Danh mục dùng chung — 5 màn hình CRUD đơn giản</h3>
+      <p class="feature-desc" style="margin-bottom:16px;">Cùng một khuôn: list 1–4 cột + form 1–4 field + nút Thêm/Sửa/Xóa. Gộp nhóm vì độ phức tạp tương đương nhau và PDF không đề cập màn hình quản lý riêng cho bất kỳ danh mục nào trong số này.</p>
+      <div class="mini-grid">
+
+        <div class="mini-mockup">
+          <div class="mt">Kho hàng</div>
+          <div class="mtb"><span>Thêm</span><span>Sửa</span><span>Xóa</span></div>
+          <div class="mcols"><b>Cột:</b> Mã kho · Tên kho · Hoạt động</div>
+          <div class="mform"><b>Form:</b> Mã kho*, Tên kho*, ☐ Hoạt động</div>
+        </div>
+
+        <div class="mini-mockup">
+          <div class="mt">Danh mục sản phẩm</div>
+          <div class="mtb"><span>Thêm</span><span>Sửa</span><span>Xóa</span></div>
+          <div class="mcols"><b>Cột:</b> Tên danh mục</div>
+          <div class="mform"><b>Form:</b> Tên danh mục*</div>
+        </div>
+
+        <div class="mini-mockup">
+          <div class="mt">Đơn vị tính</div>
+          <div class="mtb"><span>Thêm</span><span>Sửa</span><span>Xóa</span></div>
+          <div class="mcols"><b>Cột:</b> Tên đơn vị tính</div>
+          <div class="mform"><b>Form:</b> Tên đơn vị tính*</div>
+        </div>
+
+        <div class="mini-mockup">
+          <div class="mt">Phòng ban</div>
+          <div class="mtb"><span>Thêm</span><span>Sửa</span><span>Xóa</span></div>
+          <div class="mcols"><b>Cột:</b> Tên phòng ban</div>
+          <div class="mform"><b>Form:</b> Tên phòng ban*</div>
+        </div>
+
+        <div class="mini-mockup">
+          <div class="mt">Khoản mục chi phí</div>
+          <div class="mtb"><span>Thêm</span><span>Sửa</span><span>Xóa</span></div>
+          <div class="mcols"><b>Cột:</b> Mã KM CP · Tên KM CP · Thuộc · Diễn giải</div>
+          <div class="mform"><b>Form:</b> Mã*, Tên*, Thuộc, Diễn giải</div>
+        </div>
+
+      </div>
+      <p class="mockup-caption" style="margin-top:12px;">Minh họa giao diện — không phải ảnh chụp thật. Ước tính gộp cả 5 màn hình: <strong>~8–10 ngày</strong> (≈1.5–2 ngày/màn, đã làm cả BE CRUD + WPF List/Form cho mỗi màn).</p>
+    </div>
+
+  </section>
+
+  <footer>
+    <p><strong>Nguồn đối chiếu:</strong> App Quản lý kho - La'mour.pdf (10 trang, trích xuất qua pdftotext) · <code class="mono">be-window-lamour</code> — Features/SalesReturn, Deposits, Backups, Suppliers, Warehouses, Categories, ProductUnits, Departments, ExpenseCategories, AccountingController, SalesOrdersController, LicenseService · <code class="mono">desktop-lamour</code> — các .xaml tương ứng trong Features/HomePage/*.</p>
+    <p>Wireframe là sơ đồ cấu trúc dựng từ field/cột/nút bấm thật trong XAML — không phải ảnh chụp thật, không phản ánh font/màu/spacing chính xác của app WPF thật.</p>
+    <p class="feedback">Góp ý trực tiếp bằng cách để lại comment trên trang này (Claude Artifacts) — không chỉnh sửa qua chat.</p>
+  </footer>
+
+</div>
